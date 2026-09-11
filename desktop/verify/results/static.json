@@ -1,0 +1,418 @@
+{
+  "version": "1.2.3",
+  "passed": 82,
+  "total": 82,
+  "all_green": true,
+  "cases": [
+    {
+      "name": "product name = Ekdeta",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "application ID = org.ekdeta.app",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "lockfile root matches package",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "shell version = 1.2.3",
+      "ok": true,
+      "detail": "1.2.3"
+    },
+    {
+      "name": "electron direct version pinned",
+      "ok": true,
+      "detail": "33.4.11"
+    },
+    {
+      "name": "electron-builder direct version pinned",
+      "ok": true,
+      "detail": "25.0.0"
+    },
+    {
+      "name": "asar enabled",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build whitelist excludes node_modules",
+      "ok": true,
+      "detail": "['src/**/*.js', 'resources/shell.config.json', 'resources/default/app.html', 'package.json', '!**/node_modules/**', '!**/*.map', '!**/*.ts', '!**/{test,tests,__tests__,spec,example,examples,doc,docs}/**', '!**/{.DS_Store,.git,.gitignore,.editorconfig,.npmrc,.eslintrc*}', '!verify/**', '!e2e_*.js', '!dist/**']"
+    },
+    {
+      "name": "mac targets include dmg/zip/pkg",
+      "ok": true,
+      "detail": "['dmg', 'zip', 'pkg']"
+    },
+    {
+      "name": "PKG installs to /Applications",
+      "ok": true,
+      "detail": "{'installLocation': '/Applications', 'identity': None, 'welcome': 'installer/pkg/welcome.html', 'conclusion': 'installer/pkg/conclusion.html', 'scripts': 'build/pkg-scripts', 'mustClose': ['org.ekdeta.app'], 'overwriteAction': 'upgrade'}"
+    },
+    {
+      "name": "PKG schema has no unsupported readme key",
+      "ok": true,
+      "detail": "{'installLocation': '/Applications', 'identity': None, 'welcome': 'installer/pkg/welcome.html', 'conclusion': 'installer/pkg/conclusion.html', 'scripts': 'build/pkg-scripts', 'mustClose': ['org.ekdeta.app'], 'overwriteAction': 'upgrade'}"
+    },
+    {
+      "name": "installer/pkg/welcome.html exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "installer/pkg/conclusion.html exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML = package version",
+      "ok": true,
+      "detail": "1.2.3"
+    },
+    {
+      "name": "factory HTML matches root artifact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has shared math-source parser",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML removed CP5 strip-rewrap-strip preview path",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has per-document REVTeX settings schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML excludes document REVTeX keys from global snapshots",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML flushes outgoing paper before switch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML parser absorbs settings fences",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML keeps ordinary/臺灣論文 modes isolated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has CJK semantic preflight",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has no Engine-profile branch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has no Cloudflare Insights",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML contains MathLive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML has direct-package-url transport",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "factory HTML streams direct SHA verification",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "worker accepts direct packageDataUrl",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "worker network allowlist is scoped to engine root",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Chrome fallback File/Blob path retained",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "ordinary Markdown direct autoload is lazy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "TeX panel starts deferred direct Engine",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "manual init can retry from directRoot",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "src/main.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "src/menu.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "src/store.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "src/protocol.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "src/bridge.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verify/e2e_probe.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verify/e2e_engine_probe.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verify/e2e_direct_stream_probe.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verify/e2e_real_engine_probe.js node --check",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "installer/安裝 Ekdeta.command bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "installer/安裝 Ekdeta.command executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "release-tools/製作 macOS 安裝包.command bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "release-tools/製作 macOS 安裝包.command executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "release-tools/驗證 macOS 發佈包.command bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "release-tools/驗證 macOS 發佈包.command executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "scripts/footprint.sh bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "scripts/footprint.sh executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "build/pkg-scripts/postinstall bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build/pkg-scripts/postinstall executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "release-tools/驗證真實 LaTeX 引擎與磁碟占用.command bash -n",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "release-tools/驗證真實 LaTeX 引擎與磁碟占用.command executable",
+      "ok": true,
+      "detail": "0o755"
+    },
+    {
+      "name": "application uses Ekdeta data directory",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "scheme = ekdeta",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bridge API is consistent",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "first-run onboarding implemented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Shell menu exposes Initial Setup",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "onboarding state outside HTML",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "single engine directory only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "shell requires reference Full sizes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "store has no slimming branch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "engine protocol response is streamed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "engine protocol cache-control no-store",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "engine status shows transport",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bridge uses product engine API",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "basic installer uses native admin dialog",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "basic installer does not teach sudo/xattr",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verifiers self-contained",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "engine probe uses streaming, not response.blob()",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "engine probe asserts direct-package-url",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "direct probe streams 199MB sparse fixture",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "direct probe has blob_storage cap",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "real engine probe enters CP171 before explicit autoload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "real engine probe requires initialized direct transport",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "real engine probe caps blob delta at 64MB",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build command preflights pkg.readme",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build command failure dialog/pause",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build command verifies dmg/pkg/zip",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "build command opens dist",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

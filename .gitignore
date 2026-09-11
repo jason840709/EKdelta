@@ -1,0 +1,29 @@
+# macOS / editor
+.DS_Store
+.AppleDouble
+.idea/
+.vscode/
+
+# Python / Node generated
+__pycache__/
+*.pyc
+node_modules/
+
+# Electron generated
+desktop/resources/default/app.html
+desktop/dist/
+desktop/out/
+
+# Generated / temporary
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Browser / test profiles
+playwright-report/
+test-results/
+.browser-profile/
+
+# Generated alternate product builds
+source/Ekdeta_v*.html

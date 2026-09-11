@@ -1,0 +1,17 @@
+name: Feature request
+description: 建議 Ekdeta 功能或工作流程改善
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解決的問題
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建議方案
+    validations:
+      required: true

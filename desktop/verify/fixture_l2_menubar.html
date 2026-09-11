@@ -1,0 +1,63 @@
+<!doctype html><html lang="zh"><meta charset="utf-8">
+<title>L2 備援測試用合成頁</title>
+<!-- 模擬「未來某一版 HTML 改用別的方式產生選單」：
+     沒有 window.menuDefs，下拉是點擊時就地建出來的靜態 DOM。
+     這才是 L2 真正要處理的情境。v0.1.0 的測試把 menuDefs 直接刪掉，
+     但產品的 toggleMenu() 自己就會呼叫 menuDefs()，那個情境下下拉根本開不出來，
+     等於測了一個不可能發生的組合（坑 #20：先確認測試本身對不對）。 -->
+<style>
+ #menubar{height:28px;display:flex;padding:0 12px;background:#eee}
+ .mb-item{display:flex;align-items:center;padding:0 8px}
+ #titlebar{height:46px;padding:0 12px;display:flex;align-items:center;background:#ddd;position:relative}
+ #traffic{display:flex;gap:8px}.tl{width:12px;height:12px;border-radius:50%;background:#c33}
+ #doc-title{position:absolute;left:50%;transform:translateX(-50%)}
+ #editor-wrap{height:400px;background:#fff}
+ .dropdown{position:fixed;top:28px;background:#fff;border:1px solid #ccc}
+ .dd-item{padding:4px 10px}.dd-sep{height:1px;background:#ccc}
+</style>
+<nav id="menubar" aria-label="選單列">
+  <div class="mb-item appname">App</div>
+  <div class="mb-item">檔案</div><div class="mb-item">編輯</div><div class="mb-item">段落</div>
+  <div class="mb-item">格式</div><div class="mb-item">顯示</div><div class="mb-item">主題</div>
+  <div class="mb-item">模式</div><div class="mb-item">說明</div>
+  <div id="mb-right"></div>
+</nav>
+<header id="titlebar">
+  <div id="traffic"><div class="tl red"></div><div class="tl yellow"></div><div class="tl green"></div></div>
+  <div id="doc-title"><span id="doc-name">未命名.md</span></div>
+</header>
+<div id="editor-wrap"></div>
+<script>
+window.__CLICKED__ = [];
+const ITEMS = {
+  'App':['關於','偏好設定…'],
+  '檔案':['新增檔案|⌘N','開啟…|⌘O','-','儲存|⌘S'],
+  '編輯':['復原|⌘Z','重做|⇧⌘Z','-','尋找…|⌘F'],
+  '段落':['一級標題|⌘1','二級標題|⌘2'],
+  '格式':['粗體|⌘B','斜體|⌘I'],
+  '顯示':['側邊欄|⇧⌘L','原始碼模式|⌘/'],
+  '主題':['GitHub','Night'],
+  '模式':['一般 Markdown','國際期刊'],
+  '說明':['使用說明','版本資訊…']
+};
+function close(){ document.querySelectorAll('.dropdown').forEach(d=>d.remove());
+  document.querySelectorAll('.mb-item.open').forEach(m=>m.classList.remove('open')); }
+document.querySelectorAll('.mb-item').forEach(el=>{
+  el.addEventListener('click', e=>{
+    e.stopPropagation();
+    const was = el.classList.contains('open'); close(); if(was) return;
+    el.classList.add('open');
+    const dd = document.createElement('div'); dd.className='dropdown';
+    (ITEMS[el.textContent.trim()]||[]).forEach(spec=>{
+      if(spec==='-'){ const s=document.createElement('div'); s.className='dd-sep'; dd.appendChild(s); return; }
+      const [label,key] = spec.split('|');
+      const r=document.createElement('div'); r.className='dd-item';
+      r.innerHTML = `<span>${label}</span>` + (key?`<span class="dd-key">${key}</span>`:'');
+      r.addEventListener('click',()=>{ window.__CLICKED__.push(label); close(); });
+      dd.appendChild(r);
+    });
+    document.body.appendChild(dd);
+  });
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('#menubar')) close(); });
+</script>

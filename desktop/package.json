@@ -1,0 +1,107 @@
+{
+  "name": "ekdeta-desktop",
+  "productName": "Ekdeta",
+  "version": "1.2.3",
+  "description": "Ekdeta Markdown 研究寫作與論文排版桌面應用程式",
+  "main": "src/main.js",
+  "author": "Jason Chen",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "electron . --dev",
+    "dist": "electron-builder --publish never",
+    "dist:dir": "electron-builder --dir --publish never",
+    "footprint": "bash scripts/footprint.sh",
+    "dist:mac": "electron-builder --mac dmg zip --publish never",
+    "dist:pkg": "electron-builder --mac pkg --publish never",
+    "dist:mac:arm64": "electron-builder --mac dmg zip pkg --arm64 --publish never",
+    "dist:mac:x64": "electron-builder --mac dmg zip pkg --x64 --publish never",
+    "dist:mac:universal": "electron-builder --mac dmg zip pkg --universal --publish never",
+    "sync:html": "node sync_app_html.js",
+    "prestart": "npm run sync:html",
+    "prestart:dev": "npm run sync:html",
+    "predist": "npm run sync:html",
+    "predist:dir": "npm run sync:html",
+    "predist:mac": "npm run sync:html",
+    "predist:pkg": "npm run sync:html",
+    "predist:mac:arm64": "npm run sync:html",
+    "predist:mac:x64": "npm run sync:html",
+    "predist:mac:universal": "npm run sync:html",
+    "dist:win:x64": "electron-builder --win nsis zip --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.0.0"
+  },
+  "build": {
+    "appId": "org.ekdeta.app",
+    "productName": "Ekdeta",
+    "asar": true,
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "files": [
+      "src/**/*.js",
+      "resources/shell.config.json",
+      "resources/default/app.html",
+      "package.json",
+      "!**/node_modules/**",
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/{test,tests,__tests__,spec,example,examples,doc,docs}/**",
+      "!**/{.DS_Store,.git,.gitignore,.editorconfig,.npmrc,.eslintrc*}",
+      "!verify/**",
+      "!e2e_*.js",
+      "!dist/**"
+    ],
+    "extraResources": [],
+    "compression": "maximum",
+    "removePackageScripts": true,
+    "removePackageKeywords": true,
+    "mac": {
+      "target": [
+        "dmg",
+        "zip",
+        "pkg"
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "darkModeSupport": true,
+      "minimumSystemVersion": "11.0",
+      "icon": "resources/icons/Ekdeta.icns"
+    },
+    "dmg": {
+      "writeUpdateInfo": false
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "resources/icons/Ekdeta.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "icon": "resources/icons/Ekdeta.png"
+    },
+    "electronLanguages": [
+      "en-US",
+      "zh-TW",
+      "zh-CN"
+    ],
+    "pkg": {
+      "installLocation": "/Applications",
+      "identity": null,
+      "welcome": "installer/pkg/welcome.html",
+      "conclusion": "installer/pkg/conclusion.html",
+      "scripts": "build/pkg-scripts",
+      "mustClose": [
+        "org.ekdeta.app"
+      ],
+      "overwriteAction": "upgrade"
+    }
+  }
+}

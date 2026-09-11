@@ -1,0 +1,33 @@
+{
+  "_說明": "這個檔第一次啟動會複製到使用者資料夾，之後改那一份即可，不用重新打包。選單「桌面殼 → 開啟設定檔」可直接打開。",
+  "window": {
+    "width": 1280,
+    "height": 860,
+    "minWidth": 940,
+    "minHeight": 620,
+    "backgroundColor": "#f5f5f7"
+  },
+  "_視窗鈕": "titleBarStyle=hiddenInset 時，真的紅黃綠燈疊在 HTML 假燈的位置上。x/y 是 Playwright 實測 1.1.5.8 量到的：#traffic 盒 x=12、隱藏選單列後 y=17（titlebar 高 46px、燈 12px）。不同 macOS 版本燈的尺寸略有差異，對不齊就微調這兩個數字。",
+  "trafficLightPosition": {
+    "x": 12,
+    "y": 17
+  },
+  "chrome": {
+    "hideHtmlMenubar": true,
+    "hideHtmlTrafficLights": true,
+    "dragTitlebar": true
+  },
+  "_原生編輯角色": "HTML 的『編輯』選單沒有剪下/複製/貼上，而 Electron 在 macOS 上必須有帶 role 的選單項，系統剪貼簿快捷鍵才會生效。undo/redo/selectAll 不放進來，因為 HTML 自己已經綁了 ⌘Z/⇧⌘Z/⌘A，重複綁會觸發兩次。",
+  "nativeEditRoles": [
+    "cut",
+    "copy",
+    "paste"
+  ],
+  "engine": {
+    "autoLoad": true,
+    "base": "./engine/",
+    "quiet": true
+  },
+  "devtools": false,
+  "openLinksExternally": true
+}

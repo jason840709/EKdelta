@@ -1,0 +1,3 @@
+#!/bin/sh
+# PKG 不額外改動系統；只讓 Apple Installer 把 .app 放進 /Applications。
+exit 0

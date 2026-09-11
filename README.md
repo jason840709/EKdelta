@@ -4,112 +4,104 @@
 
 <h1 align="center">Ekdeta</h1>
 
-<p align="center"><strong>只寫 Markdown，從筆記一路走到碩博士論文與國際期刊投稿。</strong></p>
+<p align="center"><strong>只寫 Markdown，就能一路走到碩博士論文與國際期刊投稿。</strong></p>
 
 <p align="center">
-  Ekdeta 是為研究寫作做的 Markdown 編輯器。你可以先像平常一樣寫文字、公式、圖片與表格，等真正要交件時，再把同一份內容切換成臺灣碩博士論文或 REVTeX 4.2 國際期刊流程。
+  Write in Markdown. Export a Taiwan thesis PDF, or compile a real REVTeX journal manuscript.<br>
+  <strong>v1.2.3 · Single-file HTML · Electron desktop · Jason Chen</strong>
 </p>
 
-<p align="center">
-  <strong>v1.2.3 · Single-file HTML · Electron desktop shell · Jason Chen</strong>
-</p>
+## 為什麼有 Ekdeta
 
-## 為什麼做 Ekdeta
+Ekdeta 起源於一個很實際的實驗室需求：**研究生應該把時間花在研究與寫作，而不是為了不同交件格式反覆學不同的排版語法。**
 
-這個工具最初是為實驗室的研究寫作需求做的：**研究生真正該花時間的是研究內容，不是反覆學習 Markdown、論文模板、LaTeX、REVTeX 和不同投稿格式的語法。**
+所以它把事情拆成兩層：你平常只管 Markdown；真正要交件時，再選你需要的輸出流程。內容不用重寫，工具會替你處理版面、論文結構與投稿格式。
 
-Ekdeta 把「內容」和「最後輸出格式」分開。平常只維護一份 Markdown；要交臺灣碩博士論文時切到臺灣論文模式，要投國際期刊時切到 REVTeX。
-
-你不用為了換一種投稿格式，把整篇論文重寫一遍。
-
-## 一個 Markdown，三種工作方式
-
-| 你現在要做什麼 | 在 Ekdeta 裡怎麼做 | 最後拿到什麼 |
+| 你要完成的工作 | 寫作方式 | 最後輸出 |
 | --- | --- | --- |
-| 一般研究筆記、草稿、文件 | Markdown 模式 | `.md` / HTML 工作內容 |
-| 臺灣中英文碩博士論文 | **臺灣論文（TW）** 模式 | 可提交與檢查的 **PDF** |
-| 國際期刊稿件 | **REVTeX 4.2** 模式 + Engine Pack | 真實 LaTeX **PDF**、`main.tex`、REVTeX project ZIP |
+| 研究筆記、草稿、一般文件 | Markdown | Markdown / HTML 工作內容 |
+| 臺灣中英文碩博士論文 | Markdown + **TW 臺灣論文模式** | **可搜尋 PDF** |
+| 國際期刊論文 | Markdown + **REVTeX 4.2** | **真實 LaTeX PDF + `.tex` + REVTeX project ZIP** |
 
-## 畫面
+> Ekdeta 的重點不是「把 Markdown 顯示得像論文」，而是讓 Markdown 成為真正的寫作來源，再由對應的論文流程產生正式交付物。
 
-### 日常 Markdown / 論文編輯
+## 先看畫面
 
-![Ekdeta 1.2.3 主畫面](docs/screenshots/ekdeta-main.png)
+### 日常寫作：Markdown 還是 Markdown
 
-左側是文件、搜尋與大綱；中間維持接近一般 Markdown 編輯器的操作方式；上方則把公式、表格、REVTeX 與臺灣論文工具放在同一個工作區。
+![Ekdeta 主畫面](docs/screenshots/ekdeta-main.png)
 
-### REVTeX：左邊寫 Markdown，右邊看真正的 TeX PDF
+左側是文件、搜尋與大綱，中間是接近一般 Markdown 編輯器的寫作區。公式、表格、REVTeX 與臺灣論文工具都放在同一個工作環境裡，不需要換一套編輯器重來。
 
-![Ekdeta REVTeX 4.2：Markdown 與真實編譯 PDF 左右分屏](docs/screenshots/ekdeta-revtex.png)
+### REVTeX：左邊寫 Markdown，右邊看真正編譯的 PDF
 
-REVTeX 模式不是畫一張「看起來像論文」的 HTML 預覽。載入 Engine Pack 後，右側是實際 LaTeX / REVTeX 編譯出的 PDF。你可以直接檢查雙欄、公式、引用、表格與版面，並下載 `.tex`、PDF 或完整投稿專案。
+![Ekdeta REVTeX 4.2：Markdown 與真實 TeX PDF 左右分屏](docs/screenshots/ekdeta-revtex.png)
 
-## 最快開始
+這張圖是 Ekdeta 很重要的一部分：右側不是 HTML 仿造的「論文樣子」，而是載入 LaTeX Engine 後，由真正的 REVTeX / pdfLaTeX 流程產生的 PDF。雙欄、公式、引用、浮動物件與最終換行都可以在投稿前直接檢查。
 
-### 方法 1：不用安裝，直接開 HTML
+## 三分鐘開始
 
-下載 Release 裡的：
+### 1. 最輕量：直接開一個 HTML
+
+從 GitHub Release 下載：
 
 ```text
 Ekdeta-1.2.3.html
 ```
 
-用 Chrome / Edge 等 Chromium 瀏覽器開啟即可。這是完整 Core，不是功能縮水的 demo。一般 Markdown、MathLive 公式與臺灣論文流程都可以直接使用。
+用 Chrome / Edge 等 Chromium 瀏覽器開啟即可。這就是完整 Core，不是 demo。一般 Markdown、MathLive、圖片、表格與臺灣論文流程都能直接使用。
 
-> 長期寫作時，建議使用「連結儲存資料夾」把 `.md` 與圖片同步到真正的專案資料夾，並定期匯出 Full Backup JSON。瀏覽器儲存方便，但不應被當成唯一備份。
+長期寫作建議使用「連結儲存資料夾」，把 `.md` 與圖片同步到真正的專案目錄；重要階段再匯出 Full Backup JSON。瀏覽器儲存很方便，但不要把它當成唯一備份。
 
-### 方法 2：Electron 桌面版
+### 2. 想要一般 App 體驗：Electron 桌面版
 
-`desktop/` 是 Ekdeta 的原生桌面外殼，仍然載入同一份 `Ekdeta.html`。
+Repository 的 `desktop/` 是同一份 Ekdeta Core 的 Electron 外殼，不是另一套編輯器。
 
-- macOS 建置：雙擊 `desktop/release-tools/製作 macOS 安裝包.command`，可產生 `.dmg` / `.pkg` / `.zip`。
-- Windows x64 建置：雙擊 `desktop/release-tools/製作 Windows x64 安裝包.cmd`，可產生 NSIS `.exe` / ZIP。
+- **macOS**：可建立 `.dmg` / `.pkg` / `.zip`。
+- **Windows x64（正式安裝版）**：可建立 NSIS `.exe` / ZIP。
+- **Windows x64（最省事）**：另外提供「免 Node.js portable 建置器」，只需雙擊，它會下載固定 Electron runtime 並驗證官方 SHA-256。
 
-建置者需要 Node.js；一般使用已建好的桌面包不需要 Node.js。詳見 [`docs/DESKTOP.md`](docs/DESKTOP.md)。
+完整步驟見 [`docs/DESKTOP.md`](docs/DESKTOP.md)。Release 也會附上獨立的 `Ekdeta-Electron-Desktop-1.2.3.zip` 建置包。
 
-## 臺灣碩博士論文：只維護 Markdown，最後輸出 PDF
+## 臺灣碩博士論文：Markdown → PDF
 
-Ekdeta 內建臺灣論文中文／英文模板與 Digital / Print 版面。你可以用表單處理封面、摘要、目錄、圖表、引用、參考文獻與附錄，不必手打一整套格式語法。
+Ekdeta 內建中英文臺灣論文模板，以及 Digital / Print 版面。正文仍然是 Markdown；封面、摘要、目錄、圖表、引用、參考文獻與附錄等結構可以透過 TW 工具處理，不需要自己維護一大套版面語法。
 
-基本流程很短：
+最短流程：
 
 1. 從中文或英文臺灣論文模板建立自己的文件。
 2. 選擇 Digital / Print 版面。
-3. 繼續用 Markdown 寫正文。
-4. 用 TW 工具處理封面、目錄、引用與論文結構。
-5. 匯出向量 / 可搜尋 PDF，逐頁檢查後提交。
+3. 照平常方式用 Markdown 寫正文。
+4. 用 TW 工具補上封面、目錄、引用與論文結構。
+5. 匯出向量／可搜尋 PDF，逐頁檢查後提交。
 
-Ekdeta 的目的不是替學校規章做決定，而是讓「內容 → 符合格式的論文 PDF」這條路變得簡單。正式送件前仍要對照你學校當期規定。
+Ekdeta 讓「研究內容 → 正式論文 PDF」變得簡單，但不會替學校規章做決定。正式送件前仍應對照學校當期格式要求。
 
 ## 國際期刊：Markdown → REVTeX 4.2 → `.tex` + PDF
 
-切換到 **International Journal / REVTeX 4.2** 後，你仍然在左側寫 Markdown。作者、affiliation、abstract、citation、equation、figure、wide content、bibliography 等 REVTeX 結構可以用表單插入，不必把整份稿件改成手寫 TeX。
+切換到 **International Journal / REVTeX 4.2** 後，左側仍然是 Markdown。作者、affiliation、abstract、citation、equation、figure、wide content、bibliography 等 REVTeX 結構可以用表單產生，不必把整篇稿件改寫成手打 TeX。
 
-真正要編譯時，載入外部 Engine Pack：
+真正編譯時：
 
 ```text
-Markdown
-  → REVTeX project
-  → BusyTeX / TeX Live Engine
-  → real PDF
-  → .tex / project ZIP
+Markdown manuscript
+        ↓
+REVTeX project
+        ↓
+BusyTeX / TeX Live Engine
+        ↓
+real TeX PDF
+        ↓
+PDF + main.tex + REVTeX project ZIP
 ```
 
-這樣你既有 Markdown 的寫作效率，也保留真正 LaTeX / REVTeX 投稿需要的可攜性。
+這個設計的目的很單純：**保留 Markdown 的寫作效率，同時保留真正 LaTeX / REVTeX 投稿需要的檔案。**
 
-## REVTeX Engine Pack：什麼時候需要？
+## REVTeX 為什麼還要 Engine Pack？
 
-**一般 Markdown、MathLive、臺灣論文不需要。**
+**一般 Markdown、MathLive、臺灣論文 PDF 都不需要 Engine Pack。**
 
-只有下面這件事需要 Engine Pack：
-
-> 在 Ekdeta 裡真正執行 REVTeX / LaTeX 編譯，產生右側 PDF。
-
-Ekdeta 1.2.3 鎖定 **TeXlyre BusyTeX Assets v1.2.3 / TeX Live 2026 recommended**。官方下載頁：
-
-https://github.com/TeXlyre/texlyre-busytex/releases/tag/assets-v1.2.3
-
-解壓後，選擇含有下列五個檔案的 Engine Pack 資料夾：
+只有當你要求 Ekdeta 在 REVTeX 模式內真正執行 LaTeX 編譯時，才需要外部 Engine。Ekdeta 1.2.3 的 Core 鎖定 `texlyre-busytex 1.2.3` / TeX Live 2026 recommended，並會驗證五個檔案的大小與 SHA-256：
 
 ```text
 busytex.js
@@ -119,53 +111,60 @@ texlive-recommended.js
 texlive-recommended.data
 ```
 
-瀏覽器版在 REVTeX 面板選資料夾；桌面版使用「桌面殼 → LaTeX 引擎 → 安裝 Engine Pack…」。Ekdeta 會檢查大小與 SHA-256，避免拿錯版本。完整步驟與鎖定 hash 見 [`docs/REVTeX-ENGINE.md`](docs/REVTeX-ENGINE.md)。
+官方下載：
 
-> 如果稿件需要 XeLaTeX + CJK 套件 / 完整中文字型，建議匯出 `.tex` 或 REVTeX project ZIP，再交給完整 TeX Live / MacTeX 編譯。Ekdeta 不會為了顯示「成功」而默默產生遺失中文字的 PDF。
+- **BusyTeX Assets v1.2.3**：<https://github.com/TeXlyre/texlyre-busytex/releases/tag/assets-v1.2.3>
+- BusyTeX / TeX Live 2026 build project：<https://github.com/TeXlyre/texlyre-busytex-build>
 
-## 研究寫作功能
+請使用 **v1.2.3** 的完整 WASM assets archive，解壓後選擇能直接看到上述五個檔案的資料夾。**不要混用不同 release，也不要直接用目前較新的 1.3 / 1.4 assets 取代。** 最後仍以 Ekdeta 內建的檔案大小與 SHA-256 驗證結果為準。
 
-- Typora-style Markdown：平常看排版結果，點進區塊才編輯 Markdown。
-- Full Source Mode：需要時可直接編輯完整 Markdown 原始碼。
-- MathLive 視覺公式：分數、積分、矩陣等可視覺輸入，最後仍保存標準 LaTeX。
+完整下載、驗證與安裝方式見 [`docs/REVTeX-ENGINE.md`](docs/REVTeX-ENGINE.md)。
+
+> 如果稿件需要完整 XeLaTeX + CJK 套件或特定中文字型，建議匯出 `.tex` / REVTeX project ZIP，再交給完整 TeX Live、MacTeX 或投稿系統編譯。Ekdeta 會避免把「exit 0 但中文字遺失」誤當成功。
+
+## 寫作功能
+
+- **Typora-style Markdown**：平常看排版結果，進入區塊時才編輯 Markdown。
+- **Full Source Mode**：需要時可直接編輯完整 Markdown 原始碼。
+- **MathLive 視覺公式**：不用背完 LaTeX 才能輸入分數、積分、矩陣；資料仍保存成標準 LaTeX。
 - 文件大綱、跨文件搜尋、Quick Open。
-- 圖片拖放 / 貼上、相對路徑與資料夾同步。
+- 圖片拖放／貼上、相對路徑、資料夾同步。
 - GitHub / Night / Sepia / Blackout 等主題。
 - Full Backup JSON、資料夾同步與跨機器搬移。
-- 內建中英文使用說明、臺灣論文模板與國際期刊模板。
+- 內建中英文說明、臺灣論文模板與國際期刊模板。
 
-## 專案怎麼放在 GitHub
+## 這個 GitHub repository 放什麼？
 
-真正的產品仍然只有一個檔案：
+真正可直接使用的產品只有一個檔案：
 
 ```text
 Ekdeta.html
 ```
 
-但只放產物會讓專案無法維護，所以 repository 同時保留：
+但只放一個 5 MB HTML，未來就很難維護。因此公開 repo 同時保留「能確定重建同一產品」所需的精簡 source，以及真正有用的 Desktop / 文件：
 
 ```text
 Ekdeta/
-├── Ekdeta.html              # 可直接使用的單檔產品
+├── Ekdeta.html              # 直接使用的單檔產品
 ├── source/                  # deterministic Core source + tests
 ├── desktop/                 # Electron macOS / Windows 外殼
 ├── assets/                  # App icon
-├── docs/                    # 截圖、Engine / Desktop 說明
-├── third_party/             # 授權與來源紀錄
+├── docs/                    # 截圖、Desktop、REVTeX Engine 說明
+├── third_party/             # 第三方授權 / 來源紀錄
 └── README.md
 ```
 
-原始 98 MB 開發交接包裡的 AI 對話、歷史 checkpoint、舊 patch、研究素材與大量驗證證據不會原封不動公開；它們對續接開發有用，但不是一般 GitHub 使用者需要的產品內容。
+原始交接包裡的大量 AI 對話、checkpoint 證據、舊 patch、研究素材與歷史驗證產物不會原封不動放進公開 repo；它們對續接開發有用，但不是一般使用者需要下載的產品內容。
 
-## 從 source 重建 Core
+## 從公開 source 重建 Ekdeta.html
 
 ```bash
 python3 source/build.py --output Ekdeta.html
 ```
 
-1.2.3 公開 source 已驗證可以重建出與正式交接產品 **逐位元組相同**的 `Ekdeta.html`。
+目前 1.2.3 公開 source 已驗證可以重建出和正式交接產品 **逐位元組相同**的 `Ekdeta.html`。
 
-常用驗證：
+核心驗證：
 
 ```bash
 node source/tests/check_scripts.cjs source/src/scripts
@@ -175,18 +174,14 @@ node source/tests/ui_content_checks.cjs Ekdeta.html
 python3 source/tests/audit_product.py Ekdeta.html --name Ekdeta --version 1.2.3
 ```
 
-## 1.2.3
+更多重現資訊見 [`VALIDATION.md`](VALIDATION.md)。
 
-- 品牌統一為 **Ekdeta**。
-- 臺灣論文工具列短標籤統一為 **TW**。
-- 修正現行論文模板與內建資源。
-- Core source 收斂為可 deterministic rebuild 的單一 source truth。
-- Electron 外殼同步使用 Ekdeta 名稱、App ID、圖示與固定 Core。
+## 版本與作者
 
-## 作者
+**Ekdeta 1.2.3**
 
-**Jason Chen**
+- 作者：**Jason Chen**
+- 第一方原始碼與文件：MIT License
+- KaTeX、MathLive、REVTeX、Electron、字型與外部 BusyTeX Engine Pack：依各自授權
 
-## License
-
-第一方原始碼與文件採 [MIT License](LICENSE)。KaTeX、MathLive、REVTeX、Electron、字型與外部 BusyTeX Engine Pack 維持各自授權，詳見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+第三方資訊見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。

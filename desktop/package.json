@@ -2,7 +2,7 @@
   "name": "ekdeta-desktop",
   "productName": "Ekdeta",
   "version": "1.2.3",
-  "description": "Ekdeta Markdown 研究寫作與論文排版桌面應用程式",
+  "description": "Ekdeta Markdown research writing, Taiwan thesis, and REVTeX desktop app",
   "main": "src/main.js",
   "author": "Jason Chen",
   "license": "MIT",
@@ -78,7 +78,8 @@
         "nsis",
         "zip"
       ],
-      "icon": "resources/icons/Ekdeta.ico"
+      "icon": "resources/icons/Ekdeta.ico",
+      "artifactName": "Ekdeta-${version}-win-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -102,6 +103,18 @@
         "org.ekdeta.app"
       ],
       "overwriteAction": "upgrade"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ekdeta",
+      "uninstallDisplayName": "Ekdeta",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   }
 }

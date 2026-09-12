@@ -15,6 +15,10 @@
   <strong>v1.2.3 · Browser + Electron desktop · Jason Chen</strong>
 </p>
 
+## Where the name “Ekdeta” comes from
+
+**Ekdeta** combines **ekd-**, a Greek root associated with publishing and bringing written work to the public, with **eta (η)**, the Greek letter that lends the name a subtle scientific character. Together, they reflect Ekdeta’s purpose: turning a Markdown manuscript into a polished thesis or journal paper, and guiding research from writing to publication.
+
 ## Why I built it
 
 Ekdeta started with a simple request from my lab advisor: could we write in Markdown and stop relearning a different typesetting workflow every time the final format changes?

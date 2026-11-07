@@ -1,10 +1,14 @@
 # Third-party notices
 
-Ekdeta 1.2.3 的第一方程式碼與文件採 MIT License；下列第三方元件維持各自授權。
+EKdelta 1.2.5 的第一方程式碼與文件採 MIT License；下列第三方元件維持各自授權。
 
 ## KaTeX 0.16.11
 
 用於 Markdown / 論文畫面的 TeX 數學渲染。MIT。授權副本：`third_party/KaTeX-LICENSE.txt`。
+
+## PDF.js 5.6.205
+
+國際論文模式右側用來繪製 TeX 編譯出的 PDF（1.2.4 起）。Mozilla，Apache-2.0。原樣內嵌 `pdf.min.mjs` 與 `pdf.worker.min.mjs`（legacy build），檔案雜湊記錄在 `source/src/vendor-hashes.json`。授權全文：`third_party/PDFjs-LICENSE.txt`。來源：<https://github.com/mozilla/pdf.js>。
 
 ## MathLive 0.110.0
 
@@ -16,7 +20,7 @@ Ekdeta 1.2.3 的第一方程式碼與文件採 MIT License；下列第三方元�
 
 ## REVTeX 4.2f
 
-Ekdeta 的國際期刊流程使用官方 REVTeX 4.2 結構。相關上游 README / LPPL provenance 保留於 `third_party/source-notices/REVTeX/`。
+EKdelta 的國際期刊流程使用官方 REVTeX 4.2 結構。相關上游 README / LPPL provenance 保留於 `third_party/source-notices/REVTeX/`。
 
 ## Electron
 
@@ -24,7 +28,7 @@ Ekdeta 的國際期刊流程使用官方 REVTeX 4.2 結構。相關上游 README
 
 ## BusyTeX / TeXlyre BusyTeX
 
-REVTeX 真實 PDF 編譯所需的 Engine Pack **不隨 Ekdeta repository 或安裝包重新散布**。Ekdeta 1.2.3 鎖定外部 TeXlyre BusyTeX Assets v1.2.3，使用者依 [`docs/REVTeX-ENGINE.md`](docs/REVTeX-ENGINE.md) 從上游 GitHub Release 取得。BusyTeX / TeXlyre BusyTeX 的授權由上游專案決定，使用者應依其 release / repository 的授權條款使用。
+REVTeX 真實 PDF 編譯所需的 Engine Pack **不隨 EKdelta repository 或安裝包重新散布**。EKdelta 1.2.3 鎖定外部 TeXlyre BusyTeX Assets v1.2.3，使用者依 [`docs/REVTeX-ENGINE.md`](docs/REVTeX-ENGINE.md) 從上游 GitHub Release 取得。BusyTeX / TeXlyre BusyTeX 的授權由上游專案決定，使用者應依其 release / repository 的授權條款使用。
 
 ## 臺灣論文模板與機構欄位
 

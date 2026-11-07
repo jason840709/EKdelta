@@ -4,11 +4,11 @@
 
 # REVTeX / LaTeX Engine Pack
 
-Ekdeta does not load a large TeX runtime just because you are writing Markdown. Markdown, MathLive, and the Taiwan thesis workflow work without the Engine Pack.
+EKdelta does not load a large TeX runtime just because you are writing Markdown. Markdown, MathLive, and the Taiwan thesis workflow work without the Engine Pack.
 
-You need the Engine Pack only when Ekdeta must actually compile REVTeX / LaTeX and show the real TeX PDF.
+You need the Engine Pack only when EKdelta must actually compile REVTeX / LaTeX and show the real TeX PDF.
 
-## Version used by Ekdeta 1.2.3
+## Version used by EKdelta 1.2.3
 
 The 1.2.3 Core is locked to:
 
@@ -17,7 +17,7 @@ texlyre-busytex 1.2.3
 TeX Live 2026 recommended
 ```
 
-Ekdeta validates file names, sizes, and SHA-256 values. Do not replace these assets with a newer BusyTeX release just because the version number is higher, and do not mix files from different releases.
+EKdelta validates file names, sizes, and SHA-256 values. Do not replace these assets with a newer BusyTeX release just because the version number is higher, and do not mix files from different releases.
 
 ## Official download
 
@@ -37,7 +37,7 @@ texlive-recommended.data
 
 The upstream build project is <https://github.com/TeXlyre/texlyre-busytex-build>.
 
-## Exact values checked by Ekdeta 1.2.3
+## Exact values checked by EKdelta 1.2.3
 
 | File | Size (bytes) | SHA-256 |
 | --- | ---: | --- |
@@ -51,7 +51,7 @@ A correct file name with the wrong size or hash is rejected.
 
 ## Browser edition
 
-1. Open `Ekdeta.html`.
+1. Open `EKdelta.html`.
 2. Switch to **International Journal / REVTeX 4.2**.
 3. Open the exact-proof / TeX compile area.
 4. Choose the Engine Pack folder.
@@ -71,10 +71,10 @@ Shell / Desktop
   → Install Engine Pack…
 ```
 
-The desktop shell copies the selected engine assets into Ekdeta's user-data area. The engine is lazy-loaded, so ordinary Markdown startup does not initialize the large TeX runtime.
+The desktop shell copies the selected engine assets into EKdelta's user-data area. The engine is lazy-loaded, so ordinary Markdown startup does not initialize the large TeX runtime.
 
 ## CJK / XeLaTeX boundary
 
-The recommended BusyTeX profile covers Ekdeta's locked REVTeX/pdfLaTeX workflow, but it is not a full MacTeX or TeX Live installation.
+The recommended BusyTeX profile covers EKdelta's locked REVTeX/pdfLaTeX workflow, but it is not a full MacTeX or TeX Live installation.
 
 If the manuscript needs XeLaTeX + CJK packages, special fonts, or extra journal packages, export the `.tex` or REVTeX project ZIP and compile it with full TeX Live, MacTeX, MiKTeX, or the journal submission system.

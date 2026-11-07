@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
-const product = process.argv[2] || new URL('../Ekdeta_v1.2.3.html', import.meta.url).pathname;
+const product = process.argv[2] || new URL('../EKdelta_v1.2.5.html', import.meta.url).pathname;
 const html = fs.readFileSync(product, 'utf8');
 // Work on actual script-element payloads. Searching the raw HTML would include
 // a closing </script> tag in an extracted function body and produce a false

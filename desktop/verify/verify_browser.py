@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-桌面殼 v1.2.3 的瀏覽器輔助驗證（真 Chromium + 同步後的 Ekdeta HTML）
+桌面殼 v1.2.5 的瀏覽器輔助驗證（真 Chromium + 同步後的 Ekdeta HTML）
 
 驗什麼：
   V1 bridge 能注入且 __EKDETA_SHELL__ 掛得上

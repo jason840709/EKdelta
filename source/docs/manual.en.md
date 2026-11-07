@@ -1,6 +1,6 @@
 # User Manual
 
-> This manual matches **Ekdeta 1.2.3 (2026.09)**.
+> This manual matches **EKdelta 1.2.5 (2026.11)**.
 
 ## How to read this manual
 
@@ -19,7 +19,7 @@ New users should start with **Welcome** in the sidebar, which is a four-step int
 
 ## 1. Where your data lives: storage and backup
 
-Ekdeta opens directly in a browser or through the desktop shell. It does not automatically upload documents. Ordinary documents below the separator, plus settings, are stored in the browser about 1.2 seconds after typing stops. The six built-in documents come from the current version; their edits are not permanently saved.
+EKdelta opens directly in a browser or through the desktop shell. It does not automatically upload documents. Ordinary documents below the separator, plus settings, are stored in the browser about 1.2 seconds after typing stops. The six built-in documents come from the current version; their edits are not permanently saved.
 
 Saving, backup, folder sync, and `.md` export preserve unedited source text, including line endings, YAML, HTML comments, math fences, and other extensions.
 
@@ -40,7 +40,7 @@ Reset to Factory clears ordinary documents and settings in the browser and reloa
 
 ## 2. Interface and sidebar
 
-- The menu bar holds Ekdeta, File, Edit, Paragraph, Format, View, Theme, Mode, and Help. The desktop shell adds Desktop Shell and Window menus.
+- The menu bar holds EKdelta, File, Edit, Paragraph, Format, View, Theme, Mode, and Help. The desktop shell adds Desktop Shell and Window menus.
 - The title bar shows the current document; display controls sit at the top right. Theme controls appearance, and Mode selects document layout. These are separate settings.
 - The **formatting toolbar** sits at the top of the document area, right of the sidebar. It is on by default, keeps Undo/Redo fixed at the left, follows your customized order, and moves tools into "⋯" only when they genuinely overflow.
 - Three sidebar tabs:
@@ -244,7 +244,9 @@ You do not have to memorize the fence syntax. The formatting toolbar above the M
 
 ### 14.4 Preview and delivery
 
-- **Download PDF on the right** — downloads the current TeX-compiled PDF; inspect this version page by page before submission.
+- **Top-right corner of the PDF** — “−” and “+” zoom out and in (or hold ⌘/Ctrl and scroll); click the percentage to fit the width again; the page box shows the current page — type a number and press Enter to jump there; the arrow on the right downloads this PDF. After a recompile the view stays on the page you were reading.
+- **Auto-compile on pause** — when ticked, the right side follows about a second after you stop typing; the paragraph you are typing in counts without pressing Enter. While the text is obviously unfinished (an unpaired `$$`, an unclosed code fence) nothing is compiled and the status reads “Typing”. When a compile fails, the last successful PDF stays on the right with a thin orange line on top, the status gives the reason and the approximate line in one sentence, and “Log” opens the full message; fix it, or undo with ⌘Z back to the earlier text, and it recovers by itself without pressing Compile. Repeated failures only lengthen the wait; auto-compile is never switched off by them.
+- **Download PDF on the right** — downloads the latest successfully compiled PDF; inspect this version page by page before submission.
 - **Download .tex on the right** — downloads `main.tex` with the current society, journal, and class options.
 - **File → Export REVTeX Project (.zip)…** — recommended for submission. It contains `main.tex`, the bibliography, the source Markdown, images, a build script, a settings snapshot, and a manifest; the portable variant also bundles the unmodified official REVTeX runtime.
 
@@ -268,7 +270,7 @@ For a REVTeX document, use the TeX PDF on the right instead of regular vector PD
 
 ## 15. Preferences, option by option
 
-Ekdeta → Preferences… (⌘,) has three main tabs: **Global**, **Thesis Output**, and **International Paper**. Every change applies immediately, persists automatically, and is included in full backups and folder sync.
+EKdelta → Preferences… (⌘,) has three main tabs: **Global**, **Thesis Output**, and **International Paper**. Every change applies immediately, persists automatically, and is included in full backups and folder sync.
 
 ### 15.1 Global
 
@@ -294,7 +296,7 @@ This page provides common REVTeX choices, including society, journal, manuscript
 - In Blackout, adjacent quote lines — including an empty line that still has `>` — share one orange rounded frame. In Blackout Game, red applies only to explicit bold text in the document; headings and interface stay white.
 - The light/dark button affects the screen only; thesis PDFs remain black on white.
 - Ordinary mode changes font size by 1 px per step; Taiwan Thesis modes by 0.5 pt.
-- Ekdeta → Language switches Traditional Chinese and English and reloads built-in documents by identity (Welcome and Manual switch language, Dev Notes stays Chinese technical content, templates keep their own content). Ordinary documents are never touched.
+- EKdelta → Language switches Traditional Chinese and English and reloads built-in documents by identity (Welcome and Manual switch language, Dev Notes stays Chinese technical content, templates keep their own content). Ordinary documents are never touched.
 - **Page zoom:** hold Command (Ctrl on Windows/Linux) and scroll over the document. This changes reading scale only, never line width, page count, or PDF; click the percentage in the status bar to reset to 100%.
 
 ## 17. Backup, recovery, and troubleshooting
@@ -312,7 +314,7 @@ Work through these steps in order:
 
 ## 18. Shortcut reference and platform switch
 
-Open Ekdeta → Markdown & Shortcut Reference. The upper-right **macOS / Windows / Linux** switch defaults to the current browser platform and changes the reference display only; it never remaps the application.
+Open EKdelta → Markdown & Shortcut Reference. The upper-right **macOS / Windows / Linux** switch defaults to the current browser platform and changes the reference display only; it never remaps the application.
 
 - The upper half groups the current Format, Paragraph, Edit, File, and View commands. Every available reliable shortcut is listed; "Menu only" means no browser-safe shortcut exists on that platform.
 - Context Controls apply only inside Find, Quick Open, Outline filters, completion, table cells, floating editors, or Source Mode — operation names on the left, keys on the right.
@@ -348,7 +350,7 @@ Open Markdown & Shortcut Reference and switch platform for the complete table.
 
 Items ending in "…" open a dialog.
 
-**Ekdeta:** About Ekdeta / Version Info… / Preferences… (⌘,) / Language: 繁體中文 · English / Markdown & Shortcut Reference / Reset to Factory…
+**EKdelta:** About EKdelta / Version Info… / Preferences… (⌘,) / Language: 繁體中文 · English / Markdown & Shortcut Reference / Reset to Factory…
 
 **File:** New File (⌘N) / Open Markdown… (⌘O) / Quick Open… (⌘P) / New Document from This Template (only while a template is open) / Save (⌘S) / Rename… / Export Markdown (.md) (⇧⌘S) / Export LaTeX (.tex) / Export REVTeX Project (.zip)… (requires a REVTeX document) / Tables as booktabs / Code as listings / Export HTML / Export Single-File HTML (images embedded)… / Export PDF (vector / searchable)… / Export PDF in batches (recommended for large files)… / Compatibility raster PDF (direct download)… / PDF Diagnostic Report… / Choose Image Folder (for PDF images)… / Print (system dialog)… / Export Full Backup (.json) / Restore Backup… / Link Storage Folder… / Load from Folder… / Unlink Folder / Close This File
 
@@ -364,8 +366,8 @@ Items ending in "…" open a dialog.
 
 **Mode:** Markdown Mode / Taiwan Thesis Chinese (Digital 1 [compact] · Digital 2 [book] · Print [two-sided]) / Taiwan Thesis English (Digital [symmetric] · Print [two-sided book]) / International Journal REVTeX 4.2
 
-**Help:** Markdown & Shortcut Reference / About Ekdeta
+**Help:** Markdown & Shortcut Reference / About EKdelta
 
 ---
 
-*Ekdeta is maintained by Ekdeta Contributors. See Ekdeta → Version Info for the changelog.*
+*EKdelta is maintained by EKdelta Contributors. See EKdelta → Version Info for the changelog.*

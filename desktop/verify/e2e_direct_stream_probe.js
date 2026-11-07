@@ -1,4 +1,4 @@
-/* v1.2.3 direct-stream probe
+/* v1.2.5 direct-stream probe
    Proves a Blob Worker can stream the 199MB TeX Live .data directly from
    ekdeta://app/engine/ without response.blob() or a second 199MB backing file. */
 const { app, BrowserWindow } = require('electron');

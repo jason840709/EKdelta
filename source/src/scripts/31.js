@@ -136,7 +136,7 @@ ${(info.files || []).map(f => '- `' + f.name + '`　' + (f.note || '')).join('\n
 
 ## 產生方式
 
-本稿由 Ekdeta CP171 國際論文管線從 Markdown 產生。
+本稿由 EKdelta CP171 國際論文管線從 Markdown 產生。
 \`main.tex\` 是人可讀、可再編輯的標準 REVTeX 原始檔，不含任何私有巨集或
 絕對定位——期刊生產流程可以直接重排。
 

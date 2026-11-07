@@ -4,7 +4,9 @@
 
 # Ekdeta Desktop / Electron
 
-`desktop/` 是同一份 `Ekdeta.html` Core 的 Electron 外殼，不是另一套編輯器。打包前會先同步 Core，並比對 SHA-256，避免 Desktop 包不小心帶到不同版本的 HTML。
+網頁版 Core 自 1.2.4 起名為 EKdelta；桌面 App 暫時仍叫 Ekdeta，因為 App 名稱決定設定與引擎的存放位置。
+
+`desktop/` 是同一份 `EKdelta.html` Core 的 Electron 外殼，不是另一套編輯器。打包前會先同步 Core，並比對 SHA-256，避免 Desktop 包不小心帶到不同版本的 HTML。
 
 ## macOS：`.dmg` / `.pkg` / `.zip`
 
@@ -30,13 +32,13 @@ Windows 有兩條建置路徑。
 desktop/release-tools/製作 Windows x64 免安裝版_免Node.cmd
 ```
 
-腳本會下載固定的 Electron 33.4.11 Windows x64 runtime 與官方 `SHASUMS256.txt`，先驗證下載內容，再放入 Ekdeta Core 和桌面殼，最後產生：
+腳本會下載固定的 Electron 33.4.11 Windows x64 runtime 與官方 `SHASUMS256.txt`，先驗證下載內容，再放入 EKdelta Core 和桌面殼，最後產生：
 
 ```text
-Ekdeta-1.2.3-win-x64-portable.zip
+Ekdeta-1.2.5-win-x64-portable.zip
 ```
 
-解壓後直接執行 `Ekdeta.exe` 即可。Portable 包裡也有一個安裝輔助程式，可以安裝到 `%LOCALAPPDATA%\Programs\Ekdeta`。
+解壓後直接執行 `EKdelta.exe` 即可。Portable 包裡也有一個安裝輔助程式，可以安裝到 `%LOCALAPPDATA%\Programs\EKdelta`。
 
 ### 正式 NSIS 安裝版
 
@@ -50,7 +52,7 @@ desktop/release-tools/製作 Windows x64 安裝包.cmd
 
 ## 一般使用者需要 Node.js 嗎？
 
-不需要。Node.js 只給「要自己建桌面安裝包的維護者」使用。已經建好的 Ekdeta App 或 portable package 不需要 npm，也不需要程式開發環境。
+不需要。Node.js 只給「要自己建桌面安裝包的維護者」使用。已經建好的 EKdelta App 或 portable package 不需要 npm，也不需要程式開發環境。
 
 ## REVTeX Engine Pack
 

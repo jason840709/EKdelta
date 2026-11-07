@@ -1,11 +1,11 @@
 #!/bin/bash
-# v1.2.3 真 Engine + direct-package-url + blob_storage 真機 gate。
+# v1.2.5 真 Engine + direct-package-url + blob_storage 真機 gate。
 # 完全不修改正式 Ekdeta profile：測試用臨時 userData，只 symlink 真 Engine Pack。
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 clear
-printf '%s\n' 'Ekdeta 1.2.3 — 真實 LaTeX Engine / blob_storage 驗證'
+printf '%s\n' 'Ekdeta 1.2.5 — 真實 LaTeX Engine / blob_storage 驗證'
 printf '專案：%s\n\n' "$ROOT"
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -53,9 +53,9 @@ sys.exit(0 if ok else 1)
 PY
 rc=$?
 if [ "$rc" -eq 0 ]; then
-  /usr/bin/osascript -e 'display dialog "1.2.3 真實引擎驗證通過。\n\nBusyTeX 已用 direct-package-url 初始化，且沒有再產生約 200 MB 的 blob_storage 第二份資料。" buttons {"好"} default button 1 with icon note' >/dev/null 2>&1 || true
+  /usr/bin/osascript -e 'display dialog "1.2.5 真實引擎驗證通過。\n\nBusyTeX 已用 direct-package-url 初始化，且沒有再產生約 200 MB 的 blob_storage 第二份資料。" buttons {"好"} default button 1 with icon note' >/dev/null 2>&1 || true
 else
-  /usr/bin/osascript -e 'display dialog "1.2.3 真實引擎驗證有失敗項目。\n\n請保存驗證結果供維護者檢查；保留原 Engine。" buttons {"好"} default button 1 with icon caution' >/dev/null 2>&1 || true
+  /usr/bin/osascript -e 'display dialog "1.2.5 真實引擎驗證有失敗項目。\n\n請保存驗證結果供維護者檢查；保留原 Engine。" buttons {"好"} default button 1 with icon caution' >/dev/null 2>&1 || true
 fi
 echo
 read -r -p '按 Enter 關閉…'

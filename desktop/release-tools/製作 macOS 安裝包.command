@@ -1,5 +1,5 @@
 #!/bin/bash
-# Electron 1.2.3 Full-only rebase：在 Mac 上雙擊，建立 .dmg / .pkg / .zip 與基礎 .command 安裝器。
+# Electron 1.2.5 Full-only rebase：在 Mac 上雙擊，建立 .dmg / .pkg / .zip 與基礎 .command 安裝器。
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

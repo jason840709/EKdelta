@@ -906,7 +906,7 @@ function showPrefs(){
           <section class="pref-card">
             <div class="pref-card-head"><span class="pref-card-icon">${I.image}</span><div><h4 class="pref-card-title">${TT('圖片貼上與拖放','Paste & drop images')}</h4><p class="pref-card-desc">${TT('先辨識「專案儲存資料夾」與 Markdown 實際連結，再選擇圖片寫入策略。','Identify the project storage root and the actual Markdown link before choosing where images are written.')}</p></div></div>
             <div class="pref-storage-root">
-              <div class="pref-storage-root-head"><div><div class="pref-storage-root-title">${TT('專案儲存資料夾（相對路徑基準）','Project storage folder (relative-path root)')}</div><div class="pref-storage-root-desc">${TT('這是你手動授權給 Ekdeta 的同步根目錄，不會因為開啟一個 .md 檔就自動取得其上層資料夾。','This is a sync root you explicitly grant to Ekdeta. Opening a .md file cannot automatically grant access to its parent folder.')}</div></div></div>
+              <div class="pref-storage-root-head"><div><div class="pref-storage-root-title">${TT('專案儲存資料夾（相對路徑基準）','Project storage folder (relative-path root)')}</div><div class="pref-storage-root-desc">${TT('這是你手動授權給 EKdelta 的同步根目錄，不會因為開啟一個 .md 檔就自動取得其上層資料夾。','This is a sync root you explicitly grant to EKdelta. Opening a .md file cannot automatically grant access to its parent folder.')}</div></div></div>
               <div class="pref-storage-state ${dirHandle ? 'linked' : ''}" id="pf-base-state">${dirHandle ? TT('已連結：','Linked: ') + escapeHtml(dirHandle.name) : TT('尚未連結專案資料夾','No project folder linked')}</div>
               <div class="pref-storage-actions"><button id="pf-base-link" class="pref-action primary" type="button">${I.folder}<span>${dirHandle ? TT('更換專案資料夾…','Change project folder…') : TT('連結專案資料夾…','Link project folder…')}</span></button><button id="pf-base-unlink" class="pref-action danger" type="button" ${dirHandle ? '' : 'disabled'}>${TT('中斷連結','Unlink')}</button></div>
               <dl class="pref-path-details"><dt>${TT('目前可見名稱','Visible folder name')}</dt><dd id="pf-base-name">${dirHandle ? escapeHtml(dirHandle.name) : '—'}</dd><dt>${TT('子資料夾模式會寫入','Subfolder mode writes to')}</dt><dd id="pf-base-target">${dirHandle ? escapeHtml(dirHandle.name + '/' + cleanImageSubfolder(settings.imgSub) + '/') : TT('連結後才可寫入','Available after linking')}</dd><dt>${TT('Markdown 內寫入','Markdown receives')}</dt><dd id="pf-base-md">${escapeHtml(storageImageLogicalPath())}${TT('檔名','filename')}</dd></dl>
@@ -1434,7 +1434,7 @@ function caUsedPkgs(body){
 function caTexDoc(body){
   const pk = caUsedPkgs(body);
   const L = [];
-  L.push('% 由 Ekdeta 匯出' + (pk.indexOf('xeCJK') >= 0 ? ';內含 CJK,請以 XeLaTeX 編譯' : ''));
+  L.push('% 由 EKdelta 匯出' + (pk.indexOf('xeCJK') >= 0 ? ';內含 CJK,請以 XeLaTeX 編譯' : ''));
   L.push('\\documentclass[12pt]{article}');
   pk.forEach(function(p){
     L.push(p === 'ulem' ? '\\usepackage[normalem]{ulem}' : '\\usepackage{' + p + '}');
@@ -3758,7 +3758,7 @@ function collectPdfNavLinks(metas, wPt, hPt){
 }
 /* CP126-DIAG1:PDF 診斷層。這一版刻意不帶入 CP127/CP128/CP129 的分頁／clone 改寫；
    視覺輸出仍是原始 CP126。內部目錄連結屬於附加功能，失敗時只警告，不得讓正文 PDF 完全無法輸出。 */
-const PDF_DIAG_BUILD = 'CP183-ABOUT-TW-HANDOFF-1.2.3';
+const PDF_DIAG_BUILD = 'CP185-LIVE-COMPILE-1.2.5';
 let lastPdfDiagnostic = null, pdfDiagnosticSequence = 0;
 function pdfDiagTry(fn, fallback=null){ try { return fn(); } catch(_){ return fallback; } }
 function pdfDiagRect(el){
@@ -6400,7 +6400,7 @@ $('#btn-sidebar').addEventListener('click', cmdSidebar);
 $('#btn-src').addEventListener('click', cmdSrcMode);
 
 /* 紅綠燈 */
-$('.tl.red').addEventListener('click', () => toast('這是 Ekdeta,關不掉的 😉'));
+$('.tl.red').addEventListener('click', () => toast('這是 EKdelta,關不掉的 😉'));
 $('.tl.yellow').addEventListener('click', () => toast('已假裝縮到 Dock'));
 $('.tl.green').addEventListener('click', () => {
   settings.maximized = !settings.maximized;
@@ -6488,9 +6488,9 @@ window.__CP160_THESIS_INDENT_PREFERENCES__ = Object.freeze({
   defaultChinese:'two-em',defaultEnglish:'none',markdownChanged:false,
   screen:true,vector:true,raster:true
 });
-const APP_VERSION = '1.2.3';
-const APP_CHECKPOINT = 'CP183';
-const APP_BUILD = 'CP183-ABOUT-TW-HANDOFF-1.2.3';
+const APP_VERSION = '1.2.5';
+const APP_CHECKPOINT = 'CP185';
+const APP_BUILD = 'CP185-LIVE-COMPILE-1.2.5';
 window.__CP171_MATH_SOURCE_AUTHORITY_RELEASE__ = Object.freeze({
   checkpoint:'CP171', version:'1.1.7.9', origin:'Checkpoint-5-floating-preview',
   authority:'mathSourceParts',
@@ -6547,22 +6547,24 @@ function showVersionInfo(){
      <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.75">
      ${h.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
   showModal(`<h2>${TT('版本資訊','Version Info')}</h2>
-  <p class="m-note" style="margin-bottom:14px">${TT('Ekdeta — 目前版本 v'+APP_VERSION+'。歷次更新內容:','Ekdeta — current version v'+APP_VERSION+'. Changelog:')}</p>
+  <p class="m-note" style="margin-bottom:14px">${TT('EKdelta — 目前版本 v'+APP_VERSION+'。歷次更新內容:','EKdelta — current version v'+APP_VERSION+'. Changelog:')}</p>
   <div style="max-height:52vh;overflow-y:auto;padding-right:6px">${rows}</div>`);
 }
 $('#app-ver').textContent = 'v' + APP_VERSION;
 $('#app-ver').addEventListener('click', showVersionInfo);
 function showAbout(){
+  /* 1.2.4：產品名稱改為 EKdelta（EK 大寫、delta 小寫）。資料鍵、檔名與語法前綴仍是 ekdeta-*，
+     那些是既有文件與設定的機器名稱，見開發筆記「命名」。 */
   const body = isEN()
-  ? `<h2>Ekdeta</h2>
-  <p style="font-size:13.5px;line-height:1.8">Write in Markdown and shape your research into a thesis or journal paper. Ekdeta is a local editor for everyday notes, Chinese and English graduate theses in Taiwan, and REVTeX international journal manuscripts, with tools for equations, figures, tables and document export.</p>
-  <p style="font-size:13.5px;line-height:1.8"><b>Ekdeta</b> combines <b>ekd-</b>, a Greek root associated with publishing, with <b>eta (η)</b>, the Greek letter that brings a scientific character to the name. Together, they express its purpose: guiding research from writing to publication.</p>
-  <p class="m-note">Version ${APP_VERSION} · See Version Info for release notes.</p>
+  ? `<h2>EKdelta</h2>
+  <p style="font-size:13.5px;line-height:1.8">Write in Markdown and shape your research into a thesis or journal paper. EKdelta is a local editor for everyday notes, Chinese and English graduate theses in Taiwan, and REVTeX international journal manuscripts, with tools for equations, figures, tables and document export.</p>
+  <p style="font-size:13.5px;line-height:1.8"><b>EKdelta</b> combines <b>ekd-</b>, a Greek root associated with publishing, with <b>delta (δ)</b>, the Greek letter science uses for change. Together, they express its purpose: carrying research from writing to publication.</p>
+  <p class="m-note">Version ${APP_VERSION} · See Version Info for release notes. Earlier versions were named Typora HTML and Ekdeta.</p>
   <p class="m-note">Created and maintained by <b>Jason Chen</b>.</p>`
-  : `<h2>Ekdeta</h2>
-  <p style="font-size:13.5px;line-height:1.8">從 Markdown 手稿出發，將研究整理成論文與期刊稿件。Ekdeta 是本機文字編輯器，支援日常筆記、臺灣中英文碩博士論文及 REVTeX 國際期刊排版，並提供公式、圖表與文件匯出工具。</p>
-  <p style="font-size:13.5px;line-height:1.8"><b>Ekdeta</b> 結合與「出版、發行」相關的希臘語根 <b>ekd-</b>，以及帶有科學意象的希臘字母 <b>eta（η）</b>，象徵讓研究從書寫走向發表。</p>
-  <p class="m-note">版本 ${APP_VERSION} · 更新紀錄請見「版本資訊」。</p>
+  : `<h2>EKdelta</h2>
+  <p style="font-size:13.5px;line-height:1.8">從 Markdown 手稿出發，將研究整理成論文與期刊稿件。EKdelta 是本機文字編輯器，支援日常筆記、臺灣中英文碩博士論文及 REVTeX 國際期刊排版，並提供公式、圖表與文件匯出工具。</p>
+  <p style="font-size:13.5px;line-height:1.8"><b>EKdelta</b> 結合與「出版、發行」相關的希臘語根 <b>ekd-</b>，以及科學上代表「變化」的希臘字母 <b>delta（δ）</b>，象徵讓研究從書寫走向發表。</p>
+  <p class="m-note">版本 ${APP_VERSION} · 更新紀錄請見「版本資訊」。早期版本名為 Typora HTML、Ekdeta。</p>
   <p class="m-note">由 <b>Jason Chen</b> 開發與維護。</p>`;
   showModal(body);
 }
@@ -7389,7 +7391,7 @@ function revtexTexDocument(md){
   const m=front[0]||revtexParseFrontmatter('');
   const allMd=[...body,...appendix,...abstracts,...ack,...wide.map(x=>x.text)].join('\n');
   const probe=revtexCitationTex(allMd),pk=caUsedPkgs(probe),L=[];
-  L.push('% Exported by Ekdeta '+APP_VERSION+' — REVTeX 4.2 international paper mode');
+  L.push('% Exported by EKdelta '+APP_VERSION+' — REVTeX 4.2 international paper mode');
   if(pk.includes('xeCJK'))L.push('% Contains CJK text; compile with XeLaTeX or LuaLaTeX.');
   L.push('\\documentclass['+revtexClassOptions().join(',')+']{revtex4-2}');
   L.push('\\ifdefined\\pdfpagewidth\\pdfpagewidth=\\paperwidth\\pdfpageheight=\\paperheight\\fi');
@@ -7822,7 +7824,7 @@ function cp166ClassSummary(){
 }
 function cp166Readme(meta){
   const c=meta.revtex,w=meta.warnings.length?meta.warnings.map(x=>'- '+x).join('\n'):'- No missing project assets were detected.';
-  return `# REVTeX 4.2 submission project\n\nThis project was exported by Ekdeta ${APP_VERSION} / ${APP_CHECKPOINT} from the same canonical Markdown and REVTeX settings used by the WYSIWYG editor.\n\n## Official format identity\n\nThe main file begins with:\n\n\`\`\`tex\n\\documentclass[${c.options.join(',')}]{revtex4-2}\n\`\`\`\n\nThis is an official REVTeX 4.2 class invocation. The editor does not replace the class with a private imitation. Society: **${c.society.toUpperCase()}**. Journal profile: **${c.journal} — ${c.journalLabel}**. Mode: **${c.mode}**. Body: **${c.effectiveColumns===2?'two columns':'one column'}**. Page sides: **${c.effectiveSides}**.\n\n## Files\n\n- \`main.tex\`: submission main file.\n- \`bibliography.tex\` or \`bibliography/*.bib\`: references.\n- \`manuscript.md\`: exact Markdown source at export time.\n- \`figures/\`: copied or converted figure assets.\n- \`project-settings.json\`: complete class-option snapshot.\n- \`build.sh\` / \`build.bat\`: repeatable local compilation.\n- \`MANIFEST.txt\`: file sizes and CRC32 values.\n${meta.mode==='portable'?'- Official REVTeX 4.2f runtime files are included unmodified at project root for portable compilation.\n':'- This standard submission package expects REVTeX 4.2 to be installed in TeX Live or MiKTeX.\n'}\n## Compile\n\nLinux/macOS:\n\n\`\`\`sh\nsh build.sh\n\`\`\`\n\nWindows:\n\n\`\`\`bat\nbuild.bat\n\`\`\`\n\nFor manual compilation, run \`pdflatex main.tex\` twice. When \`main.tex\` contains an external \`\\bibliography{...}\`, run \`bibtex main\` between LaTeX passes. A document containing CJK text should normally use XeLaTeX or LuaLaTeX instead.\n\n## WYSIWYG fidelity boundary\n\nIn REVTeX exact mode, the main product canvas and the product PDF download use the same PDF bytes compiled from this main.tex by the locked TeX engine and REVTeX runtime. The former Chromium facsimile is not the WYSIWYG authority.\n\n## Asset report\n\n${w}\n`;
+  return `# REVTeX 4.2 submission project\n\nThis project was exported by EKdelta ${APP_VERSION} / ${APP_CHECKPOINT} from the same canonical Markdown and REVTeX settings used by the WYSIWYG editor.\n\n## Official format identity\n\nThe main file begins with:\n\n\`\`\`tex\n\\documentclass[${c.options.join(',')}]{revtex4-2}\n\`\`\`\n\nThis is an official REVTeX 4.2 class invocation. The editor does not replace the class with a private imitation. Society: **${c.society.toUpperCase()}**. Journal profile: **${c.journal} — ${c.journalLabel}**. Mode: **${c.mode}**. Body: **${c.effectiveColumns===2?'two columns':'one column'}**. Page sides: **${c.effectiveSides}**.\n\n## Files\n\n- \`main.tex\`: submission main file.\n- \`bibliography.tex\` or \`bibliography/*.bib\`: references.\n- \`manuscript.md\`: exact Markdown source at export time.\n- \`figures/\`: copied or converted figure assets.\n- \`project-settings.json\`: complete class-option snapshot.\n- \`build.sh\` / \`build.bat\`: repeatable local compilation.\n- \`MANIFEST.txt\`: file sizes and CRC32 values.\n${meta.mode==='portable'?'- Official REVTeX 4.2f runtime files are included unmodified at project root for portable compilation.\n':'- This standard submission package expects REVTeX 4.2 to be installed in TeX Live or MiKTeX.\n'}\n## Compile\n\nLinux/macOS:\n\n\`\`\`sh\nsh build.sh\n\`\`\`\n\nWindows:\n\n\`\`\`bat\nbuild.bat\n\`\`\`\n\nFor manual compilation, run \`pdflatex main.tex\` twice. When \`main.tex\` contains an external \`\\bibliography{...}\`, run \`bibtex main\` between LaTeX passes. A document containing CJK text should normally use XeLaTeX or LuaLaTeX instead.\n\n## WYSIWYG fidelity boundary\n\nIn REVTeX exact mode, the main product canvas and the product PDF download use the same PDF bytes compiled from this main.tex by the locked TeX engine and REVTeX runtime. The former Chromium facsimile is not the WYSIWYG authority.\n\n## Asset report\n\n${w}\n`;
 }
 function cp166BuildSh(hasExternal,cjk){
   const engine=cjk?'xelatex':'pdflatex';

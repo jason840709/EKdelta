@@ -1,5 +1,5 @@
 name: Bug report
-description: 回報可重現的 Ekdeta 問題
+description: 回報可重現的 EKdelta 問題
 title: "[Bug] "
 labels: ["bug"]
 body:

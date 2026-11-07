@@ -4,10 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const here = __dirname;
-const src = process.env.EKDETA_APP_HTML || path.resolve(here, '..', 'Ekdeta.html');
+const src = process.env.EKDETA_APP_HTML || path.resolve(here, '..', 'EKdelta.html');
 const dst = path.resolve(here, 'resources', 'default', 'app.html');
 if (!fs.existsSync(src)) {
-  console.error('找不到上層 Ekdeta.html；請先確認完整 repository 或指定 EKDETA_APP_HTML。');
+  console.error('找不到上層 EKdelta.html；請先確認完整 repository 或指定 EKDETA_APP_HTML。');
   process.exit(1);
 }
 fs.mkdirSync(path.dirname(dst), {recursive:true});

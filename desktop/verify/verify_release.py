@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Ekdeta 1.2.3 desktop static release gate; does not launch Electron."""
+"""Ekdeta 1.2.5 desktop static release gate; does not launch Electron."""
 from pathlib import Path
 import json, re, subprocess, sys, os
 ROOT=Path(__file__).resolve().parent.parent
@@ -14,7 +14,7 @@ lock=json.loads((ROOT/'package-lock.json').read_text(encoding='utf-8'))
 check('product name = Ekdeta',pkg.get('productName')=='Ekdeta' and pkg.get('build',{}).get('productName')=='Ekdeta')
 check('application ID = org.ekdeta.app',pkg.get('build',{}).get('appId')=='org.ekdeta.app')
 check('lockfile root matches package',all(lock.get(k)==pkg.get(k) and lock['packages'][''].get(k)==pkg.get(k) for k in ['name','version']))
-check('shell version = 1.2.3',pkg.get('version')=='1.2.3',pkg.get('version'))
+check('shell version = 1.2.5',pkg.get('version')=='1.2.5',pkg.get('version'))
 check('electron direct version pinned',pkg.get('devDependencies',{}).get('electron')=='33.4.11',pkg.get('devDependencies',{}).get('electron'))
 check('electron-builder direct version pinned',pkg.get('devDependencies',{}).get('electron-builder')=='25.0.0',pkg.get('devDependencies',{}).get('electron-builder'))
 check('asar enabled',pkg.get('build',{}).get('asar') is True)
@@ -31,7 +31,7 @@ for rel in ['installer/pkg/welcome.html','installer/pkg/conclusion.html']:
 html=(ROOT/'resources/default/app.html').read_text(encoding='utf-8',errors='replace')
 m=re.search(r"const APP_VERSION\s*=\s*'([^']+)'",html)
 check('factory HTML = package version',bool(m and m.group(1)==pkg['version']),m.group(1) if m else 'missing')
-product = Path(os.environ['EKDETA_APP_HTML']) if os.environ.get('EKDETA_APP_HTML') else ROOT.parent/'Ekdeta.html'
+product = Path(os.environ['EKDETA_APP_HTML']) if os.environ.get('EKDETA_APP_HTML') else ROOT.parent/'EKdelta.html'
 if not product.is_file() and not os.environ.get('EKDETA_APP_HTML'):
     legacy = ROOT.parent/('Ekdeta_v'+pkg['version']+'.html')
     if legacy.is_file(): product = legacy
@@ -103,7 +103,7 @@ check('build command verifies dmg/pkg/zip','找不到 .dmg 產物' in buildcmd a
 check('build command opens dist','/usr/bin/open "$ROOT/dist"' in buildcmd)
 
 passed=sum(c['ok'] for c in cases)
-out={'version':'1.2.3','passed':passed,'total':len(cases),'all_green':passed==len(cases),'cases':cases}
+out={'version':'1.2.5','passed':passed,'total':len(cases),'all_green':passed==len(cases),'cases':cases}
 (ROOT/'verify/results').mkdir(exist_ok=True)
 (ROOT/'verify/results/static.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8')
 print(f'\n★ {passed}/{len(cases)} passed')

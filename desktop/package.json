@@ -1,7 +1,7 @@
 {
   "name": "ekdeta-desktop",
   "productName": "Ekdeta",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "description": "Ekdeta Markdown research writing, Taiwan thesis, and REVTeX desktop app",
   "main": "src/main.js",
   "author": "Jason Chen",

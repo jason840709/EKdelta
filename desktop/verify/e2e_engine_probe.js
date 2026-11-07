@@ -1,4 +1,4 @@
-/* v1.2.3 Engine bridge probe: sparse fake engine.
+/* v1.2.5 Engine bridge probe: sparse fake engine.
    This deliberately has correct filenames/sizes but zero content. The product must:
    1) serve all assets through ekdeta:// as streams,
    2) choose direct-package-url transport under Electron,

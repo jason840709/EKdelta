@@ -1,4 +1,4 @@
-/* v1.2.3 REAL engine probe (non-destructive, isolated profile).
+/* v1.2.5 REAL engine probe (non-destructive, isolated profile).
    Reads the user's already-installed real Engine Pack, but runs the shell in a fresh
    temporary userData profile so current documents/settings/HTML versions and existing
    Chromium blob_storage cannot affect the measurement. The temp profile's engine/

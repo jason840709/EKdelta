@@ -4,11 +4,11 @@
 
 # REVTeX / LaTeX Engine Pack
 
-Ekdeta 不會因為你只是寫 Markdown，就先載入一大包 TeX runtime。一般 Markdown、MathLive 與臺灣論文工作流都不需要 Engine Pack。
+EKdelta 不會因為你只是寫 Markdown，就先載入一大包 TeX runtime。一般 Markdown、MathLive 與臺灣論文工作流都不需要 Engine Pack。
 
-只有真的要讓 Ekdeta 編譯 REVTeX / LaTeX、產生右側那份真實 TeX PDF 時，才需要 Engine Pack。
+只有真的要讓 EKdelta 編譯 REVTeX / LaTeX、產生右側那份真實 TeX PDF 時，才需要 Engine Pack。
 
-## Ekdeta 1.2.3 鎖定的版本
+## EKdelta 1.2.3 鎖定的版本
 
 1.2.3 Core 鎖定：
 
@@ -17,7 +17,7 @@ texlyre-busytex 1.2.3
 TeX Live 2026 recommended
 ```
 
-Ekdeta 會檢查檔名、大小與 SHA-256。不要因為 BusyTeX 有更新版本，就直接用 1.3 / 1.4 的檔案替換，也不要把不同 release 的檔案混在同一個資料夾。
+EKdelta 會檢查檔名、大小與 SHA-256。不要因為 BusyTeX 有更新版本，就直接用 1.3 / 1.4 的檔案替換，也不要把不同 release 的檔案混在同一個資料夾。
 
 ## 官方下載
 
@@ -37,7 +37,7 @@ texlive-recommended.data
 
 上游建置專案在 <https://github.com/TeXlyre/texlyre-busytex-build>。
 
-## Ekdeta 1.2.3 的精確驗證值
+## EKdelta 1.2.3 的精確驗證值
 
 | File | Size (bytes) | SHA-256 |
 | --- | ---: | --- |
@@ -47,11 +47,11 @@ texlive-recommended.data
 | `texlive-recommended.js` | 3885771 | `7e4b1e21ad226311448aa30f8dcb95da7a1ace9742fcbf4121c17e8cc6cb7f8d` |
 | `texlive-recommended.data` | 199273688 | `beb1aa426fa8547df9ee2405de476ebc9ba56b4c61cdb9e5499e4addb1a7a5b1` |
 
-檔名正確但大小或 hash 不對，Ekdeta 仍會拒絕載入。
+檔名正確但大小或 hash 不對，EKdelta 仍會拒絕載入。
 
 ## 瀏覽器版怎麼載入
 
-1. 開啟 `Ekdeta.html`。
+1. 開啟 `EKdelta.html`。
 2. 切到 **International Journal / REVTeX 4.2**。
 3. 打開精確校樣 / TeX 編譯區。
 4. 選擇 Engine Pack 資料夾。
@@ -63,7 +63,7 @@ texlive-recommended.data
 
 ## Electron 桌面版
 
-第一次開 Ekdeta 可以完全跳過 Engine。真正要用 REVTeX 時再安裝：
+第一次開 EKdelta 可以完全跳過 Engine。真正要用 REVTeX 時再安裝：
 
 ```text
 桌面殼 / Shell
@@ -71,10 +71,10 @@ texlive-recommended.data
   → 安裝 Engine Pack… / Install Engine Pack…
 ```
 
-桌面殼會把選到的 Engine assets 複製到 Ekdeta 的使用者資料目錄。Engine 是 lazy-load，平常只寫 Markdown 時不會初始化大型 TeX runtime。
+桌面殼會把選到的 Engine assets 複製到 EKdelta 的使用者資料目錄。Engine 是 lazy-load，平常只寫 Markdown 時不會初始化大型 TeX runtime。
 
 ## CJK / XeLaTeX 的邊界
 
-目前 recommended BusyTeX profile 足以支援 Ekdeta 鎖定的 REVTeX / pdfLaTeX 工作流，但它不是完整 MacTeX / TeX Live。
+目前 recommended BusyTeX profile 足以支援 EKdelta 鎖定的 REVTeX / pdfLaTeX 工作流，但它不是完整 MacTeX / TeX Live。
 
-如果稿件需要 XeLaTeX + CJK 套件、特殊中文字型或額外期刊套件，請從 Ekdeta 匯出 `.tex` 或 REVTeX project ZIP，再交給完整 TeX Live、MacTeX、MiKTeX 或投稿系統編譯。
+如果稿件需要 XeLaTeX + CJK 套件、特殊中文字型或額外期刊套件，請從 EKdelta 匯出 `.tex` 或 REVTeX project ZIP，再交給完整 TeX Live、MacTeX、MiKTeX 或投稿系統編譯。

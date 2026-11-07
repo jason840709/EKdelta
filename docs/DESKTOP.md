@@ -4,7 +4,9 @@
 
 # Ekdeta Desktop / Electron
 
-`desktop/` wraps the same `Ekdeta.html` Core in Electron. It is not a separate editor. The build scripts synchronize the Core before packaging and verify its SHA-256 so a desktop package cannot silently ship a different HTML.
+The web Core is named EKdelta from 1.2.4; the desktop app keeps the name Ekdeta for now, because its name decides where settings and the engine are stored.
+
+`desktop/` wraps the same `EKdelta.html` Core in Electron. It is not a separate editor. The build scripts synchronize the Core before packaging and verify its SHA-256 so a desktop package cannot silently ship a different HTML.
 
 ## macOS: `.dmg`, `.pkg`, and `.zip`
 
@@ -30,13 +32,13 @@ Double-click on Windows:
 desktop/release-tools/製作 Windows x64 免安裝版_免Node.cmd
 ```
 
-The script downloads the pinned Electron 33.4.11 Windows x64 runtime and Electron's official `SHASUMS256.txt`, verifies the archive, adds the Ekdeta Core and shell, and produces:
+The script downloads the pinned Electron 33.4.11 Windows x64 runtime and Electron's official `SHASUMS256.txt`, verifies the archive, adds the EKdelta Core and shell, and produces:
 
 ```text
-Ekdeta-1.2.3-win-x64-portable.zip
+Ekdeta-1.2.5-win-x64-portable.zip
 ```
 
-Extract it and run `Ekdeta.exe`. The portable package also includes a helper that can install it under `%LOCALAPPDATA%\Programs\Ekdeta`.
+Extract it and run `EKdelta.exe`. The portable package also includes a helper that can install it under `%LOCALAPPDATA%\Programs\EKdelta`.
 
 ### NSIS installer
 
@@ -50,7 +52,7 @@ This path needs Node.js and uses electron-builder to produce an NSIS `.exe` and 
 
 ## Do end users need Node.js?
 
-No. Node.js is only needed by maintainers who build the Electron packages. A finished Ekdeta app or portable package runs without npm or a JavaScript development environment.
+No. Node.js is only needed by maintainers who build the Electron packages. A finished EKdelta app or portable package runs without npm or a JavaScript development environment.
 
 ## REVTeX Engine Pack
 

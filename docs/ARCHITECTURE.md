@@ -1,10 +1,10 @@
-# Ekdeta public architecture
+# EKdelta public architecture
 
-Ekdeta has two intentional layers.
+EKdelta has two intentional layers.
 
 ## 1. Runnable product
 
-`Ekdeta.html` is the complete browser product: CSS, application scripts, KaTeX/MathLive vendor payloads, built-in manuals/templates, font data and optional REVTeX runtime payloads are assembled into one file.
+`EKdelta.html` is the complete browser product: CSS, application scripts, KaTeX/MathLive vendor payloads, built-in manuals/templates, font data and optional REVTeX runtime payloads are assembled into one file.
 
 ## 2. Maintainable source
 

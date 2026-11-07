@@ -15,11 +15,17 @@ function fn(source, name) {
 for (const en of [false, true]) {
   let body = '';
   vm.runInNewContext(fn(main,'showAbout')+'\nshowAbout();', {
-    isEN: () => en, APP_VERSION: '1.2.3', showModal: s => { body = s; }
+    isEN: () => en, APP_VERSION: '1.2.5', showModal: s => { body = s; }
   }, {timeout:1000});
-  for (const text of ['Jason Chen', 'Ekdeta', 'Markdown', 'REVTeX', 'ekd-', 'eta', 'η', '1.2.3']) assert(body.includes(text), `About missing ${text}`);
+  for (const text of ['Jason Chen', 'EKdelta', 'Markdown', 'REVTeX', 'ekd-', 'delta', 'δ', '1.2.5']) assert(body.includes(text), `About missing ${text}`);
   assert(!body.includes('Ekdeta Contributors'));
   assert(body.includes(en ? 'publication' : '書寫走向發表'));
+}
+// 1.2.4: the PDF viewer module is present, registers itself, and PDF.js travels as unexecuted text blocks
+assert(scripts.some(s => s.includes("K.register('pdfview'")), 'PDF viewer module missing');
+for (const id of ['ekd-pdfjs-lib', 'ekd-pdfjs-worker']) {
+  const m = html.match(new RegExp('<script type="text/plain" id="' + id + '">([\\s\\S]*?)</script>'));
+  assert(m && m[1].length > 100000 && m[1].includes('Mozilla Foundation'), id + ' missing');
 }
 const groupLiteral = tools.match(/const GROUPS = (\[[^]*?\n\]);/)[1];
 const groups = vm.runInNewContext(groupLiteral, {REVTEX_TOOLS:[], TW_THESIS_TOOLS:[]});

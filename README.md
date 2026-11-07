@@ -3,34 +3,35 @@
 </p>
 
 <p align="center">
-  <img src="assets/Ekdeta-icon.png" width="132" alt="Ekdeta icon">
+  <img src="assets/EKdelta-icon.png" width="132" alt="EKdelta icon">
 </p>
 
-<h1 align="center">Ekdeta</h1>
+<h1 align="center">EKdelta</h1>
 
 <p align="center"><strong>Write in Markdown. Finish a thesis or a journal manuscript.</strong></p>
 
 <p align="center">
   A single-file academic writing environment for Markdown, Taiwan thesis workflows, and REVTeX 4.2.<br>
-  <strong>v1.2.3 · Browser + Electron desktop · Jason Chen</strong>
+  <strong>v1.2.5 · Browser + Electron desktop · Jason Chen</strong>
 </p>
 
 <table align="center">
   <tr>
     <td align="center">
-      <strong>Where the name “Ekdeta” comes from</strong><br><br>
-      <em>Ekdeta</em> combines <strong>ekd-</strong>, a Greek root associated with publishing and bringing written work to the public, with <strong>eta (η)</strong>, the Greek letter that lends the name a subtle scientific character. Together, they reflect Ekdeta’s purpose: turning a Markdown manuscript into a polished thesis or journal paper, and guiding research from writing to publication.
+      <strong>Where the name “EKdelta” comes from</strong><br><br>
+      <em>EKdelta</em> combines <strong>ekd-</strong>, a Greek root associated with publishing and bringing written work to the public, with <strong>delta (δ)</strong>, the Greek letter science uses for change. Together, they describe the path from a Markdown manuscript to a polished thesis or journal paper.<br><br>
+      <sub>Versions 1.2.2–1.2.3 were named Ekdeta, and earlier versions Typora HTML; it is the same program.</sub>
     </td>
   </tr>
 </table>
 
 ## Why I built it
 
-Ekdeta started with a simple request from my lab advisor: could we write in Markdown and stop relearning a different typesetting workflow every time the final format changes?
+EKdelta started with a simple request from my lab advisor: could we write in Markdown and stop relearning a different typesetting workflow every time the final format changes?
 
-That is still the main idea. You write the research once, in Markdown. When it is time to submit, Ekdeta changes the output workflow instead of forcing you to rewrite the manuscript in a different language.
+That is still the main idea. You write the research once, in Markdown. When it is time to submit, EKdelta changes the output workflow instead of forcing you to rewrite the manuscript in a different language.
 
-| What you are writing | What you write | What Ekdeta can produce |
+| What you are writing | What you write | What EKdelta can produce |
 | --- | --- | --- |
 | Notes, drafts, general documents | Markdown | Markdown / HTML workspace |
 | Taiwan master's or doctoral thesis | Markdown + Taiwan Thesis mode | Searchable PDF |
@@ -42,15 +43,15 @@ The goal is not to make Markdown *look* vaguely like a paper. Markdown remains t
 
 ### The normal writing workspace
 
-![Ekdeta main editor](docs/screenshots/ekdeta-main.png)
+![EKdelta main editor](docs/screenshots/ekdeta-main.png)
 
 The left side holds files, search, and the document outline. The main area behaves like a Typora-style Markdown editor: you can stay in rendered view most of the time, switch to full source when you want it, and use the toolbar for tables, equations, thesis structure, and journal tools.
 
 ### REVTeX: Markdown on the left, the real compiled PDF on the right
 
-![Ekdeta REVTeX 4.2 split view with Markdown and a real compiled PDF](docs/screenshots/ekdeta-revtex.png)
+![EKdelta REVTeX 4.2 split view with Markdown and a real compiled PDF](docs/screenshots/ekdeta-revtex.png)
 
-This is the part that matters for journal work. The right side is not an HTML imitation of a paper. Once the TeX Engine Pack is loaded, Ekdeta runs the REVTeX / pdfLaTeX workflow and shows the resulting PDF. You can inspect two-column layout, equations, references, floats, and line breaks before exporting the submission files.
+This is the part that matters for journal work. The right side is not an HTML imitation of a paper. Once the TeX Engine Pack is loaded, EKdelta runs the REVTeX / pdfLaTeX workflow and shows the resulting PDF. It recompiles shortly after you stop typing; if the text is mid-edit or a compile fails, the last good PDF stays on screen with a one-line note, and it recovers as soon as the text is valid again. You can inspect two-column layout, equations, references, floats, and line breaks before exporting the submission files.
 
 ## Quick start
 
@@ -59,7 +60,7 @@ This is the part that matters for journal work. The right side is not an HTML im
 Download this file from the GitHub Release:
 
 ```text
-Ekdeta-1.2.3.html
+EKdelta-1.2.5.html
 ```
 
 Open it in Chrome or Edge. That single file is the full Core, not a demo. You can immediately use Markdown, MathLive, images, tables, and the Taiwan thesis workflow without installing a desktop app.
@@ -72,13 +73,13 @@ The repository also includes an Electron shell around the same Core.
 
 - macOS maintainers can build `.dmg`, `.pkg`, and `.zip` packages.
 - Windows x64 maintainers can build an NSIS installer.
-- Windows users can also use the no-Node portable builder, which downloads a pinned Electron runtime and verifies its official SHA-256 before packaging Ekdeta.
+- Windows users can also use the no-Node portable builder, which downloads a pinned Electron runtime and verifies its official SHA-256 before packaging EKdelta.
 
-See [Desktop builds](docs/DESKTOP.md). The GitHub Release also includes `Ekdeta-Electron-Desktop-1.2.3.zip` as a complete desktop build kit.
+See [Desktop builds](docs/DESKTOP.md). The GitHub Release also includes `EKdelta-Electron-Desktop-1.2.5.zip` as a complete desktop build kit. The desktop app itself is still named Ekdeta in this release, because its name decides where its settings and engine are stored.
 
 ## Taiwan thesis workflow: Markdown to PDF
 
-Ekdeta includes Traditional Chinese and English thesis templates, together with Digital and Print layouts. The manuscript stays in Markdown. Cover information, abstract, table of contents, figures, citations, references, appendices, and other thesis structures can be inserted through the thesis tools instead of being maintained as a second typesetting language.
+EKdelta includes Traditional Chinese and English thesis templates, together with Digital and Print layouts. The manuscript stays in Markdown. Cover information, abstract, table of contents, figures, citations, references, appendices, and other thesis structures can be inserted through the thesis tools instead of being maintained as a second typesetting language.
 
 A typical workflow is straightforward:
 
@@ -88,7 +89,7 @@ A typical workflow is straightforward:
 4. Use the thesis tools for cover data, contents, citations, and front/back matter.
 5. Export a vector/searchable PDF and review it page by page before submission.
 
-Ekdeta handles the writing and layout workflow. Your university's current thesis rules remain the final authority, so check the exported PDF against the latest requirements before submitting it.
+EKdelta handles the writing and layout workflow. Your university's current thesis rules remain the final authority, so check the exported PDF against the latest requirements before submitting it.
 
 ## International journals: Markdown to REVTeX, `.tex`, and PDF
 
@@ -114,7 +115,7 @@ That lets you keep the speed of Markdown while still leaving with normal LaTeX f
 
 Ordinary Markdown, MathLive, and the Taiwan thesis PDF workflow do **not** require the large TeX Engine Pack.
 
-You only need it when Ekdeta must actually compile REVTeX / LaTeX. Ekdeta 1.2.3 is locked to the BusyTeX 1.2.3 / TeX Live 2026 recommended assets and validates five files by size and SHA-256:
+You only need it when EKdelta must actually compile REVTeX / LaTeX. EKdelta 1.2.5 uses the BusyTeX 1.2.3 / TeX Live 2026 recommended assets and validates five files by size and SHA-256:
 
 ```text
 busytex.js
@@ -128,13 +129,13 @@ Official asset page:
 
 - <https://github.com/TeXlyre/texlyre-busytex/releases/tag/assets-v1.2.3>
 
-Download the v1.2.3 assets, extract them, and point Ekdeta at the directory that directly contains those five files. Do not mix files from different BusyTeX releases. The exact hashes and setup steps are in [REVTeX Engine Pack setup](docs/REVTeX-ENGINE.md).
+Download the v1.2.3 assets, extract them, and point EKdelta at the directory that directly contains those five files. Do not mix files from different BusyTeX releases. The exact hashes and setup steps are in [REVTeX Engine Pack setup](docs/REVTeX-ENGINE.md).
 
 If a manuscript needs a full XeLaTeX/CJK stack, special fonts, or journal-specific packages beyond the bundled engine profile, export the `.tex` or REVTeX project ZIP and finish the build in full TeX Live, MacTeX, MiKTeX, or the journal submission system.
 
 ## Writing features
 
-Ekdeta keeps the editor useful even when you are not writing a thesis or paper:
+EKdelta keeps the editor useful even when you are not writing a thesis or paper:
 
 - Typora-style local Markdown editing with a full-source mode when you need it.
 - MathLive visual equation entry while storing standard LaTeX in the document.
@@ -147,14 +148,14 @@ Ekdeta keeps the editor useful even when you are not writing a thesis or paper:
 The product itself can be used as one file:
 
 ```text
-Ekdeta.html
+EKdelta.html
 ```
 
 The repository also keeps the small amount of source and tooling needed to maintain that file responsibly:
 
 ```text
-Ekdeta/
-├── Ekdeta.html              # ready-to-use single-file Core
+EKdelta/
+├── EKdelta.html              # ready-to-use single-file Core
 ├── source/                  # deterministic Core source + tests
 ├── desktop/                 # Electron shell for macOS / Windows
 ├── assets/                  # app icon
@@ -169,25 +170,24 @@ The much larger development handoff archive is intentionally not reproduced here
 ## Rebuilding the single-file Core
 
 ```bash
-python3 source/build.py --output Ekdeta.html
+python3 source/build.py --output EKdelta.html
 ```
 
-For 1.2.3, the public source has been checked to rebuild the release `Ekdeta.html` byte-for-byte.
+For 1.2.5, the public source has been checked to rebuild the release `EKdelta.html` byte-for-byte.
 
 Core checks:
 
 ```bash
-node source/tests/check_scripts.cjs source/src/scripts
-node source/tests/behavior.mjs Ekdeta.html
+node source/tests/behavior.mjs EKdelta.html
 node source/tests/semantic_checks.cjs source/src/scripts
-node source/tests/ui_content_checks.cjs Ekdeta.html
-python3 source/tests/audit_product.py Ekdeta.html --name Ekdeta --version 1.2.3
+node source/tests/ui_content_checks.cjs EKdelta.html
+python3 source/tests/audit_product.py EKdelta.html --name EKdelta --version 1.2.5
 ```
 
 See [VALIDATION.md](VALIDATION.md) for the reproducibility notes.
 
 ## Author and license
 
-Ekdeta 1.2.3 is developed by **Jason Chen**.
+EKdelta 1.2.5 is developed by **Jason Chen**.
 
-First-party source code and documentation are released under the MIT License. KaTeX, MathLive, REVTeX, Electron, fonts, and the external BusyTeX Engine Pack keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+First-party source code and documentation are released under the MIT License. KaTeX, MathLive, PDF.js, REVTeX, Electron, fonts, and the external BusyTeX Engine Pack keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.

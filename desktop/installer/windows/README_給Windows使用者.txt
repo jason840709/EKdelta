@@ -1,4 +1,4 @@
-Ekdeta 1.2.3 — Windows x64 使用方式
+Ekdeta 1.2.5 — Windows x64 使用方式
 ====================================
 
 最簡單：執行「製作 Windows x64 免安裝版_免Node.cmd」，完成後解壓 portable ZIP，直接開 Ekdeta.exe。

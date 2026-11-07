@@ -2346,8 +2346,8 @@ function updateTplCopyBar(){
 }
 function menuDefs(){
   return [
-    { label:'Ekdeta', app:true, items:[
-      { t:TT('關於 Ekdeta','About Ekdeta'), cmd: showAbout },
+    { label:'EKdelta', app:true, items:[
+      { t:TT('關於 EKdelta','About EKdelta'), cmd: showAbout },
       { t:TT('版本資訊…','Version Info…'), cmd: showVersionInfo },
       { t:TT('偏好設定…','Preferences…'), cmd: showPrefs },
       { sep:true },
@@ -2481,7 +2481,7 @@ function menuDefs(){
     ]},
     { label:TT('說明','Help'), items:[
       { t:TT('Markdown 與快捷鍵速查','Markdown & Shortcut Reference'), cmd: showShortcuts },
-      { t:TT('關於 Ekdeta','About Ekdeta'), cmd: showAbout },
+      { t:TT('關於 EKdelta','About EKdelta'), cmd: showAbout },
     ]},
   ];
 }
@@ -3717,7 +3717,7 @@ function updateBlockInfo(){
 function updateTitle(){
   const f = activeFile();
   $('#doc-name').textContent = f ? f.name : '未命名.md';
-  document.title = (f ? f.name : 'Ekdeta') + ' — Ekdeta';
+  document.title = (f ? f.name : 'EKdelta') + ' — EKdelta';
 }
 function markDirty(){
   document.body.classList.add('dirty');

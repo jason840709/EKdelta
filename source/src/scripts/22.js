@@ -153,6 +153,23 @@ body.cp171-split #scroller{flex:1 1 auto;min-width:320px}
     background-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out),border-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out)}
 }
 #${BTN_ID}:active{transform:scale(0.97)}
+
+/* 1.2.5：寬度不夠左右並排時改成上下排列（使用者在平板寬度看到編輯區被擠到 PDF
+   底下、「版面設定」蓋住縮放按鈕）。左右並排至少要 320 + 5 + 300 px；不夠時檔案
+   欄留在左邊，右側上半是編輯區、下半是 PDF；手機寬度再收起檔案欄。只改排列，
+   不動 DOM；由 mount() 裡的 ResizeObserver 依實際可用寬度切換 class。 */
+body.cp171-split.ekd-split-stack #main{display:grid!important;grid-template-columns:auto minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+body.cp171-split.ekd-split-stack #sidebar{grid-row:1 / span 2;grid-column:1}
+body.cp171-split.ekd-split-stack #editor-wrap{grid-row:1;grid-column:2;min-width:0!important;min-height:0}
+body.cp171-split.ekd-split-stack #scroller{min-width:0!important}
+body.cp171-split.ekd-split-stack #cp171-split-grip{display:none}
+body.cp171-split.ekd-split-stack #${PANE_ID}{grid-row:2;grid-column:2;min-width:0!important;max-width:none!important;
+  width:auto!important;border-left:0;border-top:1px solid var(--border,rgba(128,128,128,.34));min-height:0}
+body.cp171-split.ekd-split-stack.ekd-split-narrow #sidebar{display:none!important}
+body.cp171-split.ekd-split-stack.ekd-split-narrow #main{grid-template-columns:minmax(0,1fr)}
+body.cp171-split.ekd-split-stack.ekd-split-narrow #editor-wrap,
+body.cp171-split.ekd-split-stack.ekd-split-narrow #${PANE_ID}{grid-column:1}
 #${BTN_ID}[data-on="1"]{border-color:var(--accent,#3d6fd4);background:var(--accent,#3d6fd4);color:#fff}
 body.cp171-split #scroller{position:relative}
 `;
@@ -328,6 +345,23 @@ function renderResult(r){
   const c = r && r.compile;
 
   if (c && c.ok && c.pdf) {
+    /* 1.2.4：先用內嵌 PDF.js 自己畫（37.js，沒有瀏覽器的黑色工具列，右上角有
+       縮放／頁碼／下載）；它載入或繪製失敗時才退回下面原本的 <iframe>。 */
+    const PV = K.need('pdfview');
+    if (PV && !e.frameOnly) {
+      const old = e.stage.querySelector('#cp171-rp-frame');
+      if (old) old.remove();
+      if (pdfUrl) { URL.revokeObjectURL(pdfUrl); pdfUrl = ''; }
+      if (e.empty) e.empty.style.display = 'none';
+      Promise.resolve(PV.show(e.stage, c.pdf, { onDownload: () => dl('pdf') })).catch(err => {
+        K.log.warn('split', 'PDF.js 無法顯示，改用瀏覽器內建檢視器：' + (err && err.message));
+        e.frameOnly = true;
+        try { PV.clear(e.stage); } catch (_) {}
+        renderResult(r);
+      });
+    } else frameView();
+  }
+  function frameView(){
     let keepPage = 1;
     try {
       const f = e.stage.querySelector('iframe');
@@ -374,14 +408,16 @@ function renderResult(r){
         if (w) w.style.display = 'none';
       }
     } catch (_) {}
+  }
 
+  if (c && c.ok && c.pdf) {
     let pages = '';
     const L = K.need('locate');
     if (L && c.synctex) {
       // load() 是 async（要用 DecompressionStream 解壓）；不 await 的話
       // 呼叫端無法得知是否解析成功，之後 locate.stats() 會拿到 null。
       Promise.resolve(L.load(c.synctex))
-        .then(ix => { if (ix && e.note) e.note.textContent = ix.pages + ' 頁 · ' + e.note.textContent; })
+        .then(ix => { if (ix && e.note && !failing) { e.note.textContent = ix.pages + ' 頁 · ' + e.note.textContent; goodNote = e.note.textContent; } })
         .catch(() => {});
     }
     e.note.textContent = (r.emit ? r.emit.engine : '') + ' · ' + (r.passes || 1) + ' 輪 · ' +
@@ -396,13 +432,60 @@ function renderResult(r){
       e.note.appendChild(link);
     }
     e.btnPdf.disabled = false; e.btnTex.disabled = false;
+    goodNote = e.note.textContent; failing = false;
     /* 編譯成功就把上一次的錯誤 log 收掉。先前只在失敗時打開、成功時不處理，
        於是換一份文件編譯成功後，前一份的錯誤訊息還留在畫面上（使用者回報）。 */
     if (e.log) { e.log.hidden = true; if (e.logText) e.logText.textContent = ''; }
   } else if (c) {
-    e.note.textContent = '編譯失敗，按下面白話診斷看原因';
-    if (e.log) { e.log.hidden = false; if (e.logText) e.logText.textContent = String(c.log || '').slice(-4000); }
+    /* 1.2.5：失敗不再蓋掉畫面（使用者回報：打 $$ 還沒寫完，右邊整片變成錯誤紀錄，
+       嚇一跳）。保留上一份成功的 PDF，只在狀態列寫一句白話原因；完整紀錄收在
+       「看紀錄」後面。還沒有任何 PDF 時才直接打開紀錄（沒有畫面可保留）。 */
+    failing = true;
+    let hasPdf = false;
+    try { const PV = K.need('pdfview'); if (PV && PV.stale) PV.stale(e.stage, true); hasPdf = !!(PV && PV.state && PV.state(e.stage)); } catch (_) {}
+    if (!hasPdf) hasPdf = !!e.stage.querySelector('#cp171-rp-frame');
+    // 介面語言：這些句子是動態組出來的，i18n 字典翻不到，所以在這裡直接依語言產生
+    const en = (typeof settings !== 'undefined' && settings && settings.lang === 'en');
+    let why = '';
+    try {
+      const D = K.need('diag'), a = D && D.analyze(c.log, r.emit && r.emit.map), x = a && a.errors && a.errors[0];
+      if (x) why = (x.mdLine ? (en ? 'line ' + x.mdLine + ': ' : '第 ' + x.mdLine + ' 行附近：') : '') +
+        String(en ? (x.raw || '') : (x.what || '')).replace(/^!\s*/, '').replace(/[。.]$/, '');
+    } catch (_) {}
+    if (e.logText) e.logText.textContent = String(c.log || '').slice(-4000);
+    e.note.textContent = en ? 'Not compiled' + (why ? ': ' + why : '') : '編譯沒過' + (why ? '（' + why + '）' : '');
+    const more = document.createElement('a');
+    more.href = 'javascript:void(0)'; more.className = 'cp171-rp-more'; more.textContent = en ? 'Log' : '看紀錄';
+    more.onclick = () => {
+      if (!e.log) return;
+      e.log.hidden = !e.log.hidden;
+      // 錯誤在紀錄最後面：打開時直接捲到底
+      if (!e.log.hidden && e.logText) e.logText.scrollTop = e.logText.scrollHeight;
+    };
+    e.note.appendChild(document.createTextNode(' ')); e.note.appendChild(more);
+    if (e.log) e.log.hidden = hasPdf;
   }
+}
+
+/* 1.2.5：失敗之後內容又回到上次成功的樣子（例如 Ctrl+Z 撤銷），協調器不必重編，
+   這裡把錯誤提示收掉、PDF 恢復正常顯示。 */
+let goodNote = '', failing = false;
+function clearFailure(){
+  const e = els; if (!e) return;
+  try { const PV = K.need('pdfview'); if (PV && PV.stale) PV.stale(e.stage, false); } catch (_) {}
+  if (e.log) e.log.hidden = true;
+  if (failing && e.note) e.note.textContent = goodNote;
+  failing = false;
+}
+function onHold(ev){
+  const e = els; if (!e || !e.note) return;
+  const reason = ev && ev.reason;
+  if (!reason) return;
+  const en = (typeof settings !== 'undefined' && settings && settings.lang === 'en');
+  const EN = { '公式的 $$ 還沒有成對': 'unpaired $$', '公式還是空的': 'empty formula',
+               '程式碼區塊還沒有收尾（``` 沒有成對）': 'unclosed ``` code block' };
+  e.note.textContent = en ? 'Typing: ' + (EN[reason] || reason) : '輸入中：' + reason;
+  failing = true;
 }
 
 const OrchState = { IDLE: '尚未編譯', DIRTY: '內容已變更', COMPILING: '編譯中…',
@@ -416,6 +499,7 @@ function onOrchState(payload){
     if (w) w.hidden = true;
     if (t) t.textContent = '';
   }
+  if (next === 'FRESH' && failing) clearFailure();
   const map = { IDLE: 'idle', DIRTY: 'warn', COMPILING: 'busy', FRESH: 'ok', STALE: 'warn', ERROR: 'err' };
   st(map[next] || 'idle', OrchState[next] || next);
 }
@@ -423,7 +507,7 @@ function onOrchState(payload){
 /* ---------- 下載（用 orch 最近一次結果） ---------- */
 function dl(kind){
   const O = K.need('orch');
-  const last = O && O.getLast && O.getLast();
+  const last = O && ((O.getLastGood && O.getLastGood()) || (O.getLast && O.getLast()));
   if (kind === 'pdf') {
     let bytes = last && last.compile && last.compile.pdf;
     if (!bytes) { try { const p = window.__CP169A_TEX_PROOF__; bytes = p && p.getPdf && p.getPdf(); } catch (_) {} }
@@ -440,22 +524,56 @@ function blobDown(blob, name){
 }
 
 /* ---------- 生命週期 ---------- */
-let unsubState = null, unsubResult = null;
+let unsubState = null, unsubResult = null, unsubHold = null, unsubRecover = null, unsubFlag = null;
 function mount(){
   if (!K.active()) return;
   if (!ensure()) return;
   document.body.classList.add('cp171-split');
   if (!unsubState) unsubState = K.on('orch:state', onOrchState);
   if (!unsubResult) unsubResult = K.on('orch:result', renderResult);
+  if (!unsubHold) unsubHold = K.on('orch:hold', onHold);
+  if (!unsubRecover) unsubRecover = K.on('orch:recovered', clearFailure);
+  /* 1.2.5：勾選框原本只在建立右半邊時讀一次旗標；旗標被其他程式改變（例如連續
+     失敗保護、外部呼叫 setFlag）後畫面不一致。改成跟著每一次旗標變化。 */
+  if (!unsubFlag) unsubFlag = K.on('flag', ev => {
+    if (ev && ev.key === 'autoCompile' && els && els.swAuto) els.swAuto.checked = ev.value !== false;
+  });
   const O = K.need('orch');
-  if (O) { onOrchState({ next: O.state() }); const last = O.getLast(); if (last) renderResult(last); }
+  if (O) {
+    onOrchState({ next: O.state() });
+    const good = O.getLastGood && O.getLastGood(), last = O.getLast();
+    if (good) renderResult(good);
+    if (last && last !== good) renderResult(last);
+  }
+  fitLayout();
+  if (!layoutObs && typeof ResizeObserver === 'function') {
+    const main = document.getElementById('main');
+    if (main) { layoutObs = new ResizeObserver(() => fitLayout()); layoutObs.observe(main); }
+  }
   K.emit('split:mount', {});
   resyncViewport();
 }
+/* 1.2.5：依實際可用寬度決定左右並排或上下排列（見上方樣式說明）。 */
+let layoutObs = null;
+function fitLayout(){
+  try {
+    const main = document.getElementById('main'), side = document.getElementById('sidebar');
+    if (!main) return;
+    const sideW = side && getComputedStyle(side).display !== 'none' ? side.getBoundingClientRect().width : 0;
+    const full = main.getBoundingClientRect().width;
+    const stackNow = document.body.classList.contains('ekd-split-stack');
+    const room = full - (stackNow && document.body.classList.contains('ekd-split-narrow') ? 0 : sideW);
+    const stack = room < 640, narrow = full < 620;
+    document.body.classList.toggle('ekd-split-stack', stack);
+    document.body.classList.toggle('ekd-split-narrow', stack && narrow);
+  } catch (_) {}
+}
 function unmount(){
-  document.body.classList.remove('cp171-split');
+  document.body.classList.remove('cp171-split', 'ekd-split-stack', 'ekd-split-narrow');
+  if (layoutObs) { layoutObs.disconnect(); layoutObs = null; }
   if (disposeSplitDrag) { disposeSplitDrag(); disposeSplitDrag = null; }
   try { const i18n = K.need('i18n'); if (i18n && i18n.unwatch) i18n.unwatch(pane); } catch (_) {}
+  try { const PV = K.need('pdfview'); if (PV && els && els.stage) PV.clear(els.stage); } catch (_) {}
   for (const id of [PANE_ID, 'cp171-split-grip', BTN_ID]) {
     const n = document.getElementById(id);
     if (n && n.parentNode) n.parentNode.removeChild(n);
@@ -464,6 +582,8 @@ function unmount(){
   pane = null; els = null;
   if (unsubState) { unsubState(); unsubState = null; }
   if (unsubResult) { unsubResult(); unsubResult = null; }
+  for (const u of [unsubHold, unsubRecover, unsubFlag]) if (u) u();
+  unsubHold = unsubRecover = unsubFlag = null; failing = false; goodNote = '';
   const S = K.need('revtexSettings'); if (S && S.close) S.close();
   resyncViewport();
 }

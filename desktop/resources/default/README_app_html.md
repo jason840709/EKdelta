@@ -8,4 +8,4 @@
 bash sync_app_html.sh
 ```
 
-腳本會複製 `../Ekdeta_v1.2.3.html` 並核對 SHA-256。`npm start` 與各 `npm run dist...` 指令也會自動執行同步。
+腳本會複製 `../EKdelta.html` 並核對 SHA-256。`npm start` 與各 `npm run dist...` 指令也會自動執行同步。

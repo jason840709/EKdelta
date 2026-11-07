@@ -1,10 +1,10 @@
-# Welcome to Ekdeta
+# Welcome to EKdelta
 
-> **Current version: 1.2.3.** Write Markdown notes, Taiwan Thesis documents in Chinese or English, and REVTeX 4.2 journal manuscripts.
+> **Current version: 1.2.5.** Write Markdown notes, Taiwan Thesis documents in Chinese or English, and REVTeX 4.2 journal manuscripts.
 
-Ekdeta puts the editor in one HTML file. Open it in a browser, or use it with the desktop shell. Ordinary editing and built-in math work offline; web images need a connection, and REVTeX compilation requires an Engine Pack.
+EKdelta puts the editor in one HTML file. Open it in a browser, or use it with the desktop shell. Ordinary editing and built-in math work offline; web images need a connection, and REVTeX compilation requires an Engine Pack.
 
-**Ekdeta** combines **ekd-**, a Greek root associated with publishing and bringing written work to the public, with **eta (η)**, the Greek letter that lends the name a subtle scientific character. The name reflects Ekdeta’s purpose: turning a Markdown manuscript into a polished thesis or journal paper, and guiding research from writing to publication.
+**EKdelta** combines **ekd-**, a Greek root associated with publishing and bringing written work to the public, with **delta (δ)**, the Greek letter science uses for change. The name reflects EKdelta’s purpose: turning a Markdown manuscript into a polished thesis or journal paper, and guiding research from writing to publication.
 
 **Taiwan Thesis** is the interface name for the Chinese and English master’s thesis and doctoral dissertation modes. The built-in templates include National Sun Yat-sen University example fields that you can adapt to your institution’s requirements.
 
@@ -76,8 +76,8 @@ Write directly in Mode → Markdown Mode. Choose GitHub, Night, Sepia, Blackout,
 | Toggle full Markdown source | ⌘/ |
 | Save / export one Markdown document | ⌘S / ⇧⌘S |
 | Preferences | ⌘, |
-| Full instructions and shortcuts | User Manual in the sidebar; Ekdeta → Markdown & Shortcut Reference |
-| Check the current version and release changes | Status bar at the bottom; Ekdeta → Version Info |
+| Full instructions and shortcuts | User Manual in the sidebar; EKdelta → Markdown & Shortcut Reference |
+| Check the current version and release changes | Status bar at the bottom; EKdelta → Version Info |
 | Read architecture and maintenance notes | Dev Notes in the sidebar |
 
 The table uses macOS keys. Switch platforms in the shortcut reference for Windows/Linux combinations.

@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 $Root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $Root
 $ElectronVersion='33.4.11'
-$AppVersion='1.2.3'
+$AppVersion='1.2.5'
 $Asset="electron-v$ElectronVersion-win32-x64.zip"
 $Cache=Join-Path $Root '.windows-runtime-cache'
 $Tmp=Join-Path $Cache $Asset
@@ -13,8 +13,8 @@ $AppDir=Join-Path $OutRoot "Ekdeta-$AppVersion-win-x64"
 $OutZip=Join-Path $OutRoot "Ekdeta-$AppVersion-win-x64-portable.zip"
 New-Item -ItemType Directory -Force -Path $Cache,$OutRoot | Out-Null
 
-$Core=(Resolve-Path (Join-Path $Root '..\Ekdeta.html')).Path
-if(-not(Test-Path $Core)){ throw '找不到上層 Ekdeta.html。請使用完整 Ekdeta Desktop build kit。' }
+$Core=(Resolve-Path (Join-Path $Root '..\EKdelta.html')).Path
+if(-not(Test-Path $Core)){ throw '找不到上層 EKdelta.html。請使用完整 Ekdeta Desktop build kit。' }
 
 $Sources=@(
   @{zip="https://github.com/electron/electron/releases/download/v$ElectronVersion/$Asset"; sums="https://github.com/electron/electron/releases/download/v$ElectronVersion/SHASUMS256.txt"},
@@ -55,7 +55,7 @@ Copy-Item 'installer\windows\安裝 Portable 到本機.ps1' $AppDir -Force
 if(Test-Path $OutZip){Remove-Item $OutZip -Force}
 Compress-Archive -Path "$AppDir\*" -DestinationPath $OutZip -CompressionLevel Optimal
 $h=(Get-FileHash $OutZip -Algorithm SHA256).Hash.ToLowerInvariant()
-"$h  $(Split-Path $OutZip -Leaf)" | Set-Content (Join-Path $OutRoot 'Ekdeta_1.2.3_Windows_x64_portable_SHA256.txt') -Encoding UTF8
+"$h  $(Split-Path $OutZip -Leaf)" | Set-Content (Join-Path $OutRoot 'Ekdeta_1.2.5_Windows_x64_portable_SHA256.txt') -Encoding UTF8
 Write-Host "`n✅ Ekdeta Windows x64 portable 已建立：$OutZip"
 Start-Process explorer.exe $OutRoot
 Write-Host '按 Enter 關閉…';[void][Console]::ReadLine()

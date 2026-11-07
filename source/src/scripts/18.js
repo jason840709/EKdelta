@@ -508,7 +508,7 @@ function emit(ast, opts){
     warnings.push('AIP reprint + Letter + 雙欄若明確指定 11pt/12pt，會載入不相容的大字級 grid，使第一頁正文逼近紙張下緣；已改由 REVTeX 模式自動選用 10pt。');
   }
   push('% !TEX program = ' + (used.cjk ? 'xelatex' : 'pdflatex'));
-  push((cpEN() ? '% Produced by the Ekdeta CP171 international-paper pipeline; a human-readable, journal-editable REVTeX 4.2 source.' : '% 由 Ekdeta CP171 國際論文管線產生；此檔為人可讀、期刊可再編輯的 REVTeX 4.2 原始檔。'));
+  push((cpEN() ? '% Produced by the EKdelta CP171 international-paper pipeline; a human-readable, journal-editable REVTeX 4.2 source.' : '% 由 EKdelta CP171 國際論文管線產生；此檔為人可讀、期刊可再編輯的 REVTeX 4.2 原始檔。'));
   push('\\documentclass[' + co.join(',') + ']{revtex4-2}');
   for (const l of preamblePackages(S, used)) push(l);
   const meta = ast.meta || {};

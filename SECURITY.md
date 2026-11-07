@@ -1,6 +1,6 @@
 # Security and privacy
 
-Ekdeta 是 browser-first 的本機研究寫作工具。
+EKdelta 是 browser-first 的本機研究寫作工具。
 
 ## 文件與儲存
 

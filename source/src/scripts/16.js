@@ -68,6 +68,12 @@
     '停筆自動編譯': 'Auto-compile on pause',
     '所見即所得': 'WYSIWYG',
     '下載 PDF': 'Download PDF',
+    /* 1.2.4 右半邊 PDF 檢視（37.js）右上角按鈕的提示文字 */
+    '按一下回到符合寬度': 'Click to fit the width',
+    '輸入頁碼後按 Enter 跳頁': 'Type a page number and press Enter',
+    'PDF 檢視': 'PDF view',
+    '縮小': 'Zoom out',
+    '放大': 'Zoom in',
     '下載 .tex': 'Download .tex',
     '版面設定': 'Layout settings',
     '回到編輯': 'Back to editing',
@@ -510,8 +516,8 @@
     '個檔案／': ' files / ',
     '— REVTeX 4.2 投稿包': '— REVTeX 4.2 submission package',
     'REVTeX 4.2 原始檔（投稿主體）': 'REVTeX 4.2 source (the manuscript itself)',
-    '本稿由 Ekdeta CP171 國際論文管線從 Markdown 產生。':
-      'This manuscript was produced from Markdown by the Ekdeta CP171 international-paper pipeline.',
+    '本稿由 EKdelta CP171 國際論文管線從 Markdown 產生。':
+      'This manuscript was produced from Markdown by the EKdelta CP171 international-paper pipeline.',
     '是人可讀、可再編輯的標準 REVTeX 原始檔，不含任何私有巨集或':
       'is a human-readable, editable standard REVTeX source with no private macros and no ',
     '絕對定位——期刊生產流程可以直接重排。':
@@ -710,8 +716,8 @@
       "on",
     "關":
       "off",
-    "% 由 Ekdeta CP171 國際論文管線產生；此檔為人可讀、期刊可再編輯的 REVTeX 4.2 原始檔。":
-      "% Produced by the Ekdeta CP171 international-paper pipeline; a human-readable, journal-editable REVTeX 4.2 source.",
+    "% 由 EKdelta CP171 國際論文管線產生；此檔為人可讀、期刊可再編輯的 REVTeX 4.2 原始檔。":
+      "% Produced by the EKdelta CP171 international-paper pipeline; a human-readable, journal-editable REVTeX 4.2 source.",
     "% 本文沒有引用文獻也沒有腳註。要加文獻，在 frontmatter 寫 bibliography: refs":
       "% This document has no citations and no footnotes. To add references, write bibliography: refs in the frontmatter",
     "% 書目由文件內的 revtex-bibliography 區塊直接提供（thebibliography）。":

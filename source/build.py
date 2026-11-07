@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble Ekdeta's single HTML file without changing classic-script order."""
+"""Assemble EKdelta's single HTML file without changing classic-script order."""
 import argparse
 import hashlib
 import json
@@ -10,9 +10,9 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '1.2.3'
-CHECKPOINT = 'CP183'
-BUILD = 'CP183-ABOUT-TW-HANDOFF-1.2.3'
+VERSION = '1.2.5'
+CHECKPOINT = 'CP185'
+BUILD = 'CP185-LIVE-COMPILE-1.2.5'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
@@ -50,7 +50,7 @@ def assemble():
     html = re.sub(r'/\*@script:([^@]+)@\*/', script, html)
     # Hash the assembler as well as all runtime inputs; no wall-clock timestamp.
     read('build.py')
-    manifest = {'build': CHECKPOINT, 'name': 'ABOUT-TW-HANDOFF', 'app_version': VERSION,
+    manifest = {'build': CHECKPOINT, 'name': 'PDF-VIEW-EKDELTA', 'app_version': VERSION,
                 'checkpoint': CHECKPOINT, 'app_build': BUILD,
                 'source_truth': 'src/template.html + src/scripts + docs + templates + build.py',
                 'modules': modules, 'sources': dict(sorted(sources.items())),
@@ -66,7 +66,8 @@ def assemble():
 def check_syntax(html):
     scripts = []
     for opening, body in re.findall(r'(<script\b[^>]*>)([\s\S]*?)</script\s*>', html, re.I):
-        if 'application/json' not in opening:
+        # text/plain blocks carry vendor ES modules as data (PDF.js); their bytes are fixed by vendor-hashes.json
+        if 'application/json' not in opening and 'text/plain' not in opening:
             scripts.append(body)
     probe = "const vm=require('vm'),fs=require('fs');const s=JSON.parse(fs.readFileSync(0,'utf8'));s.forEach((v,i)=>new vm.Script(v,{filename:'inline-'+i+'.js'}));console.log(s.length+' executable scripts parse successfully');"
     subprocess.run([os.environ.get('EKDETA_NODE','node'), '-e', probe], input=json.dumps(scripts), text=True, check=True)
@@ -80,7 +81,7 @@ def main():
     check_syntax(html)
     data=html.encode('utf-8')
     default_output = (ROOT.parent.parent/f'02_目前程式碼_v{VERSION}.html'
-                      if ROOT.parent.name == '08_測試工具' else ROOT/f'Ekdeta_v{VERSION}.html')
+                      if ROOT.parent.name == '08_測試工具' else ROOT/f'EKdelta_v{VERSION}.html')
     path=args.output.resolve() if args.output else default_output
     path.parent.mkdir(parents=True, exist_ok=True)
     if args.check:

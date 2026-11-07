@@ -1,5 +1,5 @@
 #!/bin/bash
-# Electron 1.2.3 Full-only rebase — macOS release QA.
+# Electron 1.2.5 Full-only rebase — macOS release QA.
 # source / dist / shell / fake Engine / direct stream / real Full Engine 一次驗完，最後封小型 QA ZIP。
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,12 +14,12 @@ pass=0; fail=0
 ok(){ echo "PASS  $*"; pass=$((pass+1)); }
 bad(){ echo "FAIL  $*"; fail=$((fail+1)); }
 info(){ echo "INFO  $*"; }
-printf 'Ekdeta Electron 1.2.3 Full-only macOS release verification\nDate: %s\nRoot: %s\n\n' "$(date)" "$ROOT"
+printf 'Ekdeta Electron 1.2.5 Full-only macOS release verification\nDate: %s\nRoot: %s\n\n' "$(date)" "$ROOT"
 
 if [ "$(uname -s)" = "Darwin" ]; then ok "macOS host"; else bad "這支驗證器必須在 macOS 執行"; fi
 
 echo '=== Portable source gate ==='
-if python3 verify/verify_release.py; then ok "v1.2.3 portable static gate"; else bad "v1.2.3 portable static gate"; fi
+if python3 verify/verify_release.py; then ok "v1.2.5 portable static gate"; else bad "v1.2.5 portable static gate"; fi
 cp verify/results/static.json "$QA_DIR/static.json" 2>/dev/null || true
 if [ -f package-lock.json ]; then
   ok "package-lock.json 已存在（後續 build 可 npm ci）"
@@ -120,7 +120,7 @@ fi
 
 echo; echo "RESULT: PASS=$pass FAIL=$fail"; echo "Report: $REPORT"
 cp "$REPORT" "$QA_DIR/" 2>/dev/null || true
-QA_ZIP="verify/results/Ekdeta_1.2.3_FULLONLY_Mac_QA_${STAMP}.zip"
+QA_ZIP="verify/results/Ekdeta_1.2.5_FULLONLY_Mac_QA_${STAMP}.zip"
 /usr/bin/zip -q -r "$QA_ZIP" "$QA_DIR" "$REPORT" 2>/dev/null || true
 [ -f "$QA_ZIP" ] && echo "QA package: $QA_ZIP"
 /usr/bin/open "$(dirname "$REPORT")" 2>/dev/null || true

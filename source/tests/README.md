@@ -3,8 +3,8 @@
 Run against the built HTML, after assembling the source files:
 
 ```sh
-python3 tests/audit_product.py Ekdeta_v1.2.3.html \
-  --name Ekdeta --version 1.2.3 \
+python3 tests/audit_product.py EKdelta_v1.2.5.html \
+  --name EKdelta --version 1.2.5 \
   --require-constant SEED_WELCOME \
   --require-constant SEED_MANUAL \
   --require-constant SEED_NOTES \

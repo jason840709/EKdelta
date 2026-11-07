@@ -1,6 +1,6 @@
-# Ekdeta Desktop 1.2.3
+# Ekdeta Desktop 1.2.5
 
-這個資料夾是 **Ekdeta** 的 Electron 桌面殼。它載入 repository 根目錄同一份 `Ekdeta.html`；Browser 版與 Desktop 版共用一個 Core。
+這個資料夾是 **Ekdeta** 的 Electron 桌面殼。網頁版自 1.2.4 起改名為 **EKdelta**；桌面 App 的名稱暫時仍是 Ekdeta，因為 App 名稱決定設定與引擎存放的資料夾，改名要搭配實機打包與安裝測試。它載入 repository 根目錄同一份 `EKdelta.html`；Browser 版與 Desktop 版共用一個 Core。
 
 ## macOS
 

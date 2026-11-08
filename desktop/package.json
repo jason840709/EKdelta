@@ -1,8 +1,8 @@
 {
   "name": "ekdeta-desktop",
-  "productName": "Ekdeta",
-  "version": "1.2.5",
-  "description": "Ekdeta Markdown research writing, Taiwan thesis, and REVTeX desktop app",
+  "productName": "EKdelta Desktop",
+  "version": "1.2.8",
+  "description": "EKdelta Desktop: Markdown research writing, Taiwan thesis, and REVTeX desktop app",
   "main": "src/main.js",
   "author": "Jason Chen",
   "license": "MIT",
@@ -36,7 +36,7 @@
   },
   "build": {
     "appId": "org.ekdeta.app",
-    "productName": "Ekdeta",
+    "productName": "EKdelta Desktop",
     "asar": true,
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
@@ -68,7 +68,7 @@
       "identity": null,
       "darkModeSupport": true,
       "minimumSystemVersion": "11.0",
-      "icon": "resources/icons/Ekdeta.icns"
+      "icon": "resources/icons/EKdelta.icns"
     },
     "dmg": {
       "writeUpdateInfo": false
@@ -78,15 +78,15 @@
         "nsis",
         "zip"
       ],
-      "icon": "resources/icons/Ekdeta.ico",
-      "artifactName": "Ekdeta-${version}-win-${arch}.${ext}"
+      "icon": "resources/icons/EKdelta.ico",
+      "artifactName": "EKdelta-Desktop-${version}-win-${arch}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Office",
-      "icon": "resources/icons/Ekdeta.png"
+      "icon": "resources/icons/EKdelta.png"
     },
     "electronLanguages": [
       "en-US",
@@ -111,8 +111,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Ekdeta",
-      "uninstallDisplayName": "Ekdeta",
+      "shortcutName": "EKdelta Desktop",
+      "uninstallDisplayName": "EKdelta Desktop",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true
     }

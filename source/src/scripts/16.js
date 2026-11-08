@@ -42,14 +42,27 @@
       'Split view created: Markdown on the left, PDF on the right',
     '右邊顯示 pdfLaTeX 真正編譯出的 PDF':
       'The right half shows a PDF compiled by a real pdfLaTeX run',
+    '停筆後，這裡會顯示編譯好的 PDF。': 'When you pause typing, the compiled PDF appears here. ',
+    '第一次使用先按右上角「載入 LaTeX 引擎」，選取 Engine Pack 資料夾。': 'The first time, press “Load LaTeX engine” at the top right and choose the Engine Pack folder.',
     '左邊照常打 Markdown，停筆後這裡自動跟上。你在這裡看到的版面，':
-      'Keep writing Markdown on the left; this side follows once you pause. What you see here',
-    '就是匯出時拿到的那一份檔案。':
-      'is exactly the file you get when you export.',
+      'Keep writing Markdown on the left; this side follows once you pause. The layout you see here',
+    '與匯出的檔案相同。':
+      'is the layout of the file you export.',
+    '在 Markdown 編輯與 REVTeX 版面設定之間切換（右半的 PDF 保持顯示）':
+      'Switch between Markdown editing and REVTeX layout settings (the PDF on the right stays visible)',
     '第一次要先載入 Engine Pack 資料夾（':
       'The first time, load the Engine Pack folder (',
-    '等五個檔案）。': ' and three more files).',
+    '等五個檔案）。': ' and four more files).',
     '載入 Engine Pack': 'Load Engine Pack',
+    '載入 LaTeX 引擎': 'Load LaTeX engine',
+    '選取 Engine Pack 資料夾（含 busytex.wasm 等五個檔案），載入後自動編譯':
+      'Choose the Engine Pack folder (busytex.wasm and four more files); it compiles once loaded',
+    '尚未載入 LaTeX 引擎：按右半邊的「載入 LaTeX 引擎」，選取 Engine Pack 資料夾':
+      'The LaTeX engine is not loaded: press “Load LaTeX engine” on the right and choose the Engine Pack folder',
+    '（含 busytex.js、busytex.wasm、busytex_pipeline.js、texlive-recommended.js、':
+      ' (with busytex.js, busytex.wasm, busytex_pipeline.js, texlive-recommended.js and ',
+    'texlive-recommended.data 五個檔案），載入完成後會自動編譯。':
+      'texlive-recommended.data); it compiles automatically once loaded.',
     '在 Markdown 編輯與 REVTeX 版面設定之間切換（右半的 PDF 保持顯示）':
       'Switch between Markdown editing and the REVTeX layout settings (the PDF on the right stays visible)',
     'pdfLaTeX 編譯輸出': 'pdfLaTeX compile output',
@@ -88,6 +101,10 @@
     /* ---- 版面設定面板（cp171-57-revtex-settings） ---- */
     'CP171 REVTeX 版面設定面板就緒': 'CP171 REVTeX layout settings panel ready',
     '國際論文版面設定': 'International paper layout settings',
+    '改了會自動重新編譯，右邊看到的就是交出去的版面。':
+      'Changes recompile automatically; the right side shows the layout you will hand in.',
+    '更多設定': 'More settings',
+    '版式細節': 'Layout details',
     '改任何一項，右邊的 PDF 會在 0.7 秒後重新編譯——':
       'Change anything here and the PDF on the right recompiles after 0.7 s —',
     '你調的是 REVTeX 的 class option，看到的是真正的排版結果，不是模擬。':
@@ -181,6 +198,16 @@
     '數字 [1]': 'Numeric [1]',
     '作者年份 (Smith 2026)': 'Author-year (Smith 2026)',
     '註腳併入書目': 'Footnotes in the bibliography',
+    '作者附註放進書目（bibnotes）': 'Author notes in the bibliography (bibnotes)',
+    '標題區的作者附註（thanks、altaffiliation 等）改排在書目區':
+      'Front-matter author notes (thanks, altaffiliation, …) are printed in the reference list',
+    '正文腳註併入書目（footinbib）': 'Body footnotes in the bibliography (footinbib)',
+    '關閉時腳註排在頁底。開啟要搭配 .bib 檔（BibTeX）才看得到；手寫書目時程式會改回頁底並提醒':
+      'Off: footnotes at the foot of the page. On: needs a .bib file (BibTeX) to show them; with a hand-written bibliography the program keeps them at the foot of the page and tells you',
+    '文件用到 amsmath 的公式（多行公式、\\eqref、\\text…）時一律載入；這裡只決定沒用到時要不要也載入':
+      'Always loaded when the document uses amsmath features (multi-line equations, \\eqref, \\text…); this only decides whether to load it when unused',
+    '用到 \\mathbb、\\checkmark 等符號時一律載入':
+      'Always loaded when symbols such as \\mathbb or \\checkmark are used',
     'REVTeX 用書目機制實作腳註，這個開關決定它們排在頁尾還是書目區':
       'REVTeX implements footnotes through the bibliography; this switch decides whether they sit at the foot of the page or in the reference list',
     '完整書目（含標題）': 'Long bibliography (with titles)',
@@ -304,10 +331,8 @@
       'texlive-recommended.data), press Verify and initialize, then come back and compile again.',
     '(2) 啟動 companion 本機服務並在旗標 companionUrl 指向它。':
       '(2) start the local companion service and point the companionUrl flag at it.',
-    '引擎尚未初始化。已為你開啟「TeX 精確校樣」面板——請在那裡選取 Engine Pack 資料夾':
-      'The engine is not initialized. The exact TeX proof panel has been opened for you — choose an Engine Pack folder there',
-    '引擎存在但尚未初始化——需在「TeX 精確校樣」面板選取 Engine Pack 資料夾':
-      'The engine exists but is not initialized — choose an Engine Pack folder in the exact TeX proof panel',
+    '引擎尚未載入：按右上角「載入 LaTeX 引擎」，選取 Engine Pack 資料夾':
+      'The engine is not loaded: press “Load LaTeX engine” at the top right and choose the Engine Pack folder',
     '（含 busytex.js / busytex.wasm / texlive-recommended.data）；':
       ' (with busytex.js / busytex.wasm / texlive-recommended.data);',
     '兩種實作皆不可用：busytex（': 'Neither implementation is available: busytex (',
@@ -337,8 +362,8 @@
       'The content changed during the compile, so this result is treated as stale',
     '次，已自動關閉影子編譯。': ' times, so shadow compiling has been turned off automatically.',
     '連續失敗': 'consecutive failures',
-    '大型文件首次編譯較慢；若持續發生，到「TeX 精確校樣」面板看訊息。':
-      'The first compile of a large document is slow; if it keeps happening, check the messages in the exact TeX proof panel.',
+    '大型文件第一次編譯比較慢，請稍候再按「編譯」。':
+      'The first compile of a large document is slow; wait a moment and press Compile again.',
     '編譯超過': 'The compile took more than ',
 
     /* ---- 接管層（cp171-31-takeover） ---- */

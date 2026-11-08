@@ -72,21 +72,21 @@ body.cp171-split #scroller{flex:1 1 auto;min-width:320px}
  *   在「這顆按鈕會觸發數秒編譯」的情境下，使用者會不確定到底按到沒有。
  * 100ms + ease-out：夠快到感覺是「即時」而非「播了一段動畫」。 */
 @media (hover: hover) and (pointer: fine){
-  #${PANE_ID} button:hover:not(:disabled){border-color:var(--accent,#3d6fd4);background:var(--accent-soft,rgba(61,111,212,.12))}
+  #${PANE_ID} button:hover:not(:disabled){border-color:var(--accent,var(--ui-accent));background:var(--accent-soft,color-mix(in srgb,var(--ui-accent) 12%,transparent))}
 }
 @media (prefers-reduced-motion: no-preference){
-  #${PANE_ID} button:not(:disabled){transition:transform var(--mac-dur-instant,100ms) var(--mac-ease-out,cubic-bezier(.22,1,.36,1)),
-    background-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out),border-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out)}
+  #${PANE_ID} button:not(:disabled){transition:transform var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out)),
+    background-color var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out)),border-color var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out))}
 }
 #${PANE_ID} button:active:not(:disabled){transform:scale(0.97)}
 #${PANE_ID} button:disabled{opacity:.45;cursor:default}
-#${PANE_ID} button[data-primary]{border-color:var(--accent,#3d6fd4);background:var(--accent,#3d6fd4);color:#fff}
+#${PANE_ID} button[data-primary]{border-color:var(--accent,var(--ui-accent));background:var(--accent,var(--ui-accent));color:#fff}
 #${PANE_ID} .sp{flex:1}
 #${PANE_ID} .cp171-rp-st{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;
-  border-radius:999px;font-size:10.5px;font-weight:750;white-space:nowrap}
+  border-radius:999px;font-size:var(--fs-11);font-weight:600;white-space:nowrap}
 #${PANE_ID} .cp171-rp-st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 #${PANE_ID} .cp171-rp-st[data-s="ok"]{background:rgba(47,163,96,.15);color:#2fa360}
-#${PANE_ID} .cp171-rp-st[data-s="busy"]{background:rgba(61,111,212,.15);color:#3d6fd4}
+#${PANE_ID} .cp171-rp-st[data-s="busy"]{background:color-mix(in srgb,var(--ui-accent) 15%,transparent);color:var(--ui-accent)}
 /* 編譯中的脈動：目的是 state indication（正在跑 pdfLaTeX，可能要數秒），
    屬 occasional 頻率，適用 standard animation。
    ★ 必須提供 prefers-reduced-motion 版本——持續閃爍的元素對前庭系統
@@ -103,18 +103,18 @@ body.cp171-split #scroller{flex:1 1 auto;min-width:320px}
 #${PANE_ID} .cp171-rp-st[data-s="err"]{background:rgba(214,80,80,.16);color:#d05050}
 #${PANE_ID} .cp171-rp-st[data-s="idle"]{background:rgba(128,128,128,.15);opacity:.8}
 @keyframes cp171sp{0%,100%{opacity:1}50%{opacity:.2}}
-#${PANE_ID} .cp171-rp-note{font:10.5px/1.4 var(--font-mono,ui-monospace,monospace);
+#${PANE_ID} .cp171-rp-note{font:var(--fs-11)/1.4 var(--font-mono,ui-monospace,monospace);
   color:var(--text-muted,#888);flex:1 0 100%;word-break:break-word}
 #${PANE_ID} .cp171-rp-stage{flex:1;min-height:0;background:#525659;position:relative}
 #${PANE_ID} iframe{width:100%;height:100%;border:0;display:block}
 #${PANE_ID} .cp171-rp-empty{position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:12px;padding:30px;text-align:center;
   color:#c9ced6;font:12px/1.75 var(--font-ui,ui-sans-serif,system-ui,sans-serif)}
-#${PANE_ID} .cp171-rp-empty strong{font-size:13.5px;color:#eef1f5}
+#${PANE_ID} .cp171-rp-empty strong{font-size:var(--fs-14);color:#eef1f5}
 #${PANE_ID} .cp171-rp-empty p{margin:0;max-width:34em}
 #${PANE_ID} .cp171-rp-empty code{background:rgba(255,255,255,.13);padding:1px 5px;border-radius:4px;font-size:11px}
 #${PANE_ID} .cp171-rp-log{flex:0 0 auto;max-height:26%;overflow:auto;margin:0;padding:8px 10px;
-  background:#15171c;color:#e6a5a5;font:10.5px/1.5 var(--font-mono,ui-monospace,monospace);
+  background:#15171c;color:#e6a5a5;font:var(--fs-11)/1.5 var(--font-mono,ui-monospace,monospace);
   white-space:pre-wrap;border-top:1px solid rgba(255,255,255,.08)}
 #${PANE_ID} .cp171-rp-log[hidden]{display:none}
 #${PANE_ID} .cp171-rp-logwrap{position:relative;flex:0 0 auto;display:flex;min-height:0}
@@ -124,19 +124,22 @@ body.cp171-split #scroller{flex:1 1 auto;min-width:320px}
   width:20px;height:20px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--border,rgba(128,128,128,.4));border-radius:var(--mac-radius-small,6px);
   background:var(--bg-panel,var(--bg-editor,transparent));color:var(--text-muted,#888);
-  font-size:14px;cursor:pointer;opacity:.75}
+  font-size:var(--fs-14);cursor:pointer;opacity:.75}
 #${PANE_ID} #cp171-rp-logclose:hover{opacity:1;color:var(--text-strong,inherit)}
 
-/* 拖曳分隔 */
-#cp171-split-grip{flex:0 0 5px;cursor:col-resize;background:transparent}
-/* 分隔條的 hover 提示同樣要閘門（觸控裝置上沒有 hover 概念），
-   並加上短過渡讓「可以拖這裡」的提示浮現而不是硬跳。 */
+/* 拖曳分隔：1.2.7 起不佔寬度。以前是 5px 透明條，透出底下的白色紙面，夾在灰色工具列與
+   右半邊之間像一條白線（Jason 11-08 以為是捲軸）。現在只在右半邊的分界線上疊一條 6px 的
+   感應區（不蓋到左半邊的捲軸），滑鼠移上去才浮出一條 2px 的提示線。 */
+#cp171-split-grip{flex:0 0 0;width:0;position:relative;z-index:6;cursor:col-resize;background:transparent}
+#cp171-split-grip::before{content:"";position:absolute;top:0;bottom:0;left:0;width:6px;cursor:col-resize}
+#cp171-split-grip::after{content:"";position:absolute;top:0;bottom:0;left:0;width:2px;background:color-mix(in srgb,var(--ui-accent) 45%,transparent);opacity:0;pointer-events:none}
+/* 提示線的 hover 要閘門（觸控裝置上沒有 hover 概念），並加短過渡讓它浮現而不是硬跳。 */
 @media (hover: hover) and (pointer: fine){
-  #cp171-split-grip{transition:background-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out)}
-  #cp171-split-grip:hover{background:rgba(61,111,212,.35)}
+  #cp171-split-grip::after{transition:opacity var(--dur-instant) var(--ease-out)}
+  #cp171-split-grip:hover::after{opacity:1}
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce){
-  #cp171-split-grip{transition:none}
+  #cp171-split-grip::after{transition:none}
 }
 
 /* 左半右上角的切換鈕 */
@@ -146,11 +149,11 @@ body.cp171-split #scroller{flex:1 1 auto;min-width:320px}
   font:650 11px/1 var(--font-ui,ui-sans-serif,system-ui,sans-serif);cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.1)}
 @media (hover: hover) and (pointer: fine){
-  #${BTN_ID}:hover{border-color:var(--accent,#3d6fd4);background:var(--accent-soft,rgba(61,111,212,.14))}
+  #${BTN_ID}:hover{border-color:var(--accent,var(--ui-accent));background:var(--accent-soft,color-mix(in srgb,var(--ui-accent) 14%,transparent))}
 }
 @media (prefers-reduced-motion: no-preference){
-  #${BTN_ID}{transition:transform var(--mac-dur-instant,100ms) var(--mac-ease-out,cubic-bezier(.22,1,.36,1)),
-    background-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out),border-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out)}
+  #${BTN_ID}{transition:transform var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out)),
+    background-color var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out)),border-color var(--mac-dur-instant,var(--dur-instant)) var(--mac-ease-out,var(--ease-out))}
 }
 #${BTN_ID}:active{transform:scale(0.97)}
 
@@ -170,7 +173,7 @@ body.cp171-split.ekd-split-stack.ekd-split-narrow #sidebar{display:none!importan
 body.cp171-split.ekd-split-stack.ekd-split-narrow #main{grid-template-columns:minmax(0,1fr)}
 body.cp171-split.ekd-split-stack.ekd-split-narrow #editor-wrap,
 body.cp171-split.ekd-split-stack.ekd-split-narrow #${PANE_ID}{grid-column:1}
-#${BTN_ID}[data-on="1"]{border-color:var(--accent,#3d6fd4);background:var(--accent,#3d6fd4);color:#fff}
+#${BTN_ID}[data-on="1"]{border-color:var(--accent,var(--ui-accent));background:var(--accent,var(--ui-accent));color:#fff}
 body.cp171-split #scroller{position:relative}
 `;
 
@@ -206,20 +209,20 @@ function ensure(){
     '<div class="cp171-rp-bar">',
     '  <span class="cp171-rp-st" id="cp171-rp-state" data-s="idle">尚未編譯</span>',
     '  <button id="cp171-rp-compile" data-primary>編譯</button>',
-    '  <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;cursor:pointer">',
+    '  <label style="display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-12);cursor:pointer">',
     '    <input type="checkbox" id="cp171-rp-auto" checked> 停筆自動編譯</label>',
     '  <span class="sp"></span>',
+    '  <button id="cp171-rp-engine" data-primary hidden title="選取 Engine Pack 資料夾（含 busytex.wasm 等五個檔案），載入後自動編譯">載入 LaTeX 引擎</button>',
     '  <button id="cp171-rp-pdf">下載 PDF</button>',
     '  <button id="cp171-rp-tex">下載 .tex</button>',
     '  <span class="cp171-rp-note" id="cp171-rp-note"></span>',
     '</div>',
     '<div class="cp171-rp-stage" id="cp171-rp-stage">',
+    /* 1.2.7（審查 F2）：同一件事以前講三次（右上角按鈕、按鈕下一行提示、這裡的大標＋兩段說明＋第二顆按鈕）。
+       現在只留一句話；第二顆按鈕留著但隱藏（網站導覽 v18 還會找 #cp171-rp-init）。引擎載入後，後半句自動隱藏。 */
     '  <div class="cp171-rp-empty" id="cp171-rp-empty">',
-    '    <strong>右邊顯示 pdfLaTeX 真正編譯出的 PDF</strong>',
-    '    <p>左邊照常打 Markdown，停筆後這裡自動跟上。你在這裡看到的版面，',
-    '       就是匯出時拿到的那一份檔案。</p>',
-    '    <p>第一次要先載入 Engine Pack 資料夾（<code>busytex.wasm</code> 等五個檔案）。</p>',
-    '    <p><button id="cp171-rp-init">載入 Engine Pack</button></p>',
+    '    <p>停筆後，這裡會顯示編譯好的 PDF。<span class="cp171-rp-first">第一次使用先按右上角「載入 LaTeX 引擎」，選取 Engine Pack 資料夾。</span></p>',
+    '    <button id="cp171-rp-init" hidden>載入 LaTeX 引擎</button>',
     '  </div>',
     '</div>',
     '<div class="cp171-rp-logwrap" id="cp171-rp-logwrap" hidden>',
@@ -245,6 +248,8 @@ function ensure(){
     btn.title = '在 Markdown 編輯與 REVTeX 版面設定之間切換（右半的 PDF 保持顯示）';
     btn.textContent = '版面設定';
     scroller.appendChild(btn);
+    /* 按鈕放在編輯區（不在右半邊面板內），另外交給翻譯機制，英文介面才會顯示英文。 */
+    try { const i18n = K.need('i18n'); if (i18n) i18n.watch(btn); } catch (_) {}
     btn.onclick = () => {
       const S = K.need('revtexSettings');
       if (!S) return;
@@ -260,7 +265,7 @@ function ensure(){
     state: $('cp171-rp-state'), btnCompile: $('cp171-rp-compile'),
     swAuto: $('cp171-rp-auto'), note: $('cp171-rp-note'),
     stage: $('cp171-rp-stage'), empty: $('cp171-rp-empty'),
-    btnPdf: $('cp171-rp-pdf'), btnTex: $('cp171-rp-tex'), btnInit: $('cp171-rp-init'),
+    btnPdf: $('cp171-rp-pdf'), btnTex: $('cp171-rp-tex'), btnInit: $('cp171-rp-init'), btnEngine: $('cp171-rp-engine'),
     log: $('cp171-rp-logwrap'),
     logText: $('cp171-rp-log'),
     logClose: $('cp171-rp-logclose')
@@ -269,7 +274,18 @@ function ensure(){
   els.btnCompile.onclick = () => { const O = K.need('orch'); if (O) O.compile(); };
   els.swAuto.checked = K.flags().autoCompile !== false;
   els.swAuto.onchange = () => K.setFlag('autoCompile', els.swAuto.checked);
-  els.btnInit.onclick = () => { const E = K.need('engine'); if (E && E.requestInit) E.requestInit(); };
+  /* 1.2.6：載入引擎不再開大面板——按鈕直接開選資料夾視窗（要在點擊當下呼叫），
+     選好就自動驗證、初始化並編譯；進度與錯誤顯示在本列的狀態與註記。 */
+  const pickEngine = () => {
+    const P = window.__CP169A_TEX_PROOF__;
+    if (P && P.pickFolder) { P.pickFolder(); return; }
+    const E = K.need('engine'); if (E && E.requestInit) E.requestInit();
+  };
+  els.btnInit.onclick = pickEngine;
+  if (els.btnEngine) {
+    els.btnEngine.onclick = pickEngine;
+    try { const P = window.__CP169A_TEX_PROOF__, s0 = P && P.status ? P.status() : null; els.btnEngine.hidden = !!(s0 && s0.initialized); } catch (_) {}
+  }
   els.btnPdf.onclick = () => dl('pdf');
   els.btnTex.onclick = () => dl('tex');
 
@@ -284,6 +300,7 @@ function ensure(){
   function onWindowMouseMove(e) {
     if (!drag) return;
     const rect = main.getBoundingClientRect();
+    userSplit = true;   // 1.2.6：使用者自己拖過，之後不再自動調整寬度
     const w = Math.min(Math.max(rect.right - e.clientX, 300), rect.width * 0.75);
     document.documentElement.style.setProperty('--cp171-split', w + 'px');
     /* 讀取 clientWidth 會在 CSS 變數更新後強制取得當前 layout；只同步
@@ -394,9 +411,9 @@ function renderResult(r){
           warn.setAttribute('data-cp171', '');
           warn.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;'
             + 'align-items:center;justify-content:center;gap:12px;padding:30px;text-align:center;'
-            + 'color:#c9ced6;font:12.5px/1.75 var(--font-ui,ui-sans-serif,system-ui,sans-serif);'
+            + 'color:#c9ced6;font:var(--fs-13)/1.75 var(--font-ui,ui-sans-serif,system-ui,sans-serif);'
             + 'background:#525659';
-          warn.innerHTML = '<strong style="font-size:13.5px;color:#eef1f5">'
+          warn.innerHTML = '<strong style="font-size:var(--fs-14);color:#eef1f5">'
             + '編譯成功，但這個瀏覽器沒有內建 PDF 檢視器</strong>'
             + '<p style="margin:0;max-width:34em">PDF 已經產生（右上角「下載 PDF」可以拿到檔案），'
             + '只是無法在這裡直接顯示。用 Chrome 或 Edge 開啟這個 HTML 就能看到內嵌預覽。</p>';
@@ -504,7 +521,49 @@ function onOrchState(payload){
   st(map[next] || 'idle', OrchState[next] || next);
 }
 
+/* ---------- 1.2.6：引擎載入狀態（取代原本的大面板） ---------- */
+function engineUi(d){
+  const e = els; if (!e || !d) return;
+  const en = (typeof settings !== 'undefined' && settings && settings.lang === 'en');
+  /* 載入中、或 Mac 桌面殼已登記本機引擎（會自動載入）時，不顯示「載入 LaTeX 引擎」按鈕。 */
+  const P0 = window.__CP169A_TEX_PROOF__, g0 = P0 && P0.getState ? P0.getState() : null;
+  const registered = !!(g0 && g0.directRoot);
+  if (e.btnEngine) e.btnEngine.hidden = !!d.initialized || !!d.busy || registered;
+  if (d.initialized) return;                      // 就緒後交給 orch（engine:ready 會自動編譯）
+  if (d.busy) {
+    st('busy', en ? 'Loading engine…' : '載入引擎中…');
+    if (e.note) e.note.textContent = d.progress || d.status || '';
+    failing = true;
+  } else if (d.kind === 'error') {
+    st('err', en ? 'Engine not loaded' : '引擎載入失敗');
+    if (e.note) e.note.textContent = (d.status || '') + (d.progress ? (en ? ': ' : '：') + d.progress : '');
+    failing = true;
+  }
+}
+window.addEventListener('cp169a:status', ev => engineUi(ev && ev.detail));
+K.on('engine:needed', () => {
+  const e = els; if (!e) return;
+  const P = window.__CP169A_TEX_PROOF__, s0 = P && P.status ? P.status() : null;
+  if (s0 && (s0.busy || s0.kind === 'error')) { engineUi(s0); return; }
+  const g1 = P && P.getState ? P.getState() : null;
+  if (g1 && g1.directRoot) return;   // 桌面殼已登記本機引擎，會自動載入
+  const en = (typeof settings !== 'undefined' && settings && settings.lang === 'en');
+  if (e.btnEngine) e.btnEngine.hidden = false;
+  st('idle', en ? 'Engine not loaded' : '尚未載入引擎');
+  /* 1.2.7：不再在按鈕下方重複一行「按右上角…」，空白區已有一句話 */
+  if (e.note) e.note.textContent = '';
+  failing = true;
+});
+
 /* ---------- 下載（用 orch 最近一次結果） ---------- */
+/* 1.2.6：下載的檔名用目前文件的名稱（去掉 .md／.markdown），.tex 與 .pdf 一致，
+   也和主選單「匯出 LaTeX」相同。 */
+function docStem(){
+  try { const f = typeof activeFile === 'function' ? activeFile() : null;
+        const n = f && f.name ? String(f.name).replace(/\.(md|markdown|txt)$/i, '') : '';
+        if (n) return n; } catch (_) {}
+  return 'manuscript';
+}
 function dl(kind){
   const O = K.need('orch');
   const last = O && ((O.getLastGood && O.getLastGood()) || (O.getLast && O.getLast()));
@@ -512,10 +571,30 @@ function dl(kind){
     let bytes = last && last.compile && last.compile.pdf;
     if (!bytes) { try { const p = window.__CP169A_TEX_PROOF__; bytes = p && p.getPdf && p.getPdf(); } catch (_) {} }
     if (!bytes) return;
-    return blobDown(new Blob([bytes], { type: 'application/pdf' }), 'manuscript.pdf');
+    /* 目前內容編譯沒過時，下載的是上一次成功編譯的 PDF，要講清楚。 */
+    if (failing && typeof toast === 'function') {
+      const en = (typeof settings !== 'undefined' && settings && settings.lang === 'en');
+      toast(en ? 'Downloaded the last PDF that compiled; the current text has not compiled yet.'
+               : '下載的是上一次編譯成功的 PDF；目前的內容還沒編譯成功。', 3200);
+    }
+    return blobDown(new Blob([bytes], { type: 'application/pdf' }), docStem() + '.pdf');
+  }
+  /* 1.2.6：下載的是「目前內容」的 main.tex（投稿版：APS 乾淨寫法，寬公式與表格依最近一次
+     編譯量到的結果寫成靜態結構），不是「最近一次成功編譯」的舊內容（C 報告 X-D）。
+     與主選單「匯出 LaTeX」、.zip 專案同一個入口（18.js mainTex）。 */
+  const E = K.need('emit');
+  let md = '';
+  try {
+    if (typeof commitCurrent === 'function') commitCurrent();
+    if (typeof losslessActiveNormalized === 'function') md = losslessActiveNormalized();
+    if (!md && typeof serialize === 'function') md = serialize();
+  } catch (_) {}
+  if (E && E.mainTex && md) {
+    const out = E.mainTex(md, { settings: (typeof settings !== 'undefined' ? settings : {}), purpose: 'submission' });
+    return blobDown(new Blob([out.tex], { type: 'application/x-tex' }), docStem() + '.tex');
   }
   if (!last) return;
-  blobDown(new Blob([last.emit.tex], { type: 'application/x-tex' }), 'main.tex');
+  blobDown(new Blob([last.emit.tex], { type: 'application/x-tex' }), docStem() + '.tex');
 }
 function blobDown(blob, name){
   const a = document.createElement('a');
@@ -548,13 +627,30 @@ function mount(){
   fitLayout();
   if (!layoutObs && typeof ResizeObserver === 'function') {
     const main = document.getElementById('main');
-    if (main) { layoutObs = new ResizeObserver(() => fitLayout()); layoutObs.observe(main); }
+    // 1.2.6：等下一個畫面再判斷；切換排列本身會改變尺寸，同步處理會觸發瀏覽器的
+    // 「ResizeObserver loop completed with undelivered notifications」警告
+    /* 1.2.6：同時監看 #scroller——它變寬變窄時（拖分隔線、切換排列、開關檔案欄）
+       Markdown 頁面要重新置中、重算寬度。原本只在編輯區本身或紙張背景改變尺寸時
+       才重算，外層變了編輯區卻不知道（使用者回報：內容偏一邊、被擠窄）。 */
+    let lastW = -1;
+    const onResize = () => requestAnimationFrame(() => {
+      fitLayout();
+      const sc = document.getElementById('scroller'), w = sc ? Math.round(sc.clientWidth) : 0;
+      if (w !== lastW) { lastW = w; recenter(); }
+    });
+    if (main) { layoutObs = new ResizeObserver(onResize); layoutObs.observe(main); }
+    const sc0 = document.getElementById('scroller');
+    if (layoutObs && sc0) layoutObs.observe(sc0);
+    /* 1.2.6：拖動視窗時，左右寬度在 resize 事件裡當場重算（resize 事件在這一格的
+       版面計算之前），不等上面的監看延到下一格。原本中間那一格分隔線停在舊位置、
+       左半邊吃下全部的寬度變化，下一格才平分，格式列跟著多排一次，看起來在閃。 */
+    window.addEventListener('resize', fitLayout);
   }
   K.emit('split:mount', {});
   resyncViewport();
 }
 /* 1.2.5：依實際可用寬度決定左右並排或上下排列（見上方樣式說明）。 */
-let layoutObs = null;
+let layoutObs = null, userSplit = false;
 function fitLayout(){
   try {
     const main = document.getElementById('main'), side = document.getElementById('sidebar');
@@ -563,14 +659,26 @@ function fitLayout(){
     const full = main.getBoundingClientRect().width;
     const stackNow = document.body.classList.contains('ekd-split-stack');
     const room = full - (stackNow && document.body.classList.contains('ekd-split-narrow') ? 0 : sideW);
-    const stack = room < 640, narrow = full < 620;
+    /* 1.2.6：左右並排時，右半邊佔「扣掉檔案欄之後」的一半，並保證編輯區至少 MIN_L、
+       PDF 至少 MIN_R；兩者放不下才上下排列。原本右半邊固定佔整個視窗的 48%（連檔案
+       欄一起算），中等寬度時編輯區只剩三百多像素，格式列、狀態列與「版面設定」擠成
+       一團（使用者回報）。使用者拖過分隔線就照他拖的寬度。 */
+    const before = document.body.className + '|' + document.documentElement.style.getPropertyValue('--cp171-split');
+    const MIN_L = 480, MIN_R = 360;
+    const stack = room < MIN_L + MIN_R + 5, narrow = full < 620;
     document.body.classList.toggle('ekd-split-stack', stack);
     document.body.classList.toggle('ekd-split-narrow', stack && narrow);
+    if (!stack && !userSplit) {
+      const right = Math.round(Math.max(MIN_R, Math.min(room * 0.5, room - MIN_L - 5)));
+      document.documentElement.style.setProperty('--cp171-split', right + 'px');
+    }
+    if (before !== document.body.className + '|' + document.documentElement.style.getPropertyValue('--cp171-split'))
+      requestAnimationFrame(recenter);
   } catch (_) {}
 }
 function unmount(){
   document.body.classList.remove('cp171-split', 'ekd-split-stack', 'ekd-split-narrow');
-  if (layoutObs) { layoutObs.disconnect(); layoutObs = null; }
+  if (layoutObs) { layoutObs.disconnect(); layoutObs = null; window.removeEventListener('resize', fitLayout); }
   if (disposeSplitDrag) { disposeSplitDrag(); disposeSplitDrag = null; }
   try { const i18n = K.need('i18n'); if (i18n && i18n.unwatch) i18n.unwatch(pane); } catch (_) {}
   try { const PV = K.need('pdfview'); if (PV && els && els.stage) PV.clear(els.stage); } catch (_) {}
@@ -607,6 +715,12 @@ function unmount(){
  * setMode 那樣被關在 IIFE 裡），可以直接呼叫，不需要透過 window.__XXX__
  * 橋接。DOM 變更後立即呼叫一次，並比照原生 15301-15302 行的雙重
  * requestAnimationFrame 保險（避免瀏覽器 reflow 尚未完成時讀到舊寬度）。 */
+/* 1.2.6：只重新置中與重算縮放幾何（不碰原始碼模式的鏡像），版面一改變就呼叫 */
+function recenter(){
+  try { if (typeof syncViewZoomGeometry === 'function') syncViewZoomGeometry(); } catch (_) {}
+  try { if (typeof scheduleRenderedViewCenterX === 'function') scheduleRenderedViewCenterX(true); } catch (_) {}
+  try { if (typeof srcTrackLayout === 'function' && typeof settings !== 'undefined' && settings && settings.srcmode) srcTrackLayout(120); } catch (_) {}
+}
 function resyncViewport(){
   const run = () => {
     try { if (typeof syncViewZoomGeometry === 'function') syncViewZoomGeometry(); } catch (_) {}

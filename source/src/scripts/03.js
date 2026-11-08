@@ -132,7 +132,8 @@ function inlineFormatRanges(raw){
   const push = r => { out.push(r); mark(r.openStart, r.openEnd, syntax); mark(r.closeStart, r.closeEnd, syntax); };
 
   // Escapes are visible as one character but the backslash is syntax. Mask both so markdown delimiters do not start there.
-  const escRe = /\\[\\`*_{}\[\]#+\-.!~=<>|$]/g; let m;
+  /* 1.2.6：跳脫字元與左邊畫面（01.js inlineMD）同一組：所有 ASCII 標點，\( \) 留給數學。 */
+  const escRe = /\\[!"#$%&'*+,\-./:;<=>?@\[\\\]^_`{|}~]/g; let m;
   while ((m = escRe.exec(raw))){ mark(m.index, m.index + m[0].length); syntax[m.index] = 1; }
 
   // Inline code: support arbitrary backtick runs and allow shorter runs inside.
@@ -158,7 +159,7 @@ function inlineFormatRanges(raw){
   }
 
   // Inline math is protected from inline formatting/clear. It has its own command/editor.
-  const mathRes = [/\$\$(?=\S)([\s\S]+?)(?<=\S)\$\$/g,/\$(?=\S)([^$\n]+?)(?<=\S)\$/g,/\\\((.+?)\\\)/g];
+  const mathRes = [/\$\$(?=\S)([\s\S]+?)(?<=\S)\$\$/g,/\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g,/\\\((.+?)\\\)/g];
   for(const re of mathRes){
     while((m=re.exec(raw))){ if(!available(m.index,m.index+m[0].length)) continue; mark(m.index,m.index+m[0].length); mark(m.index,m.index+m[0].length,protectedMask); }
   }
@@ -227,9 +228,10 @@ function inlineFormatRanges(raw){
 
   // Emphasis family; delimiter-only masking allows nested styles in the body.
   const scans = [
-    {re:/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, styles:['bold','italic'], len:x=>x[1].length, kind:'emphasis'},
-    {re:/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, styles:['bold'], len:x=>x[1].length, kind:'bold'},
-    {re:/(\*|_)(?=\S)([^*_\n]*?\S)\1/g, styles:['italic'], len:x=>x[1].length, kind:'italic'},
+    /* 1.2.6：與左邊畫面同一組強調規則（01.js 的 EMPH_RE_*：單字中間的 _ 不是強調）。 */
+    {re:new RegExp(EMPH_RE_TRIPLE.source,'gu'), styles:['bold','italic'], len:()=>3, kind:'emphasis'},
+    {re:new RegExp(EMPH_RE_DOUBLE.source,'gu'), styles:['bold'], len:()=>2, kind:'bold'},
+    {re:new RegExp(EMPH_RE_SINGLE.source,'gu'), styles:['italic'], len:()=>1, kind:'italic'},
     {re:/~~(?=\S)([\s\S]*?\S)~~/g, styles:['strike'], len:()=>2, kind:'strike'},
     {re:/==(?=\S)([\s\S]*?\S)==/g, styles:['mark'], len:()=>2, kind:'mark'}
   ];
@@ -1094,7 +1096,7 @@ function cmdCopyMD(){
     text = serialize();                       // 沒有選取:複製整份文件
   }
   if (!text){ toast('沒有可複製的內容'); return; }
-  const done = () => toast('已複製 Markdown(' + text.length + ' 字元)');
+  const done = () => toast(TT('已複製 Markdown（','Copied Markdown (') + text.length + TT(' 字元）',' chars)'));
   if (navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
   } else fallbackCopy(text, done);
@@ -1679,7 +1681,7 @@ function cmdCopyTex(){
   if (!md || !md.trim()){ toast(TT('沒有可複製的內容','Nothing to copy')); return; }
   const tex = caMdToTex(md, { booktabs: !!settings.texBooktabs, listings: !!settings.texListings });
   caWriteClipboard(null, tex).then(r => {
-    if (r) toast(TT('已複製 LaTeX(','Copied LaTeX (') + tex.length + TT(' 字元)',' chars)'));
+    if (r) toast(TT('已複製 LaTeX（','Copied LaTeX (') + tex.length + TT(' 字元）',' chars)'));
     else toast(TT('複製失敗','Copy failed'));
   });
 }
@@ -1688,8 +1690,8 @@ function cmdCopyWordHtml(){
   if (!md || !md.trim()){ toast(TT('沒有可複製的內容','Nothing to copy')); return; }
   const html = caMdToHtml(md);
   caWriteClipboard(html, md).then(r => {
-    if (r === 'plain') toast(TT('環境限制:僅複製了純文字','Environment limited: plain text only'));
-    else if (r) toast(TT('已複製 HTML(Word 可貼)','Copied as HTML (Word-ready)'));
+    if (r === 'plain') toast(TT('環境限制：僅複製了純文字','Environment limited: plain text only'));
+    else if (r) toast(TT('已複製 HTML（Word 可貼）','Copied as HTML (Word-ready)'));
     else toast(TT('複製失敗','Copy failed'));
   });
 }
@@ -1986,8 +1988,8 @@ const COMMANDS = [
   { id:'para.codeblock', group:'段落', label:'程式碼區塊', mac:'⌥⌘C / ⇧⌘K', sigs:['MA-KeyC','MS-KeyK'], run:()=>cmdCodeBlock() },
   { id:'para.mathblock', group:'段落', label:'數學區塊',   mac:'⌥⌘B / ⇧⌘M', sigs:['MA-KeyB','MS-KeyM'], run:()=>cmdMathBlock() },
   { id:'para.table',     group:'段落', label:'表格',       mac:'⌥⌘T', sigs:['MA-KeyT'],           run:()=>cmdTable() },
-  { id:'para.indent',    group:'段落', label:'增加縮排(清單)', mac:'⌘] / Tab',  sigs:['M-BracketRight'], run:()=>cmdIndent() },
-  { id:'para.outdent',   group:'段落', label:'減少縮排(清單)', mac:'⌘[ / ⇧Tab', sigs:['M-BracketLeft'],  run:()=>cmdOutdent() },
+  { id:'para.indent',    group:'段落', label:'增加縮排（清單）', mac:'⌘] / Tab',  sigs:['M-BracketRight'], run:()=>cmdIndent() },
+  { id:'para.outdent',   group:'段落', label:'減少縮排（清單）', mac:'⌘[ / ⇧Tab', sigs:['M-BracketLeft'],  run:()=>cmdOutdent() },
   /* 編輯 */
   { id:'edit.undo', group:'編輯', label:'復原', mac:'⌘Z',  sigs:['M-KeyZ'],  run:()=>cmdUndo() },
   { id:'edit.redo', group:'編輯', label:'重做', mac:'⇧⌘Z', sigs:['MS-KeyZ'], run:()=>cmdRedo() },
@@ -2342,7 +2344,14 @@ function createFromTemplate(){
 }
 function updateTplCopyBar(){
   const bar = $('#tpl-copy-bar');
-  if (bar) bar.classList.toggle('show', !!tplActiveTemplate());
+  if (!bar) return;
+  /* 1.2.6：提示放進視窗標題列（取代檔名的位置），不再浮在格式列上擋住操作
+     （使用者回報：想在模板上試功能時一直被擋）。檔名在左邊檔案欄看得到。 */
+  const title = $('#titlebar');
+  if (title && bar.parentElement !== title) title.appendChild(bar);
+  const on = !!tplActiveTemplate();
+  bar.classList.toggle('show', on);
+  document.body.classList.toggle('tpl-in-title', on);
 }
 function menuDefs(){
   return [
@@ -2351,8 +2360,8 @@ function menuDefs(){
       { t:TT('版本資訊…','Version Info…'), cmd: showVersionInfo },
       { t:TT('偏好設定…','Preferences…'), cmd: showPrefs },
       { sep:true },
-      { t:TT('語言:繁體中文','Language: 繁體中文'), cmd: ()=>setLang('zh'), check: settings.lang==='zh' },
-      { t:TT('語言:English','Language: English'), cmd: ()=>setLang('en'), check: settings.lang==='en' },
+      { t:TT('語言：繁體中文','Language: 繁體中文'), cmd: ()=>setLang('zh'), check: settings.lang==='zh' },
+      { t:TT('語言：English','Language: English'), cmd: ()=>setLang('en'), check: settings.lang==='en' },
       { sep:true },
       { t:TT('Markdown 與快捷鍵速查','Markdown & Shortcut Reference'), cmd: showShortcuts },
       { sep:true },
@@ -2367,24 +2376,25 @@ function menuDefs(){
       { t:TT('儲存','Save'), cmd: ()=>saveNow(true), key:'⌘S' },
       { t:TT('重新命名…','Rename…'), cmd: renameFile },
       { sep:true },
-      { t:TT('匯出 Markdown (.md)','Export Markdown (.md)'), cmd: exportMD, key:'⇧⌘S' },
-      { t:TT('匯出 LaTeX (.tex)','Export LaTeX (.tex)'), cmd: exportTex },
-      { t:TT('匯出 REVTeX 專案 (.zip)…','Export REVTeX Project (.zip)…'), cmd: ()=>window.__CP166_REVTEX_PROJECT__ && window.__CP166_REVTEX_PROJECT__.openDialog() },
-      { t:TT('　└ 表格用 booktabs 三線表','　└ Tables as booktabs'), cmd: ()=>{ settings.texBooktabs = !settings.texBooktabs; persist(); buildMenubar(); toast(settings.texBooktabs ? TT('LaTeX 表格:booktabs 三線表(匯出與「複製為 LaTeX」皆適用)','LaTeX tables: booktabs (export & copy-as)') : TT('LaTeX 表格:格線樣式','LaTeX tables: grid rules')); }, check: settings.texBooktabs },
-      { t:TT('　└ 程式碼用 listings','　└ Code as listings'), cmd: ()=>{ settings.texListings = !settings.texListings; persist(); buildMenubar(); toast(settings.texListings ? TT('LaTeX 程式碼:lstlisting(帶語言標註;匯出與「複製為 LaTeX」皆適用)','LaTeX code: lstlisting (export & copy-as)') : TT('LaTeX 程式碼:verbatim','LaTeX code: verbatim')); }, check: settings.texListings },
+      /* 1.2.8（M36(c)）：匯出依格式分組，拿掉「└」樹狀前綴；booktabs／listings 兩個沒有勾選狀態的切換移到偏好設定「一般」。 */
+      { t:TT('匯出 Markdown（.md）','Export Markdown (.md)'), cmd: exportMD, key:'⇧⌘S' },
       { t:TT('匯出 HTML','Export HTML'), cmd: exportHTML },
-      { t:TT('匯出單一 HTML(內嵌圖片,最穩)…','Export Single-File HTML (images embedded)…'), cmd: exportHTMLEmbedded },
-      { t:TT('匯出 PDF(向量／可搜尋)…','Export PDF (vector / searchable)…'), cmd: exportPDF },
-      { t:TT('分批匯出 PDF（大檔案建議選用）…','Export PDF in batches (recommended for large files)…'), cmd: () => window.exportPDFBatch() },
-      { t:TT('　└ 相容點陣 PDF(直接下載)…','　└ Compatibility raster PDF (direct download)…'), cmd: exportPDFRaster },
-      { t:TT('　└ PDF 診斷報告…','　└ PDF Diagnostic Report…'), cmd: showLastPdfDiagnostic },
-      { t:TT('選擇圖片資料夾(PDF 圖片用)…','Choose Image Folder (for PDF images)…'), cmd: pickPdfImgFallback },
-      { t:TT('列印(系統對話框)…','Print (system dialog)…'), cmd: exportPDFVector },
-      { t:TT('匯出完整備份 (.json)','Export Full Backup (.json)'), cmd: exportBackup },
+      { t:TT('匯出單一 HTML（圖片內嵌）…','Export Single-File HTML (images embedded)…'), cmd: exportHTMLEmbedded },
+      { t:TT('匯出 LaTeX（.tex）','Export LaTeX (.tex)'), cmd: exportTex },
+      { t:TT('匯出 REVTeX 專案（.zip）…','Export REVTeX Project (.zip)…'), cmd: ()=>window.__CP166_REVTEX_PROJECT__ && window.__CP166_REVTEX_PROJECT__.openDialog() },
+      { sep:true },
+      { t:TT('匯出 PDF（向量、可搜尋）…','Export PDF (vector, searchable)…'), cmd: exportPDF },
+      { t:TT('分批匯出 PDF（大檔案用）…','Export PDF in Batches (large files)…'), cmd: () => window.exportPDFBatch() },
+      { t:TT('匯出點陣 PDF（相容用）…','Export Raster PDF (compatibility)…'), cmd: exportPDFRaster },
+      { t:TT('列印（系統對話框）…','Print (system dialog)…'), cmd: exportPDFVector },
+      { t:TT('選擇 PDF 圖片資料夾…','Choose Image Folder for PDF…'), cmd: pickPdfImgFallback },
+      { t:TT('PDF 診斷報告…','PDF Diagnostic Report…'), cmd: showLastPdfDiagnostic },
+      { sep:true },
+      { t:TT('匯出完整備份（.json）','Export Full Backup (.json)'), cmd: exportBackup },
       { t:TT('還原備份…','Restore Backup…'), cmd: importBackup },
       ...(FS_OK ? [
         { sep:true },
-        { t: dirHandle ? TT('已連結:','Linked: ') + dirHandle.name : TT('連結儲存資料夾…','Link Storage Folder…'), cmd: linkFolder, check: !!dirHandle },
+        { t: dirHandle ? TT('已連結：','Linked: ') + dirHandle.name : TT('連結儲存資料夾…','Link Storage Folder…'), cmd: linkFolder, check: !!dirHandle },
         { t:TT('從資料夾載入…','Load from Folder…'), cmd: loadFromFolder },
         ...(dirHandle ? [{ t:TT('中斷資料夾連結','Unlink Folder'), cmd: unlinkFolder }] : []),
       ] : []),
@@ -2403,11 +2413,11 @@ function menuDefs(){
       { sep:true },
       { t:TT('複製為 Markdown','Copy as Markdown'), cmd: cmdCopyMD, key:'⇧⌘C' },
       { t:TT('複製為 LaTeX','Copy as LaTeX'), cmd: cmdCopyTex },
-      { t:TT('複製為 HTML(Word 可貼)','Copy as HTML (for Word)'), cmd: cmdCopyWordHtml },
+      { t:TT('複製為 HTML（Word 可貼）','Copy as HTML (for Word)'), cmd: cmdCopyWordHtml },
       { t:TT('選取單字','Select Word'), cmd: cmdSelectWord, key:'⌘D' },
       { t:TT('刪除單字','Delete Word'), cmd: cmdDeleteWord, key:'⇧⌘D' },
       { t:TT('選取表格列','Select Row'), cmd: cmdSelectRow, key:'⌘L' },
-      { t:TT('全選(瀏覽器原生)','Select All (native)'), cmd: ()=>document.execCommand('selectAll'), key:'⌘A' },
+      { t:TT('全選（瀏覽器原生）','Select All (native)'), cmd: ()=>document.execCommand('selectAll'), key:'⌘A' },
     ]},
     { label:TT('段落','Paragraph'), items:[
       { t:TT('一級標題','Heading 1'), cmd: cmdHeading(1), key:'⌘1' },
@@ -2453,31 +2463,32 @@ function menuDefs(){
       { sep:true },
       { t:TT('焦點模式','Focus Mode'), cmd: cmdFocusMode, key:'F8', check: settings.focus },
       { t:TT('打字機模式','Typewriter Mode'), cmd: cmdTypewriter, key:'F9', check: settings.typewriter },
+      { t:TT('寬版頁面','Wide Page'), cmd: cmdWidePage, check: !!settings.maximized },
       { sep:true },
       { t:TT('放大頁面','Zoom Page In'), cmd: ()=>viewZoom(+1), key:TT('⌘＋滾輪↑','⌘ + Wheel ↑') },
       { t:TT('縮小頁面','Zoom Page Out'), cmd: ()=>viewZoom(-1), key:TT('⌘＋滾輪↓','⌘ + Wheel ↓') },
-      { t:TT('還原頁面大小(100%)','Reset Page Zoom (100%)'), cmd: ()=>viewZoom(0), check: vzNorm(settings.viewZoom) === 100 },
+      { t:TT('還原頁面大小（100%）','Reset Page Zoom (100%)'), cmd: ()=>viewZoom(0), check: vzNorm(settings.viewZoom) === 100 },
       { sep:true },
       { t:TT('格式工具列','Format Toolbar'), cmd: cmdToolbar, check: settings.showToolbar },
       { sep:true },
-      { t:TT('md-meta 語法顯隱(實驗)','md-meta Syntax Reveal (Experimental)'), cmd: cmdMdMetaPilot, check: settings.mdMetaPilot === true },
+      { t:TT('md-meta 語法顯隱（實驗）','md-meta Syntax Reveal (Experimental)'), cmd: cmdMdMetaPilot, check: settings.mdMetaPilot === true },
     ]},
     { label:TT('主題','Theme'), items:[
-      { t:TT('GitHub(預設)','GitHub (default)'), cmd: ()=>setTheme('github'), check: settings.theme==='github' && !settings.dark },
+      { t:TT('GitHub（預設）','GitHub (default)'), cmd: ()=>setTheme('github'), check: settings.theme==='github' && !settings.dark },
       { t:TT('Night 夜間','Night'),   cmd: ()=>setTheme('night'),  check: settings.theme==='github' && settings.dark },
-      { t:TT('Sepia 羊皮紙','Sepia'), cmd: ()=>setTheme('sepia'),  check: settings.theme==='sepia' && !settings.dark },
+      { t:TT('苔灰','Moss'), cmd: ()=>setTheme('moss'),  check: settings.theme==='moss' && !settings.dark },
       { t:TT('Blackout','Blackout'), cmd: ()=>setTheme('blackout'), check: settings.theme==='blackout' },
       { t:TT('Blackout Game','Blackout Game'), cmd: ()=>setTheme('blackoutgame'), check: settings.theme==='blackoutgame' },
       { sep:true },
-      { t:TT('論文輸出模式(A4)','Paper Mode (A4)'), cmd: ()=>setTheme('paper'), check: settings.theme==='paper' },
+      { t:TT('論文輸出模式（A4）','Paper Mode (A4)'), cmd: ()=>setTheme('paper'), check: settings.theme==='paper' },
       { t:TT('REVTeX 4.2 國際期刊','REVTeX 4.2 International Paper'), cmd: ()=>setTheme('revtex'), check: settings.theme==='revtex' },
       { t:TT('臺灣論文（中文）','Taiwan Thesis (Chinese)'), cmd: ()=>setTheme('twthesis'), check: settings.theme==='twthesis' },
       { t:TT('　├ 電子版 1（精簡版面）','　├ Digital 1 (compact layout)'), cmd: ()=>setTwThesisChineseVariant('compact'), check: settings.theme==='twthesis' && !settings.twthesisPrint && settings.twthesisDigitalStyle==='compact' },
       { t:TT('　├ 電子版 2（書冊版面）','　├ Digital 2 (book-style layout)'), cmd: ()=>setTwThesisChineseVariant('book'), check: settings.theme==='twthesis' && !settings.twthesisPrint && settings.twthesisDigitalStyle!=='compact' },
       { t:TT('　└ 紙本版（雙面裝訂）','　└ Print (two-sided binding)'), cmd: ()=>setTwThesisChineseVariant('print'), check: settings.theme==='twthesis' && !!settings.twthesisPrint },
       { t:TT('臺灣論文（英文）','Taiwan Thesis (English)'), cmd: ()=>setTheme('twthesis-en'), check: settings.theme==='twthesis-en' },
-      { t:TT('　├ 電子版(對稱版面)','　├ Digital (symmetric)'), cmd: ()=>setTwThesisEnglishVariant(false), check: settings.theme==='twthesis-en' && !settings.twthesisEnPrint },
-      { t:TT('　└ 紙本版(雙面書冊)','　└ Print (two-sided book)'), cmd: ()=>setTwThesisEnglishVariant(true),  check: settings.theme==='twthesis-en' && !!settings.twthesisEnPrint },
+      { t:TT('　├ 電子版（對稱版面）','　├ Digital (symmetric)'), cmd: ()=>setTwThesisEnglishVariant(false), check: settings.theme==='twthesis-en' && !settings.twthesisEnPrint },
+      { t:TT('　└ 紙本版（雙面書冊）','　└ Print (two-sided book)'), cmd: ()=>setTwThesisEnglishVariant(true),  check: settings.theme==='twthesis-en' && !!settings.twthesisEnPrint },
     ]},
     { label:TT('說明','Help'), items:[
       { t:TT('Markdown 與快捷鍵速查','Markdown & Shortcut Reference'), cmd: showShortcuts },
@@ -2490,8 +2501,8 @@ function applyStaticI18n(){
   const setTxt = (sel, zh, en) => { const el = $(sel); if (el) el.textContent = TT(zh, en); };
   const setAttr = (sel, attr, zh, en) => { const el = $(sel); if (el) el.setAttribute(attr, TT(zh, en)); };
   // 標題列紅黃綠燈與右側按鈕
-  setAttr('#traffic .tl.red', 'title', '關閉(瀏覽器版本請關閉分頁)', 'Close (nowhere to go in this browser app)');
-  setAttr('#traffic .tl.yellow', 'title', '縮到最小(意思一下)', 'Minimize (just for show)');
+  setAttr('#menubar', 'aria-label', '選單列', 'Menu bar');
+  setAttr('#ty-toolbar', 'aria-label', '格式工具列', 'Formatting toolbar');
   setAttr('#traffic .tl.green', 'title', '切換寬版模式', 'Toggle wide mode');
   setAttr('#btn-sidebar', 'title', '側邊欄 ⇧⌘L', 'Sidebar ⇧⌘L');
   setAttr('#btn-src', 'title', '原始碼模式 ⌘/', 'Source Mode ⌘/');
@@ -2522,6 +2533,7 @@ function applyStaticI18n(){
   setTxt('#pe-title', '編輯段落', 'Edit Paragraph');
   setTxt('#pe-hint', '⌘↩ 完成 · Esc 取消 · 可拖曳', '⌘↩ Done · Esc Cancel · draggable');
   setTxt('#pe-cancel', '取消', 'Cancel');
+  setTxt('#pe-delete', '刪除此段落', 'Delete this paragraph');
   setTxt('#pe-next', '完成並新增下一段', 'Done & Add Next');
   setTxt('#pe-done', '完成', 'Done');
   // 圖片工具列
@@ -2704,7 +2716,7 @@ function setLang(lang){
   if (inPaperMode()) schedulePaginate();
   persist();
   closeMenus();
-  toast(isEN() ? '介面語言:English' : '介面語言:繁體中文');
+  toast(isEN() ? 'Language: English' : '介面語言：繁體中文');
 }
 let openMenuEl = null;
 /* ============================================================
@@ -2739,30 +2751,70 @@ function tbPlacement(rect, barW, barH, vw, vh){
   return { left: Math.round(left), top: Math.round(top) };
 }
 const tbBar = $('#ty-toolbar'), tbTip = $('#ty-tbtip'), tbMore = $('#ty-tbmore');
+/*@ekd-icons-begin@*/
+/* 1.2.7 介面圖示（M33，Jason 11-08：圖示大小、上下位置不一，刪除線與行內程式碼看不清）。
+   全部同一個 20×20 格線、線寬 1.5、圓角端點；工具列、標題列、公式輸入、字色按鈕都從這裡取。
+   來源是文件資料夾「[1.2.8] 介面與論文工具重構/圖示/icons.mjs」（1.2.7 建立），由 build_icons.mjs 寫入，不要手改這一段。 */
+const EKD_ICONS = Object.freeze({
+ "undo": "<path d=\"M7 4 3.5 7.5 7 11\"/><path d=\"M3.5 7.5H12a4.25 4.25 0 0 1 0 8.5H9.5\"/>",
+ "redo": "<path d=\"m13 4 3.5 3.5L13 11\"/><path d=\"M16.5 7.5H8a4.25 4.25 0 0 0 0 8.5h2.5\"/>",
+ "bold": "<path class=\"b\" d=\"M6.2 4.2h4.6a2.9 2.9 0 0 1 0 5.8H6.2zM6.2 10h5.4a3 3 0 0 1 0 6H6.2z\"/>",
+ "italic": "<path d=\"M9 4.2h5.5M5.5 15.8H11M11.8 4.2 8.2 15.8\"/>",
+ "underline": "<path d=\"M6 4.2v5.4a4 4 0 0 0 8 0V4.2M5 16.3h10\"/>",
+ "strike": "<path d=\"M13.6 6.4C13.1 5 11.8 4.2 10 4.2c-2.2 0-3.6 1.1-3.6 2.6 0 1.2.8 1.9 2.2 2.4\"/><path d=\"M3.5 10h13\"/><path d=\"M11.8 11c1.2.5 1.9 1.2 1.9 2.3 0 1.6-1.5 2.5-3.7 2.5-1.9 0-3.4-.8-3.9-2.2\"/>",
+ "mark": "<rect class=\"mk\" x=\"2.75\" y=\"2.75\" width=\"14.5\" height=\"14.5\" rx=\"3\"/><path class=\"mi\" d=\"M6.3 14.6 10 5.2l3.7 9.4M7.6 11.4h4.8\"/>",
+ "code": "<path d=\"M6.5 6 3 10l3.5 4M13.5 6l3.5 4-3.5 4M11.3 4.6 8.7 15.4\"/>",
+ "link": "<path d=\"M8.6 11.4a3.1 3.1 0 0 0 4.4 0l2.5-2.5a3.1 3.1 0 1 0-4.4-4.4l-.9.9\"/><path d=\"M11.4 8.6a3.1 3.1 0 0 0-4.4 0l-2.5 2.5a3.1 3.1 0 1 0 4.4 4.4l.9-.9\"/>",
+ "image": "<rect x=\"3\" y=\"4\" width=\"14\" height=\"12\" rx=\"2\"/><circle cx=\"7.4\" cy=\"8\" r=\"1.3\"/><path d=\"m3.6 14.2 3.9-3.6 3 2.6 2.3-2 3.6 3\"/>",
+ "inlineMath": "<path d=\"m4 8.5 5.5 7.5M9.5 8.5 4 16\"/><path class=\"t\" d=\"M11.8 5.6a1.5 1.5 0 1 1 2.6 1L11.9 9.4h3\"/>",
+ "quote": "<path class=\"f\" d=\"M4.6 10.5h3.3v3.8H4.6zM11.6 10.5h3.3v3.8h-3.3z\"/><path d=\"M4.6 10.5c0-2.5 1-4.1 3.1-4.9M11.6 10.5c0-2.5 1-4.1 3.1-4.9\"/>",
+ "ul": "<circle class=\"f\" cx=\"4.5\" cy=\"5\" r=\"1.1\"/><circle class=\"f\" cx=\"4.5\" cy=\"10\" r=\"1.1\"/><circle class=\"f\" cx=\"4.5\" cy=\"15\" r=\"1.1\"/><path d=\"M8 5h9M8 10h9M8 15h9\"/>",
+ "ol": "<path class=\"t\" d=\"m4.2 3.9.9-.6v3.3M3.9 8.9a.95.95 0 0 1 1.8.3c0 .4-.2.7-.6 1l-1.2 1.2h1.9M3.9 13.6h1.8l-1 1.1c.6 0 1 .4 1 .9s-.4.9-1 .9c-.4 0-.7-.1-.9-.4\"/><path d=\"M9 5h8M9 10h8M9 15h8\"/>",
+ "task": "<rect x=\"3.5\" y=\"3.5\" width=\"13\" height=\"13\" rx=\"2.5\"/><path d=\"m7 10.2 2.1 2.1 4-4.3\"/>",
+ "codeBlock": "<path d=\"M7.5 4C6 4 5.5 4.8 5.5 6v1.7c0 1-.5 1.8-1.7 2.3 1.2.5 1.7 1.3 1.7 2.3V14c0 1.2.5 2 2 2M12.5 4c1.5 0 2 .8 2 2v1.7c0 1 .5 1.8 1.7 2.3-1.2.5-1.7 1.3-1.7 2.3V14c0 1.2-.5 2-2 2\"/>",
+ "mathBlock": "<path class=\"d\" d=\"M3 3.8h14M3 16.2h14\"/><path d=\"M12.8 7.4v-.9H7.2l3 3.5-3 3.5h5.6v-.9\"/>",
+ "sigma": "<path d=\"M14.8 6V4.2H5.2l5.2 5.8-5.2 5.8h9.6V14\"/>",
+ "table": "<rect x=\"3\" y=\"4\" width=\"14\" height=\"12\" rx=\"1.5\"/><path d=\"M3 8.3h14M8 8.3V16M12.5 8.3V16\"/>",
+ "hr": "<path class=\"d\" d=\"M5.5 5.5h9M5.5 14.5h9\"/><path d=\"M3 10h14\"/>",
+ "clear": "<path d=\"M4.5 4.5h9M9 4.5v11M12.8 12.2l3.8 3.8M16.6 12.2 12.8 16\"/>",
+ "more": "<circle class=\"f\" cx=\"5\" cy=\"10\" r=\"1.25\"/><circle class=\"f\" cx=\"10\" cy=\"10\" r=\"1.25\"/><circle class=\"f\" cx=\"15\" cy=\"10\" r=\"1.25\"/>",
+ "textColor": "<path d=\"M4.9 13.5 10 2l5.1 11.5M6.6 9.8h6.8\"/><rect class=\"cb\" x=\"3.5\" y=\"15.25\" width=\"13\" height=\"3\" rx=\"1.1\"/>",
+ "sidebar": "<rect x=\"3\" y=\"4\" width=\"14\" height=\"12\" rx=\"2\"/><path d=\"M8 4v12\"/>",
+ "source": "<path d=\"M7 6 3 10l4 4M13 6l4 4-4 4\"/>",
+ "fontSmaller": "<path d=\"M2.6 16.4 6.7 6.6l4.1 9.8M4.1 13h5.2\"/><path d=\"M12.5 6h5\"/>",
+ "fontLarger": "<path d=\"M2.6 16.4 6.7 6.6l4.1 9.8M4.1 13h5.2\"/><path d=\"M12.5 6h5M15 3.5v5\"/>",
+ "fontReset": "<path d=\"M2.6 16.4 6.7 6.6l4.1 9.8M4.1 13h5.2\"/><path d=\"M16.5 3.4A3 3 0 1 1 12.28 4.73\"/><path class=\"f\" d=\"M13.08 3.01L11.06 4.39L13.33 5.44z\"/>",
+ "sun": "<circle cx=\"10\" cy=\"10\" r=\"3.2\"/><path d=\"M10 2.8v1.8M10 15.4v1.8M2.8 10h1.8M15.4 10h1.8M4.91 4.91l1.27 1.27M13.82 13.82l1.27 1.27M4.91 15.09l1.27-1.27M13.82 6.18l1.27-1.27\"/>",
+ "moon": "<path d=\"M16.48 10.57A6.48 6.48 0 1 1 9.43 3.52a5.04 5.04 0 0 0 7.05 7.05z\"/>"
+});
+function ekdIcon(name){ const body = EKD_ICONS[name]; return body ? '<svg class="ekd-ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false">' + body + '</svg>' : ''; }
+window.ekdIcon = ekdIcon;
+/*@ekd-icons-end@*/
 const TB_CATALOG = Object.freeze([
   { id:'paragraph', group:'paragraph', zh:'段落樣式', en:'Paragraph style', html:'<span class="tb-paragraph-label">段落</span><span class="tb-chevron">▾</span>', cls:'tb-paragraph' },
-  { id:'bold', group:'inline', zh:'粗體', en:'Bold', k:'⌘B', html:'<strong>B</strong>', run:cmdBold },
-  { id:'italic', group:'inline', zh:'斜體', en:'Italic', k:'⌘I', html:'<em>I</em>', run:cmdItalic },
-  { id:'underline', group:'inline', zh:'底線', en:'Underline', k:'⌘U', html:'<span class="tb-underline">U</span>', run:cmdUnderline },
-  { id:'strike', group:'inline', zh:'刪除線', en:'Strikethrough', html:'<span class="tb-strike">S</span>', run:cmdStrike },
-  { id:'mark', group:'inline', zh:'標記', en:'Highlight', html:'<span class="tb-mark">A</span>', run:cmdMark },
-  { id:'code', group:'inline', zh:'行內程式碼', en:'Inline code', k:'⌘E', html:'<span class="tb-mono">&lt;/&gt;</span>', run:cmdCode },
-  { id:'link', group:'insert', zh:'連結', en:'Link', k:'⌘K', html:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>', run:cmdLink },
-  { id:'image', group:'insert', zh:'圖片', en:'Image', html:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg>', run:cmdImage },
-  { id:'inlineMath', group:'insert', zh:'行內數學', en:'Inline math', html:'<span class="tb-mono">$x$</span>', run:cmdInlineMath },
-  { id:'quote', group:'block', zh:'引言', en:'Block quote', html:'❝', run:cmdQuote },
-  { id:'ul', group:'block', zh:'項目清單', en:'Bullet list', html:'• ≡', run:cmdUL },
-  { id:'ol', group:'block', zh:'編號清單', en:'Numbered list', html:'1. ≡', run:cmdOL },
-  { id:'task', group:'block', zh:'工作清單', en:'Task list', html:'☑', run:cmdTask },
-  { id:'codeBlock', group:'structure', zh:'程式碼區塊', en:'Code block', html:'<span class="tb-mono">{ }</span>', run:cmdCodeBlock },
-  { id:'mathBlock', group:'structure', zh:'區塊公式', en:'Display math', html:'∑', run:cmdMathBlock },
-  { id:'table', group:'structure', zh:'表格', en:'Table', k:'⌥⌘T', html:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16M15 4v16"/></svg>', run:cmdTable },
-  { id:'hr', group:'structure', zh:'水平分隔線', en:'Horizontal rule', html:'—', run:cmdHR },
-  { id:'clear', group:'cleanup', zh:'清除格式', en:'Clear formatting', k:'⌘\\', html:'Tx', run:cmdClearFormat }
+  { id:'bold', group:'inline', zh:'粗體', en:'Bold', k:'⌘B', html:ekdIcon('bold'), run:cmdBold },
+  { id:'italic', group:'inline', zh:'斜體', en:'Italic', k:'⌘I', html:ekdIcon('italic'), run:cmdItalic },
+  { id:'underline', group:'inline', zh:'底線', en:'Underline', k:'⌘U', html:ekdIcon('underline'), run:cmdUnderline },
+  { id:'strike', group:'inline', zh:'刪除線', en:'Strikethrough', html:ekdIcon('strike'), run:cmdStrike },
+  { id:'mark', group:'inline', zh:'標記', en:'Highlight', html:ekdIcon('mark'), run:cmdMark },
+  { id:'code', group:'inline', zh:'行內程式碼', en:'Inline code', k:'⌘E', html:ekdIcon('code'), run:cmdCode },
+  { id:'link', group:'insert', zh:'連結', en:'Link', k:'⌘K', html:ekdIcon('link'), run:cmdLink },
+  { id:'image', group:'insert', zh:'圖片', en:'Image', html:ekdIcon('image'), run:cmdImage },
+  { id:'inlineMath', group:'insert', zh:'行內數學', en:'Inline math', html:ekdIcon('inlineMath'), run:cmdInlineMath },
+  { id:'quote', group:'block', zh:'引言', en:'Block quote', html:ekdIcon('quote'), run:cmdQuote },
+  { id:'ul', group:'block', zh:'項目清單', en:'Bullet list', html:ekdIcon('ul'), run:cmdUL },
+  { id:'ol', group:'block', zh:'編號清單', en:'Numbered list', html:ekdIcon('ol'), run:cmdOL },
+  { id:'task', group:'block', zh:'工作清單', en:'Task list', html:ekdIcon('task'), run:cmdTask },
+  { id:'codeBlock', group:'structure', zh:'程式碼區塊', en:'Code block', html:ekdIcon('codeBlock'), run:cmdCodeBlock },
+  { id:'mathBlock', group:'structure', zh:'區塊公式', en:'Display math', html:ekdIcon('mathBlock'), run:cmdMathBlock },
+  { id:'table', group:'structure', zh:'表格', en:'Table', k:'⌥⌘T', html:ekdIcon('table'), run:cmdTable },
+  { id:'hr', group:'structure', zh:'水平分隔線', en:'Horizontal rule', html:ekdIcon('hr'), run:cmdHR },
+  { id:'clear', group:'cleanup', zh:'清除格式', en:'Clear formatting', k:'⌘\\', html:ekdIcon('clear'), run:cmdClearFormat }
 ]);
 const TB_DEFAULT_ITEMS = Object.freeze(TB_CATALOG.map(x => x.id));
 const TB_TOOL_IDS = new Set(TB_DEFAULT_ITEMS);
 let tbOverflowIds = [];
+let tbLayoutW = -1;
 let tbLayoutRAF = 0;
 function normalizeToolbarItems(){
   const before = JSON.stringify(settings.toolbarItems);
@@ -2774,9 +2826,65 @@ function normalizeToolbarItems(){
 }
 function tbTool(id){ return TB_CATALOG.find(x => x.id === id) || null; }
 function tbVisible(){ return !!settings.showToolbar; }
+/* 1.2.6：「⋯」改放在 .tb-items 最後（第二排末尾），被收起的工具在它下方的小框裡以
+   原本的圖示排列（.tb-overflow-pop，放在 #ty-toolbar 裡，沿用格式鈕的樣式、
+   滑過提示與點擊委派）。滑鼠移到「⋯」就彈出，離開「⋯」與小框一小段時間後收起；
+   觸控用點的開關。原本右上角的大「⋯」與純文字清單不再使用。 */
+let tbOverflowTimer = 0;
+function tbOverflowParts(){
+  return { more: tbBar.querySelector('.tb-overflow-btn'), pop: tbBar.querySelector('.tb-overflow-pop') };
+}
+function tbOverflowOpen(){ const p = tbOverflowParts().pop; return !!(p && !p.hidden); }
+function tbOverflowHide(){
+  clearTimeout(tbOverflowTimer); tbOverflowTimer = 0;
+  const { more, pop } = tbOverflowParts();
+  if (pop && !pop.hidden){ pop.hidden = true; pop.textContent = ''; }
+  if (more) more.setAttribute('aria-expanded','false');
+}
+function tbOverflowPlace(){
+  const { more, pop } = tbOverflowParts();
+  if (!more || !pop || pop.hidden || more.hidden) return;
+  const bar = tbBar.getBoundingClientRect(), mr = more.getBoundingClientRect();
+  /* 右緣對齊「⋯」，往左展開；最寬不超過格式列，像格式列多出來的第三、四排。 */
+  const right = Math.max(6, Math.round(bar.right - mr.right));
+  pop.style.right = right + 'px';
+  pop.style.maxWidth = Math.max(120, Math.round(bar.width - right - 6)) + 'px';
+  let lastTop = null;
+  pop.querySelectorAll('.tb-btn').forEach(b => {
+    b.classList.remove('row-start');
+    const t = b.offsetTop;
+    if (lastTop === null || Math.abs(t - lastTop) >= 4){ b.classList.add('row-start'); lastTop = t; }
+  });
+}
+function tbOverflowShow(){
+  const { more, pop } = tbOverflowParts();
+  if (!more || !pop || more.hidden || !tbOverflowIds.length) return;
+  clearTimeout(tbOverflowTimer); tbOverflowTimer = 0;
+  tbMore.classList.add('tb-hidden'); tbMore.dataset.kind = '';
+  pop.textContent = '';
+  let prevGroup = '';
+  const add = (id, zh, en, html, cls, group) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tb-btn' + (cls ? ' ' + cls : '') + (prevGroup && prevGroup !== group ? ' group-start' : '');
+    b.dataset.action = id; b.dataset.group = group;
+    b.setAttribute('data-zh', zh); b.setAttribute('data-en', en); b.setAttribute('aria-label', TT(zh, en));
+    b.innerHTML = html; pop.appendChild(b); prevGroup = group;
+  };
+  tbOverflowIds.forEach(id => { const t = tbTool(id); if (t) add(t.id, t.zh, t.en, t.html, t.cls, t.group); });
+  add('customize', '自訂工具列…', 'Customize toolbar…',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+    '', 'customize');
+  pop.hidden = false; more.setAttribute('aria-expanded','true');
+  tbOverflowPlace(); tbUpdateActive();
+}
+function tbOverflowLater(){
+  clearTimeout(tbOverflowTimer);
+  tbOverflowTimer = setTimeout(tbOverflowHide, 220);
+}
 function tbMoreHide(){
   tbMore.classList.add('tb-hidden'); tbMore.dataset.kind = '';
-  const more = tbBar.querySelector('.tb-more-btn'); if (more) more.setAttribute('aria-expanded','false');
+  tbOverflowHide();
 }
 function tbCurrentRaw(){
   if (settings.srcmode && srcview){
@@ -2808,8 +2916,8 @@ function tbBuild(){
     const b=document.createElement('button'); b.className='tb-btn'; b.type='button'; b.dataset.action=id;
     b.setAttribute('data-zh',zh); b.setAttribute('data-en',en); b.setAttribute('aria-label',TT(zh,en)); b.title=TT(zh,en); b.innerHTML=svg; return b;
   };
-  history.appendChild(historyButton('undo','復原','Undo','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7H4V2.5"/><path d="M4.5 7.2A8 8 0 1 1 6.8 18"/></svg>'));
-  history.appendChild(historyButton('redo','重做','Redo','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 7H20V2.5"/><path d="M19.5 7.2A8 8 0 1 0 17.2 18"/></svg>'));
+  history.appendChild(historyButton('undo','復原','Undo',ekdIcon('undo')));
+  history.appendChild(historyButton('redo','重做','Redo',ekdIcon('redo')));
   const host=document.createElement('div'); host.className='tb-items';
   let prevGroup='';
   settings.toolbarItems.forEach(id=>{
@@ -2821,17 +2929,23 @@ function tbBuild(){
     btn.setAttribute('aria-label',TT(tool.zh,tool.en));btn.title=TT(tool.zh,tool.en);btn.innerHTML=tool.html;
     host.appendChild(btn);prevGroup=tool.group;
   });
-  const more=document.createElement('button');more.className='tb-btn tb-more-btn';more.type='button';more.dataset.action='more';
-  more.setAttribute('aria-label',TT('更多格式工具','More formatting tools'));more.title=TT('更多格式工具','More formatting tools');more.innerHTML='⋯';more.hidden=true;
-  row.appendChild(history);row.appendChild(host);row.appendChild(more);
-  tbBar.textContent='';tbBar.appendChild(row);tbUpdateParagraphLabel();tbUpdateHistory();requestAnimationFrame(tbLayout);
+  /* 1.2.6：「⋯」是 .tb-items 的最後一顆（第二排末尾），沒有 title——滑過直接彈出小框，
+     不再疊一個瀏覽器原生提示。 */
+  const more=document.createElement('button');more.className='tb-btn tb-overflow-btn';more.type='button';more.dataset.action='more';
+  more.setAttribute('aria-label',TT('收起的格式工具','Hidden formatting tools'));more.setAttribute('aria-haspopup','true');more.setAttribute('aria-expanded','false');
+  more.innerHTML=ekdIcon('more');more.hidden=true;host.appendChild(more);
+  const pop=document.createElement('div');pop.className='tb-overflow-pop';pop.hidden=true;pop.setAttribute('role','toolbar');
+  pop.setAttribute('aria-label',TT('收起的格式工具','Hidden formatting tools'));
+  row.appendChild(history);row.appendChild(host);
+  tbBar.textContent='';tbBar.appendChild(row);tbBar.appendChild(pop);tbLayoutW=-1;tbUpdateParagraphLabel();tbUpdateHistory();requestAnimationFrame(tbLayout);
 }
 function tbLayout(){
   cancelAnimationFrame(tbLayoutRAF); tbLayoutRAF = 0;
   if (!tbVisible() || !tbBar.isConnected) return;
-  const host = tbBar.querySelector('.tb-items'), more = tbBar.querySelector('.tb-more-btn');
+  const host = tbBar.querySelector('.tb-items'), more = host && host.querySelector('.tb-overflow-btn');
   if (!host || !more) return;
-  const btns = [...host.querySelectorAll('.tb-btn[data-action]')];
+  const before = tbOverflowIds.join(',');
+  const btns = [...host.querySelectorAll('.tb-btn[data-action]:not(.tb-overflow-btn)')];
   btns.forEach(b => b.classList.remove('tb-hidden-by-width','first-visible','row-start'));
   tbBar.classList.remove('tb-two');
   more.hidden = true; tbOverflowIds = [];
@@ -2841,7 +2955,7 @@ function tbLayout(){
      所以第三段改用「不同 offsetTop 的數量」判斷排數。 */
   const rowCount = () => {
     const tops = [];
-    for (const b of btns){
+    for (const b of (more.hidden ? btns : btns.concat(more))){
       if (b.classList.contains('tb-hidden-by-width')) continue;
       const t = b.offsetTop;
       if (!tops.some(x => Math.abs(x - t) < 4)) tops.push(t);
@@ -2868,9 +2982,17 @@ function tbLayout(){
     const t = b.offsetTop;
     if (lastTop === null || Math.abs(t - lastTop) >= 4){ b.classList.add('row-start'); lastTop = t; }
   }
-  if (!more.hidden) more.setAttribute('aria-expanded', tbMore.classList.contains('tb-hidden') ? 'false' : 'true');
-  else tbMoreHide();
+  tbLayoutW = Math.round(tbBar.getBoundingClientRect().width);
+  if (more.hidden) tbMoreHide();
+  else if (tbOverflowOpen()){
+    if (before !== tbOverflowIds.join(',')) tbOverflowShow(); else tbOverflowPlace();
+  }
 }
+/* 1.2.6：格式列上次排版時的寬度。#editor-wrap 變寬變窄時（拖視窗、拖分隔線、
+   左右寬度重新分配），在 ResizeObserver 回呼裡「當場」重排，這一格畫面繪製前就
+   排好。原本延到下一格才排，中間那一格用舊排法套新寬度，兩排會被擠成三排再
+   彈回來；拖動視窗時每一格都重演一次，就是使用者看到的不停閃爍。
+   （記錄寬度的 tbLayoutW 宣告在 tbOverflowIds 旁邊。） */
 function tbPositionNow(){
   /* CP54 API 相容名；CP135 不設定 left/top，只重新計算寬度收納。 */
   if (!tbVisible()) return;
@@ -2923,8 +3045,7 @@ function tbUpdateActive(){
     st = tbActiveSet(tags, insidePre);
   }
   Object.keys(st).forEach(k => {
-    const b = tbBar.querySelector('.tb-btn[data-action="' + k + '"]');
-    if (b) b.classList.toggle('active', !!st[k]);
+    tbBar.querySelectorAll('.tb-btn[data-action="' + k + '"]').forEach(b => b.classList.toggle('active', !!st[k]));
   });
   tbUpdateParagraphLabel();
   tbUpdateHistory();
@@ -2969,20 +3090,14 @@ function tbParagraphShow(anchorBtn){
     .forEach(x => tbAppendMenuItem({ zh:x.zh, en:x.en, checked:current===x.n, run:cmdHeading(x.n) }));
   tbPopupPlace(anchorBtn);
 }
-function tbMoreShow(anchorBtn){
-  tbMore.textContent = ''; tbMore.setAttribute('role','menu');
-  const head = document.createElement('div'); head.className = 'tbm-section'; head.textContent = TT('視窗寬度不足而收納','Hidden because the window is narrow'); tbMore.appendChild(head);
-  tbOverflowIds.forEach(id => { const t = tbTool(id); if (t) tbAppendMenuItem({ zh:t.zh, en:t.en, k:t.k, run:t.run || (()=>{}) }); });
-  const sep = document.createElement('div'); sep.className = 'tbm-sep'; tbMore.appendChild(sep);
-  tbAppendMenuItem({ zh:'自訂工具列…', en:'Customize toolbar…', run:showToolbarCustomizer });
-  tbPopupPlace(anchorBtn); anchorBtn.setAttribute('aria-expanded','true');
-}
 function toolbarCustomizerHTML(){
+  /* 1.2.7（M32）：改成三欄的緊湊清單：勾選框、圖示、名稱、快捷鍵。以前每項一張大卡片，
+     每張都重複寫「可從頂部工具列直接使用」。 */
   normalizeToolbarItems();
-  return `<h2>${TT('自訂格式工具列','Customize format toolbar')}</h2>
-    <p class="m-note">${TT('勾選要顯示在編輯區頂部的功能。視窗不足時，後段項目會自動收進「⋯」，不會換成第二排。','Choose the tools shown at the top of the editor. When space is tight, trailing items move into “⋯” instead of wrapping to a second row.')}</p>
-    <div class="pref-choice-list" id="tb-custom-list">${TB_CATALOG.map(t => `<label class="pref-choice"><input type="checkbox" data-tb-custom="${t.id}" ${settings.toolbarItems.includes(t.id)?'checked':''}><span class="pref-choice-icon">${t.html}</span><span><span class="pref-choice-title">${TT(t.zh,t.en)}</span><span class="pref-choice-desc">${TT('可從頂部工具列直接使用','Available directly from the top toolbar')}</span></span></label>`).join('')}</div>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="pref-action" id="tb-custom-reset" type="button">${TT('恢復完整預設','Restore full default')}</button></div>`;
+  return `<div class="ekt"><h2>${TT('自訂工具列','Customize toolbar')}</h2>
+    <p class="ekt-lead">${TT('勾選要放在格式工具列上的按鈕。視窗太窄時，放不下的會收進第二排最後的「⋯」。','Check the buttons to show on the format toolbar. When the window is narrow, the ones that do not fit go into “⋯” at the end of the second row.')}</p>
+    <div class="ekt-grid" id="tb-custom-list">${TB_CATALOG.map(t => `<label class="ekt-item"><input type="checkbox" data-tb-custom="${t.id}" ${settings.toolbarItems.includes(t.id)?'checked':''}><span class="ekt-icon" aria-hidden="true">${t.id === 'paragraph' ? '<span class="ekt-text">¶</span>' : t.html}</span><span class="ekt-name">${TT(t.zh,t.en)}</span>${t.k ? `<kbd class="ekt-key">${t.k}</kbd>` : ''}</label>`).join('')}</div>
+    <div class="ekt-foot"><button class="ekt-link" id="tb-custom-reset" type="button">${TT('全部勾回預設','Restore default')}</button></div></div>`;
 }
 function showToolbarCustomizer(){
   showModal(toolbarCustomizerHTML());
@@ -3008,27 +3123,43 @@ tbBar.addEventListener('mousedown', e => {
   if (id === 'undo' || id === 'redo'){ tbMoreHide(); tbRunHistory(id); return; }
   if (id === 'paragraph'){
     if (!tbMore.classList.contains('tb-hidden') && tbMore.dataset.kind === 'paragraph') tbMoreHide();
-    else { tbMore.dataset.kind = 'paragraph'; tbParagraphShow(btn); }
+    else { tbOverflowHide(); tbMore.dataset.kind = 'paragraph'; tbParagraphShow(btn); }
     return;
   }
   if (id === 'more'){
-    if (!tbMore.classList.contains('tb-hidden') && tbMore.dataset.kind === 'more') tbMoreHide();
-    else { tbMore.dataset.kind = 'more'; tbMoreShow(btn); }
+    /* 滑鼠：移過去就已經打開，按下去不要反而關掉；觸控／筆：點一下開、再點一下關。 */
+    if (tbOverflowOpen() && tbLastPointer !== 'mouse') tbOverflowHide(); else tbOverflowShow();
     return;
   }
+  if (id === 'customize'){ tbMoreHide(); showToolbarCustomizer(); return; }
   const tool = tbTool(id); tbMoreHide();
   if (tool && tool.run) tool.run();
   tbUpdateActive();
 });
-tbBar.addEventListener('mouseover', e => { const b = e.target && e.target.closest ? e.target.closest('.tb-btn[data-action]') : null; if (b) tbTipShow(b); else tbTip.classList.add('tb-hidden'); });
+tbBar.addEventListener('mouseover', e => { const b = e.target && e.target.closest ? e.target.closest('.tb-btn[data-action]') : null; if (b && !b.classList.contains('tb-overflow-btn')) tbTipShow(b); else tbTip.classList.add('tb-hidden'); });
+let tbLastPointer = 'mouse';
+tbBar.addEventListener('pointerdown', e => { tbLastPointer = e.pointerType || 'mouse'; }, true);
+tbBar.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse' || !e.target || !e.target.closest) return;
+  if (e.target.closest('.tb-overflow-btn')){ if (tbOverflowOpen()) { clearTimeout(tbOverflowTimer); tbOverflowTimer = 0; } else tbOverflowShow(); }
+  else if (e.target.closest('.tb-overflow-pop')){ clearTimeout(tbOverflowTimer); tbOverflowTimer = 0; }
+  else if (tbOverflowOpen()) tbOverflowLater();
+});
+tbBar.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && tbOverflowOpen()) tbOverflowLater(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tbOverflowOpen()) tbOverflowHide(); });
 tbBar.addEventListener('mouseleave', () => tbTip.classList.add('tb-hidden'));
 document.addEventListener('selectionchange', () => { if (tbVisible()) tbUpdateActive(); });
 window.addEventListener('resize', tbPositionNow);
 if (typeof ResizeObserver === 'function'){
-  const tbWrapEl = $('#editor-wrap'); if (tbWrapEl) new ResizeObserver(tbPositionNow).observe(tbWrapEl);
+  const tbWrapEl = $('#editor-wrap');
+  if (tbWrapEl) new ResizeObserver(() => {
+    if (!tbVisible() || !tbBar.isConnected) return;
+    if (Math.round(tbBar.getBoundingClientRect().width) === tbLayoutW) return;   // 只有高度變了：不必重排
+    tbLayout();
+  }).observe(tbWrapEl);
 }
 document.addEventListener('mousedown', e => {
-  if (!tbMore.classList.contains('tb-hidden') && !tbMore.contains(e.target) && !tbBar.contains(e.target)) tbMoreHide();
+  if ((!tbMore.classList.contains('tb-hidden') || tbOverflowOpen()) && !tbMore.contains(e.target) && !tbBar.contains(e.target)) tbMoreHide();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tbMore.classList.contains('tb-hidden')) tbMoreHide(); });
 tbSync();
@@ -3138,7 +3269,7 @@ function qoOpen(){
     p = document.createElement('div');
     p.id = 'qo-panel';
     p.innerHTML = '<input id="qo-input" type="text" spellcheck="false" placeholder="' +
-      TT('輸入檔名,Enter 切換','Type a file name, Enter to switch') + '" /><div id="qo-list"></div>';
+      TT('輸入檔名，Enter 切換','Type a file name, Enter to switch') + '" /><div id="qo-list"></div>';
     document.body.appendChild(p);
     const inp = document.getElementById('qo-input');
     inp.addEventListener('input', () => { qoState.sel = 0; qoRefresh(); });
@@ -3255,7 +3386,7 @@ function fsRenderResults(){
   if (!box) return;
   box.innerHTML = '';
   if (!fsState.q){
-    box.innerHTML = '<div class="sb-empty">' + TT('輸入關鍵字,搜尋所有檔案','Type to search across all files') + '</div>';
+    box.innerHTML = '<div class="sb-empty">' + TT('輸入關鍵字，搜尋所有檔案','Type to search across all files') + '</div>';
     return;
   }
   if (!fsState.hits.length){
@@ -3295,11 +3426,11 @@ function fsJump(h){
     if (!files.some(f => f.id === h.fid)){ toast(TT('檔案已不存在','File no longer exists')); fsRun(); return; }
     switchFile(h.fid);
   }
-  if (h.i >= blocks.length){ toast(TT('內容已變更,結果已重新整理','Content changed — results refreshed')); fsRun(); return; }
+  if (h.i >= blocks.length){ toast(TT('內容已變更，結果已重新整理','Content changed — results refreshed')); fsRun(); return; }
   const want = h.line.slice(h.start, h.end);
   const got = (blocks[h.i] || '').slice(h.start, h.end);
   const same = fsState.cs ? got === want : got.toLowerCase() === want.toLowerCase();
-  if (!same){ toast(TT('內容已變更,結果已重新整理','Content changed — results refreshed')); fsRun(); return; }
+  if (!same){ toast(TT('內容已變更，結果已重新整理','Content changed — results refreshed')); fsRun(); return; }
   $$('.block.find-focus').forEach(b => b.classList.remove('find-focus'));
   deactivate(true);
   activate(h.i, h.start);
@@ -3709,9 +3840,9 @@ function updateBlockInfo(){
         code:'Code', table:'Table', math:'Math', hr:'Divider', empty:'Blank' }
     : { p:'段落', h:'標題', quote:'引言', ul:'清單', ol:'清單', task:'任務',
         code:'程式碼', table:'表格', math:'公式', hr:'分隔線', empty:'空白' };
-  const cur = TT('目前:','Current: ');
+  const cur = TT('目前：','Current: ');
   $('#block-info').textContent =
-    tableEdit ? cur + TT('表格(編輯中)','Table (editing)') :
+    tableEdit ? cur + TT('表格（編輯中）','Table (editing)') :
     activeIndex >= 0 ? cur + (names[blockType(blocks[activeIndex] ?? '')] || '') : '';
 }
 function updateTitle(){

@@ -10,9 +10,9 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '1.2.5'
-CHECKPOINT = 'CP185'
-BUILD = 'CP185-LIVE-COMPILE-1.2.5'
+VERSION = '1.2.8'
+CHECKPOINT = 'CP188'
+BUILD = 'CP188-INTERFACE-PAPERTOOLS-DESKTOP-1.2.8'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()

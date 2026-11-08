@@ -510,7 +510,7 @@ function cp162RenderAlert(n,depth){
 }
 function cp162RenderFence(n){
   const body=(n.bodyLines||[]).map(x=>x.text).join('\n'),lang=n.meta.lang||'';
-  return `<pre class="md-pre cp162-fence" data-cp162-fence-closed="${n.meta.closed?'1':'0'}"${cp162NodeAttrs(n)}>${lang?`<span class="lang-tag">${escapeHtml(lang)}</span>`:''}<code>${typeof highlight==='function'?(highlight(body,lang)||'<br>'):escapeHtml(body)}</code></pre>`;
+  return `<pre class="md-pre cp162-fence${/^(revtex|twthesis)-/i.test(lang)?' ekd-wrap-fence':''}" data-cp162-fence-closed="${n.meta.closed?'1':'0'}"${cp162NodeAttrs(n)}>${lang?`<span class="lang-tag">${escapeHtml(lang)}</span>`:''}<code>${typeof highlight==='function'?(highlight(body,lang)||'<br>'):escapeHtml(body)}</code></pre>`;
 }
 function cp162RenderChildren(children,depth){return (children||[]).map(x=>cp162RenderNode(x,depth)).join('');}
 function cp162RenderListItem(item,depth){
@@ -1034,7 +1034,7 @@ runInlineTransform=function(transformer,options){
   if(rr&&rr.iS===rr.iE){cp162SuspendForBlock(rr.iS);activate(rr.iS,rr.offE);cp162SetRawSelection(rr.iS,rr.offS,rr.offE);return cp162Orig.runInlineTransform(transformer,options);}
   return cp162Orig.runInlineTransform(transformer,options);
 };
-cmdCopyMD=function(){const rr=cp162SelectionRawRange();if(!rr)return cp162Orig.cmdCopyMD();const text=rr.text||'';if(!text){toast('沒有可複製的內容');return;}const done=()=>toast('已複製 Markdown('+text.length+' 字元)');if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));else fallbackCopy(text,done);};
+cmdCopyMD=function(){const rr=cp162SelectionRawRange();if(!rr)return cp162Orig.cmdCopyMD();const text=rr.text||'';if(!text){toast('沒有可複製的內容');return;}const done=()=>toast(TT('已複製 Markdown（','Copied Markdown (')+text.length+TT(' 字元）',' chars)'));if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));else fallbackCopy(text,done);};
 caSourceForCopy=function(){const rr=cp162SelectionRawRange();return rr?(rr.text||''):cp162Orig.caSourceForCopy();};
 
 /* Source viewport must resolve a hidden shadow block through its projected fragment. */
@@ -1226,13 +1226,14 @@ renderBlockHTML=function(src){
 
 /* ----- exact table source map ----- */
 function cp162DScanTableLine(line){
-  line=String(line);const pipes=[];let code=0,math=0;
+  line=String(line);const pipes=[];let code=0;
   for(let i=0;i<line.length;i++){
     const ch=line[i];
     if(ch==='\\'){if(i+1<line.length)i++;continue;}
-    if(ch==='`'&&!math){let j=i;while(line[j]==='`')j++;const n=j-i;if(!code)code=n;else if(code===n)code=0;i=j-1;continue;}
-    if(ch==='$'&&!code){let j=i;while(line[j]==='$')j++;const n=j-i;if(!math)math=n;else if(math===n)math=0;i=j-1;continue;}
-    if(ch==='|'&&!code&&!math)pipes.push(i);
+    if(ch==='`'){let j=i;while(line[j]==='`')j++;const n=j-i;if(!code)code=n;else if(code===n)code=0;i=j-1;continue;}
+    /* 1.2.6：與 splitTableRow 同一個數學判斷（tableMathSpanEnd，02.js）。 */
+    if(ch==='$'&&!code){const e=tableMathSpanEnd(line,i);if(e>0){i=e-1;continue;}continue;}
+    if(ch==='|'&&!code)pipes.push(i);
   }
   const nonStart=line.search(/\S/),nonEnd=(()=>{for(let i=line.length-1;i>=0;i--)if(!/\s/.test(line[i]))return i;return -1;})();
   let outerLeft=nonStart>=0&&line[nonStart]==='|',outerRight=nonEnd>=0&&line[nonEnd]==='|';
@@ -1911,24 +1912,38 @@ function restore(html,stash){return String(html).replace(new RegExp(L+'(\\d+)'+R
 inlineMD=function(src){
  if(!ordinary())return baseInline(src);normalize();const o=options(),stash=[];let raw=String(src==null?'':src).replace(/[\uE350\uE351]/g,'');
  if(!o.enableHighlight)raw=raw.replace(/==(?=\S)([\s\S]*?\S)==/g,m=>token(stash,escapeHtml(m)));
- if(!o.enableInlineMath){raw=raw.replace(/\$\$(?:[\s\S]*?)\$\$|\$(?=\S)[^$\n]+?(?<=\S)\$|\\\([^\n]+?\\\)/g,m=>token(stash,escapeHtml(m)));}
+ if(!o.enableInlineMath){raw=raw.replace(/\$\$(?:[\s\S]*?)\$\$|\$(?=\S)[^$\n]+?(?<=\S)\$(?!\d)|\\\([^\n]+?\\\)/g,m=>token(stash,escapeHtml(m)));}
  else if(o.noLegacyMath)raw=raw.replace(/\\\([^\n]+?\\\)/g,m=>token(stash,escapeHtml(m)));
  if(o.enableSubscript)raw=raw.replace(/(^|[^~])~(?=\S)([^~\n]*?\S)~(?!~)/g,(m,pre,c)=>pre+token(stash,`<sub class="md-subscript">${baseInline(c)}</sub>`));
  if(o.enableSuperscript)raw=raw.replace(/\^(?=\S)([^\^\n]*?\S)\^/g,(m,c)=>token(stash,`<sup class="md-superscript">${baseInline(c)}</sup>`));
  let html=baseInline(raw);return restore(html,stash);
 };
 function installPrefs(){
- const grid=document.querySelector('#prefs-page-global .prefs-grid');if(!grid||document.getElementById('pf-md-profile'))return;
- const o=options(),card=document.createElement('section');card.className='pref-card pref-card-wide';card.innerHTML=`<div class="pref-card-head"><div><h4 class="pref-card-title">${TT('Markdown 相容模式','Markdown compatibility')}</h4><p class="pref-card-desc">${TT('依 Markdown 的 Loose／Strict parser 選項切換。只影響一般 Markdown，不改 Paper／臺灣論文。','Switch Loose/Strict Markdown parser options. Ordinary Markdown only; Paper/Taiwan Thesis are isolated.')}</p></div></div><div class="pref-control-row"><div class="pref-control-label">${TT('解析模式','Parser profile')}</div><select class="pref-select" id="pf-md-profile"><option value="legacy-current">${TT('維持目前行為','Legacy current')}</option><option value="ekdeta-loose">Loose Markdown</option><option value="strict">Strict Markdown</option></select></div><div class="pref-indent-grid"><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">Highlight ==</span></span><input id="pf-md-highlight" type="checkbox" ${o.enableHighlight?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">Subscript ~x~</span></span><input id="pf-md-sub" type="checkbox" ${o.enableSubscript?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">Superscript ^x^</span></span><input id="pf-md-sup" type="checkbox" ${o.enableSuperscript?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('自動連結','Automatic links')}</span></span><input id="pf-md-autolink" type="checkbox" ${!o.noAutoLink?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('Unicode 語法標點','Unicode syntax punctuation')}</span></span><input id="pf-md-unicode" type="checkbox" ${o.remapUnicodePunctuation?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('智慧破折號／刪節號','Smart dashes / ellipsis')}</span></span><input id="pf-md-smart-dash" type="checkbox" ${o.smartDash?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('智慧引號','Smart quotes')}</span></span><input id="pf-md-smart-quote" type="checkbox" ${o.smartQuote?'checked':''}></label><label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('舊式 \\(…\\)／\\[…\\] 數學','Legacy \\(…\\) / \\[…\\] math')}</span></span><input id="pf-md-legacy-math" type="checkbox" ${!o.noLegacyMath?'checked':''}></label></div>`;grid.appendChild(card);
- const sel=card.querySelector('#pf-md-profile');sel.value=settings.markdownProfile;sel.addEventListener('change',()=>{setProfile(sel.value);showPrefs();});
- card.querySelector('#pf-md-highlight').addEventListener('change',e=>setOption('enableHighlight',e.target.checked));
- card.querySelector('#pf-md-sub').addEventListener('change',e=>setOption('enableSubscript',e.target.checked));
- card.querySelector('#pf-md-sup').addEventListener('change',e=>setOption('enableSuperscript',e.target.checked));
- card.querySelector('#pf-md-autolink').addEventListener('change',e=>setOption('noAutoLink',!e.target.checked));
- card.querySelector('#pf-md-unicode').addEventListener('change',e=>setOption('remapUnicodePunctuation',e.target.checked));
- card.querySelector('#pf-md-smart-dash').addEventListener('change',e=>{setOption('convertSmartOnRender',e.target.checked||options().smartQuote,false);setOption('smartDash',e.target.checked);});
- card.querySelector('#pf-md-smart-quote').addEventListener('change',e=>{setOption('convertSmartOnRender',e.target.checked||options().smartDash,false);setOption('smartQuote',e.target.checked);});
- card.querySelector('#pf-md-legacy-math').addEventListener('change',e=>setOption('noLegacyMath',!e.target.checked));
+ /* 1.2.7（M32）：放在偏好設定「一般」最下面預設收合的「進階：Markdown 語法」裡。
+    這些是語法層的選項，只有熟悉 Markdown 的人才需要；說明改成看得懂效果的白話。 */
+ const host=document.querySelector('#ekp-md-compat .ekp-adv-body');if(!host||document.getElementById('pf-md-profile'))return;
+ const o=options();
+ const sw=(id,label,on)=>`<label class="ekp-row ekp-switch" for="${id}"><span class="ekp-label"><span>${label}</span></span><span class="ekp-ctl"><input type="checkbox" role="switch" id="${id}" ${on?'checked':''}></span></label>`;
+ host.innerHTML=`<p class="ekp-lead">${TT('一般寫作維持預設就好；熟悉 Markdown 語法、需要和其他編輯器一致時才調整。只影響一般 Markdown，論文模式與臺灣論文不受影響。','The defaults suit ordinary writing. Change these only to match another Markdown editor. Paper mode and Taiwan thesis are not affected.')}</p>
+ <div class="ekp-row"><div class="ekp-label"><label for="pf-md-profile">${TT('解析方式','Parser')}</label></div><div class="ekp-ctl"><select class="ekp-select" id="pf-md-profile"><option value="legacy-current">${TT('預設','Default')}</option><option value="ekdeta-loose">${TT('寬鬆','Loose')}</option><option value="strict">${TT('嚴格','Strict')}</option></select></div></div>
+ ${sw('pf-md-highlight',TT('==文字== 顯示成螢光標記','==text== shows as a highlight'),o.enableHighlight)}
+ ${sw('pf-md-sub',TT('~x~ 顯示成下標','~x~ shows as subscript'),o.enableSubscript)}
+ ${sw('pf-md-sup',TT('^x^ 顯示成上標','^x^ shows as superscript'),o.enableSuperscript)}
+ ${sw('pf-md-autolink',TT('網址自動變成連結','Web addresses become links'),!o.noAutoLink)}
+ ${sw('pf-md-unicode',TT('輸入法換成的全形或彎引號，也照語法解讀','Read IME-replaced punctuation as syntax'),o.remapUnicodePunctuation)}
+ ${sw('pf-md-smart-dash',TT('-- 與 ... 顯示成破折號、刪節號','Show -- and ... as dashes and ellipses'),o.smartDash)}
+ ${sw('pf-md-smart-quote',TT('直引號顯示成彎引號','Show straight quotes as curly quotes'),o.smartQuote)}
+ ${sw('pf-md-legacy-math',TT('\\(…\\) 與 \\[…\\] 也當成數學','Treat \\(…\\) and \\[…\\] as math'),!o.noLegacyMath)}`;
+ const sel=host.querySelector('#pf-md-profile');sel.value=settings.markdownProfile;
+ sel.addEventListener('change',()=>{setProfile(sel.value);showPrefs();const d=document.getElementById('ekp-md-compat');if(d)d.open=true;});
+ host.querySelector('#pf-md-highlight').addEventListener('change',e=>setOption('enableHighlight',e.target.checked));
+ host.querySelector('#pf-md-sub').addEventListener('change',e=>setOption('enableSubscript',e.target.checked));
+ host.querySelector('#pf-md-sup').addEventListener('change',e=>setOption('enableSuperscript',e.target.checked));
+ host.querySelector('#pf-md-autolink').addEventListener('change',e=>setOption('noAutoLink',!e.target.checked));
+ host.querySelector('#pf-md-unicode').addEventListener('change',e=>setOption('remapUnicodePunctuation',e.target.checked));
+ host.querySelector('#pf-md-smart-dash').addEventListener('change',e=>{setOption('convertSmartOnRender',e.target.checked||options().smartQuote,false);setOption('smartDash',e.target.checked);});
+ host.querySelector('#pf-md-smart-quote').addEventListener('change',e=>{setOption('convertSmartOnRender',e.target.checked||options().smartDash,false);setOption('smartQuote',e.target.checked);});
+ host.querySelector('#pf-md-legacy-math').addEventListener('change',e=>setOption('noLegacyMath',!e.target.checked));
 }
 const baseShowPrefs=showPrefs;showPrefs=function(){baseShowPrefs();installPrefs();};
 normalize();

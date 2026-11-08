@@ -1,27 +1,29 @@
 
 /* ============================================================================
- * cp171-58-papertools — Markdown 編輯器 · 論文語法工具列
+ * cp171-58-papertools — Markdown 編輯器 · 論文工具（格式列右側的 REV／TW）
  *
  * 為什麼要有這個東西（使用者原話）：
  *   「我們本來做這個程式碼的初衷，就是希望讓使用者不必去學習這些複雜的
  *     LaTeX 語法，結果現在我們自己又設計了一套語法出來，這樣並不是很好。」
- *   「連我像這樣子當作者的都記不清楚。」
  *
- *   REVTeX 管線為了表達 LaTeX 的前置區、跨欄、附錄、書目…，前後累積出
- *   九類自創圍欄與一批行內記號。它們解決了真問題，但代價是使用者要背。
- *   這個模組把它們全部變成「填表 → 按插入」，語法字串由程式產生。
- *
- * 放在哪裡：
- *   格式工具列（#ty-toolbar）最右側，與前面的格式鈕之間有一道分隔線。
- *   分類鈕 REV／TW 永遠不被寬度收納——收納的是格式鈕那一區（.tb-items），
- *   這一區是它的兄弟節點，不進收納計算。
+ * 1.2.8 重構（M36，Jason 11-08：「當初 ChatGPT 感覺只是應付了事」）：
+ *   · 面板改成「左邊分類清單、右邊表單」，外觀與偏好設定同一套。分類依寫論文的順序。
+ *   · 文件裡只會有一份的區塊（前置區、摘要、致謝、參考文獻、封面、審定書、版權頁、關鍵字）：
+ *     打開時讀回文件裡現有的內容，按「更新」直接改原本那一份。以前每次都插入新的一份，
+ *     轉換時書目只取最後一份、作者清單被覆蓋、摘要只取第一份。
+ *   · 目錄、附錄這類標記已經在文件裡時，主要按鈕變成「跳到該處」，不再插第二份。
+ *   · 引用：列出文件裡的參考文獻勾選；交叉引用：列出文件裡設過標籤的圖、表、公式、章節。
+ *   · 修正：臺灣論文圖說改成排版程式認得的「**圖 2.1：**說明」（以前產生的「圖 1. 說明」不會被當成圖說）；
+ *     國際論文插圖的圖說改成單行（換行會讓插圖失效）；封面不再讓人選語言（由目前模式決定）；
+ *     關鍵字顯示個數（排版要求 5–7 個）。
+ *   · 打開面板時記下游標位置，插入時回到那裡（以前在表單裡打字後，選取跑到表單，內容被插到文件最後）。
+ *   · 國際論文模式只顯示 REV，臺灣論文模式只顯示 TW；一般 Markdown 模式兩個都留（網站導覽在 Markdown 模式示範兩者）。
  *
  * 邊界（隔離規約）：
- *   · 只讀寫 #cp171-ptools 這棵子樹與工具列裡自己插入的那一段
- *   · 插入一律走宿主既有的 insertParagraphSyntax()／insertTextAtCaret()，
- *     不自己動 blocks 陣列——那是宿主的資料模型，繞過去必然出事
- *   · tbBuild() 會把整條工具列 textContent='' 重建，所以靠 MutationObserver
- *     補回自己那一段，而不是去改宿主的 tbBuild
+ *   · 只寫 #cp171-ptools 這棵子樹與工具列裡自己插入的那一段
+ *   · 改文件一律走宿主的區塊操作（pushUndo、insertBlockAfter、removeBlockAt、rerender、onEdited）
+ *     或原始碼模式的 srcReplaceRange，保留復原；不自己維護第二份文件模型
+ *   · tbBuild() 會把整條工具列 textContent='' 重建，所以靠 MutationObserver 補回自己那一段
  * ========================================================================== */
 (() => {
 'use strict';
@@ -35,14 +37,8 @@ try {
 const PANEL_ID = 'cp171-ptools';
 const MOUNT_CLASS = 'cp171-ptools-group';
 
-/* ★ 判斷語言與主題一律讀 DOM，不要讀 window.settings 或 window.TT。
-   實機驗證過三件事：
-     · 宿主的 settings 是 IIFE 內的區域變數，window.settings === undefined
-     · const 宣告的 TT／isEN／isTwThesisEnglishTheme 也不在 window 上（只有 function
-       宣告的 setTheme／insertParagraphSyntax 等才在）
-     · setLang() 會寫 document.documentElement.lang 與 body.lang-en，
-       setTheme() 會寫 body.twthesis-en-thesis —— 這兩個才是模組看得到的可靠訊號
-   這個陷阱讓英文介面的工具列文案與封面自動預選長期失效而沒被發現。 */
+/* ★ 判斷語言一律讀 DOM：宿主的 settings／TT 是 IIFE 或 const，模組看不到 window 上的版本。
+   setLang() 會寫 document.documentElement.lang 與 body.lang-en。 */
 const zhEN = () => {
   try {
     if (document.body && document.body.classList.contains('lang-en')) return true;
@@ -50,637 +46,832 @@ const zhEN = () => {
     return typeof l === 'string' && l.toLowerCase().indexOf('en') === 0;
   } catch (_) { return false; }
 };
-const isTwThesisEnglish = () => {
-  try { return !!(document.body && document.body.classList.contains('twthesis-en-thesis')); }
-  catch (_) { return false; }
-};
 const T = (zh, en) => (zhEN() ? en : zh);
-/* OUT() 是明示的排除標記，不是包裝：被它包住的中文是「要寫進使用者 .md 檔
-   的內容」（Markdown 記號、章名、關鍵字標籤），不是介面文字。這種字串
-   絕對不能進 i18n 字典——進了字典就會在英文介面下被翻掉，使用者文件裡
-   就會冒出英文記號。i18n 覆蓋率稽核認得這個標記並跳過。 */
+const P = pair => (pair ? T(pair[0], pair[1]) : '');
+/* OUT() 是明示的排除標記：被它包住的中文是「要寫進使用者文件的內容」，不是介面文字，
+   不能進 i18n 字典（否則英文介面下文件裡會冒出英文記號）。i18n 稽核認得這個標記並跳過。 */
 const OUT = s => s;
 
-/* ---------- 表單語言：欄位定義 -------------------------------------------
- * 每個工具 = { id, short, title, hint, fields[], build(v) }
- *   short  是工具列浮動視窗頂部那一排小按鈕的字（使用者明示：要寫「摘要」，
- *          不是「REVTEX Abstract」）
- *   fields 支援 text / textarea / check / select / list
- *   list   是可增減的重複列，rows 裡每一格自己也是 text/select
- *   build  拿到 values 物件，回傳要塞進編輯器的完整語法字串
- * ------------------------------------------------------------------------ */
-
 const esc = s => String(s == null ? '' : s).replace(/\r/g, '').trim();
+const oneLine = s => esc(s).replace(/\s*\n+\s*/g, ' ');
 const lines = arr => arr.filter(x => x !== null && x !== undefined && x !== '').join('\n');
+const nonEmptyRows = rows => (rows || []).filter(r => Object.keys(r).some(k => k !== '__extra' && esc(r[k])));
 
-/* 把重複列裡空白的整列丟掉——使用者按了「新增作者」卻沒填，不該產生空欄位 */
-const nonEmptyRows = rows => (rows || []).filter(r => Object.keys(r).some(k => esc(r[k])));
+/* ---------- 讀文件 ----------------------------------------------------------
+ * 宿主的文件模型是 blocks（每一行或每個多行結構一塊，空行也是一塊，join('\n') 就是全文）。
+ * 原始碼模式以 textarea 為準，用宿主的 splitToBlocks 切成同樣的塊。 */
+function srcMode(){ try { return !!(settings && settings.srcmode); } catch (_) { return false; } }
+function docBlocks(){
+  try {
+    if (srcMode()) return splitToBlocks(String(srcview.value || ''));
+    const arr = blocks.slice();
+    if (activeIndex >= 0 && editor.children[activeIndex]) arr[activeIndex] = getRawText(editor.children[activeIndex]);
+    return arr;
+  } catch (_) { return []; }
+}
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})[ \t]*([A-Za-z0-9_-]+)[ \t]*$/;
+const fenceLang = b => { const m = String(b || '').split('\n', 1)[0].match(FENCE_OPEN); return m ? m[2].toLowerCase() : ''; };
+function fenceBody(b){
+  const ls = String(b || '').split('\n'); ls.shift();
+  if (ls.length && /^ {0,3}(`{3,}|~{3,})\s*$/.test(ls[ls.length - 1])) ls.pop();
+  return ls.join('\n');
+}
+const findFence = (arr, re) => { for (let i = 0; i < arr.length; i++) if (re.test(fenceLang(arr[i]))) return i; return -1; };
+const fenceLoc = re => arr => { const i = findFence(arr, re); return i < 0 ? null : { i, j: i, text: arr[i] }; };
+
+const FENCES = {
+  revFront: /^revtex-front-?matter$/, revAbstract: /^revtex-abstract$/, revAck: /^revtex-acknowledge?ments$/,
+  revBib: /^revtex-(bibliography|bib)$/, revAppendix: /^revtex-appendi(x|ces)$/,
+  twCover: /^(twthesis|twthesis2)-(titlepage|cover|meta)$/, twApproval: /^(twthesis|twthesis2)-(approval|approvalpage|approval-form)$/,
+  twTitleback: /^(twthesis|twthesis-en)-(titleback|title-back)$/,
+  twToc: /^twthesis-toc$/, twLof: /^twthesis-lof$/, twLot: /^twthesis-lot$/, twAppendix: /^twthesis-appendix$/
+};
+
+/* 「key: value」行。第一個冒號（半形或全形）分開鍵與值；認不得的行原樣保留在 __extra。 */
+function kvParse(body, map){
+  const v = { __extra: [], __keys: {} };
+  for (const raw of String(body || '').split('\n')) {
+    if (!raw.trim()) continue;
+    const m = raw.match(/^\s*([^:：]+?)\s*[:：]\s*(.*)$/);
+    const f = m ? map[m[1].trim().toLowerCase()] : null;
+    if (f && (v[f] === undefined || v[f] === '')) { v[f] = m[2].trim(); v.__keys[f] = m[1].trim(); }
+    else v.__extra.push(raw);
+  }
+  return v;
+}
+const extraLines = v => (Array.isArray(v && v.__extra) ? v.__extra : []);
+/* 更新時沿用文件原本的鍵名寫法（例如英文範本的「Author:」），只改內容。 */
+const keyName = (v, f, def) => (v && v.__keys && v.__keys[f]) || def;
+
+/* 國際論文前置區：作者後面的 affil／email／thanks 屬於那位作者；affiliations: 下面的「- 」是機構清單。
+   認不得的鍵（orcid、homepage、altaffiliation…）跟著所屬作者原樣保留；第一位作者之前的放在作者前面
+   （出現在任何作者之前的 affiliation 是全體共用，位置不能動）。 */
+function parseFront(body){
+  const v = { title: '', collaboration: '', affils: [], authors: [], keywords: '', pacs: '', preprint: '', date: '', __extra: [] };
+  let cur = null, inAff = false;
+  for (const raw of String(body || '').split('\n')) {
+    if (!raw.trim()) continue;
+    const li = raw.match(/^\s*-\s+(.*)$/);
+    if (inAff && li) { v.affils.push({ name: li[1].trim() }); continue; }
+    inAff = false;
+    const m = raw.match(/^\s*([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
+    const bag = cur ? cur.__extra : v.__extra;
+    if (!m) { bag.push(raw); continue; }
+    const k = m[1].toLowerCase(), val = m[2].trim();
+    if (k === 'affiliations') { inAff = true; if (val) val.split(/\s*;\s*/).forEach(x => { if (x.trim()) v.affils.push({ name: x.trim() }); }); continue; }
+    if (k === 'author') { cur = { name: val, affil: '', email: '', thanks: '', __extra: [] }; v.authors.push(cur); continue; }
+    if (cur && ['affil', 'affiliation-index', 'affilnum'].includes(k) && !cur.affil) { cur.affil = val; continue; }
+    if (cur && k === 'affiliation' && !cur.affil && !v.affils.length) { cur.affil = val; continue; }
+    if (cur && (k === 'email' || k === 'thanks') && !cur[k]) { cur[k] = val; continue; }
+    if (['title', 'collaboration', 'keywords', 'pacs', 'preprint', 'date'].includes(k) && !v[k]) { v[k] = val; continue; }
+    bag.push(raw);
+  }
+  /* 舊寫法把單位全名寫在每位作者後面（affiliation:）。讀回時整理成「單位清單＋編號」：轉換程式兩種寫法都認，
+     編號照第一次出現的順序，輸出相同；表單上就能一個單位只填一次。 */
+  if (!v.affils.length) {
+    const list = [];
+    for (const a of v.authors) {
+      const texts = a.affil ? [a.affil] : [];
+      a.__extra = a.__extra.filter(raw => { const m = raw.match(/^\s*affiliation\s*:\s*(.+)$/i); if (m) { texts.push(m[1].trim()); return false; } return true; });
+      if (texts.length) a.affil = texts.map(t => { let i = list.indexOf(t); if (i < 0) { list.push(t); i = list.length - 1; } return i + 1; }).join(',');
+    }
+    v.affils = list.map(name => ({ name }));
+  }
+  if (!v.affils.length) v.affils = [Object.create(null)];
+  if (!v.authors.length) v.authors = [Object.create(null)];
+  return v;
+}
+
+/* 參考文獻：國際論文在 ```revtex-bibliography 裡一行一筆；臺灣論文是一段一筆「[N] 內容」。 */
+const REF_LINE = /^\s*\[(\d{1,4})\]\s+(.+)$/;
+/* 國際論文的參考文獻有兩種寫法，轉換程式（17.js）依多數決：「[1] 內容」用 [[1]] 引用；「鍵: 內容」用 [@鍵] 引用。 */
+const BIB_NUM = /^\s*(?:\[(\d+)\]|(\d+)[.)])\s+(.+)$/, BIB_KEY = /^\s*([A-Za-z][A-Za-z0-9_:.\-]*)\s*:\s*(.+)$/;
+function bibStyleOf(body){
+  const ls = String(body || '').split('\n').filter(l => l.trim());
+  let num = 0, key = 0; for (const l of ls) { if (BIB_NUM.test(l)) num++; else if (BIB_KEY.test(l)) key++; }
+  return key > num && key >= Math.ceil(ls.length / 2) ? 'key' : 'num';
+}
+function revBib(){
+  const arr = docBlocks(), i = findFence(arr, FENCES.revBib);
+  if (i < 0) return { style: 'num', refs: [] };
+  const body = fenceBody(arr[i]), style = bibStyleOf(body), refs = [];
+  for (const l of body.split('\n')) {
+    const m = style === 'key' ? l.match(BIB_KEY) : l.match(BIB_NUM);
+    if (m) refs.push(style === 'key' ? { key: m[1], text: m[2].trim() } : { n: Number(m[1] || m[2]), text: m[3].trim() });
+  }
+  return { style, refs };
+}
+const revRefs = () => revBib().refs.filter(r => r.n);
+const XREF_PREFIX = /^(fig|figure|tbl|tab|table|eq|eqn|equation|sec|section|lst|listing|thm|theorem|alg|algorithm|app|appendix):/i;
+function twRefRegion(arr){
+  let a = -1, b = -1;
+  for (let i = 0; i < arr.length; i++) if (REF_LINE.test(arr[i])) { if (a < 0) a = i; b = i; }
+  if (a < 0) return null;
+  for (let i = a; i <= b; i++) if (arr[i].trim() && !REF_LINE.test(arr[i])) return { i: a, j: b, mixed: true };
+  return { i: a, j: b, text: arr.slice(a, b + 1).join('\n') };
+}
+function twRefs(){
+  return docBlocks().map(b => b.match(REF_LINE)).filter(Boolean).map(m => ({ n: Number(m[1]), text: m[2].trim() }));
+}
+/* 把 [1,2,3,5] 寫成 1-3,5（排版與轉換都認得連號）。 */
+function compressNums(nums){
+  const s = [...new Set(nums.map(Number).filter(n => n > 0))].sort((a, b) => a - b), out = [];
+  for (let i = 0; i < s.length; i++) {
+    let j = i; while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    out.push(j - i >= 2 ? s[i] + '-' + s[j] : (j > i ? s[i] + ',' + s[j] : String(s[i])));
+    i = j;
+  }
+  return out.join(',');
+}
+
+/* 交叉引用：文件裡設過標籤的圖、表、公式、章節。 */
+function revLabels(){
+  const out = [];
+  for (const b of docBlocks()) {
+    let m;
+    if ((m = b.match(/^!\[([^\]]*)\]\([^)]*\)\s*\{([^}]*)\}\s*$/))) { const id = (m[2].match(/#([^\s}]+)/) || [])[1]; if (id) out.push({ id, kind: 'fig', text: m[1] }); continue; }
+    if ((m = b.match(/^(?:Table)?:\s*(.*?)\s*\{[^}]*#([^\s}]+)[^}]*\}\s*$/))) { out.push({ id: m[2], kind: 'tab', text: m[1] }); continue; }
+    if ((m = b.match(/^#{1,6}\s+(.*?)\s*\{[^}]*#([^\s}]+)[^}]*\}\s*$/))) { out.push({ id: m[2], kind: 'sec', text: m[1] }); continue; }
+    if (/^\s*\$\$/.test(b) && (m = b.match(/\$\$\s*\{[^}]*#([^\s}]+)[^}]*\}\s*$/))) { out.push({ id: m[1], kind: 'eq', text: b.replace(/\$\$\s*\{[^}]*\}\s*$/, '').replace(/\$\$/g, '').trim() }); }
+  }
+  return out;
+}
+
+/* 臺灣論文文件語言：模式已經決定就照模式；一般 Markdown 模式看文件內容猜。 */
+function twEnglish(){
+  try { if (typeof isTwThesisEnglishTheme === 'function' && isTwThesisEnglishTheme()) return true; } catch (_) {}
+  try { if (typeof isTwThesisTheme === 'function' && isTwThesisTheme()) return false; } catch (_) {}
+  return docBlocks().some(b => FENCES.twTitleback.test(fenceLang(b)) || /^#\s+(Chinese Abstract|Acknowledg)/i.test(b));
+}
+function docMode(){
+  try { if (K.isIntlMode && K.isIntlMode()) return 'intl'; } catch (_) {}
+  try { if (typeof isTwThesisTheme === 'function' && isTwThesisTheme()) return 'tw'; } catch (_) {}
+  return 'markdown';
+}
+
+/* ---------- 工具定義 --------------------------------------------------------
+ * { id, cat, short, title, hint?, fields[], build(v),
+ *   inline?   插在游標處（引用、交叉引用），否則插在游標所在段落後面
+ *   single?   { find(arr)→{i,j,text}|null, read(text)→values }：文件裡只會有一份，讀回並更新
+ *   marker?   (arr)→index：純標記，已存在就改成「跳到該處」
+ *   prepare?  (v) 依文件設定預設值；extra?(box,v) 表單後面的自訂內容；visible?() }
+ * 欄位：text／textarea／check／select／list（幾個短欄位並排的重複列）／entrylist（一筆一段的清單）／table
+ * ------------------------------------------------------------------------ */
+const REV_CATS = [['info', ['論文資訊', 'Paper']], ['write', ['寫作時插入', 'While writing']],
+                  ['layout', ['特殊版面', 'Special layout']], ['refs', ['文獻與附錄', 'References and appendix']]];
+const TW_CATS = [['front', ['封面與前置', 'Cover and front matter']], ['toc', ['目錄', 'Contents']],
+                 ['write', ['寫作時插入', 'While writing']], ['refs', ['文獻與附錄', 'References and appendix']]];
 
 const REVTEX_TOOLS = [
   {
-    id: 'frontmatter',
-    short: ['前置', 'Front'],
-    title: ['論文前置區（標題、作者、單位、關鍵字）', 'Front matter (title, authors, affiliations, keywords)'],
-    hint: ['單位先在下面列出來，作者再用編號指過去，不必把長長的單位名稱重複貼十幾次。',
-           'List affiliations once below, then point each author at them by number.'],
+    id: 'frontmatter', cat: 'info',
+    short: ['標題與作者', 'Title and authors'],
+    title: ['標題、作者與單位', 'Title, authors and affiliations'],
+    hint: ['單位列一次，作者用編號指過去（例如 1 或 1,3）。', 'List affiliations once and point authors to them by number (e.g. 1 or 1,3).'],
+    single: { find: fenceLoc(FENCES.revFront), read: t => parseFront(fenceBody(t)) },
     fields: [
-      { k: 'title', type: 'text', label: ['標題', 'Title'], ph: ['論文標題', 'Paper title'] },
-      { k: 'affils', type: 'list', label: ['機構（依序編號 1、2、3…）', 'Affiliations (numbered 1, 2, 3…)'],
-        addLabel: ['新增機構', 'Add affiliation'], numbered: true,
-        rows: [{ k: 'name', type: 'text', label: ['機構名稱', 'Affiliation'], grow: true,
-                 ph: ['例：Department of Physics, Tsinghua University, Beijing 100084, China',
-                      'e.g. Department of Physics, Tsinghua University, Beijing 100084, China'] }] },
+      { k: 'title', type: 'text', label: ['標題', 'Title'] },
+      { k: 'affils', type: 'list', label: ['單位', 'Affiliations'], addLabel: ['新增單位', 'Add affiliation'], numbered: true,
+        rows: [{ k: 'name', type: 'text', label: ['單位名稱', 'Affiliation'], grow: true,
+                 ph: ['Department of Physics, National Sun Yat-sen University, Kaohsiung 80424, Taiwan', 'Department of Physics, National Sun Yat-sen University, Kaohsiung 80424, Taiwan'] }] },
       { k: 'authors', type: 'list', label: ['作者', 'Authors'], addLabel: ['新增作者', 'Add author'],
         rows: [
-          { k: 'name', type: 'text', label: ['姓名', 'Name'], grow: true, ph: ['Yuxiang Wang', 'Yuxiang Wang'] },
-          { k: 'affil', type: 'text', label: ['屬於第幾個機構', 'Affiliation no.'], w: 118, ph: ['1 或 1,3', '1 or 1,3'] },
-          { k: 'email', type: 'text', label: ['通訊信箱', 'Email'], w: 178, ph: ['選填', 'optional'] },
-          { k: 'thanks', type: 'text', label: ['作者註記', 'Note'], w: 178,
-            ph: ['選填，例：These authors contributed equally.', 'optional'] }
+          { k: 'name', type: 'text', label: ['姓名', 'Name'], grow: true },
+          { k: 'affil', type: 'text', label: ['單位編號', 'Affil. no.'], w: 76, ph: ['1,3', '1,3'] },
+          { k: 'email', type: 'text', label: ['信箱（選填）', 'Email (optional)'], w: 136 },
+          { k: 'thanks', type: 'text', label: ['註記（選填）', 'Note (optional)'], w: 120 }
         ] },
-      { k: 'collaboration', type: 'text', label: ['合作團隊名稱', 'Collaboration'], ph: ['選填', 'optional'] },
-      { k: 'keywords', type: 'text', label: ['關鍵字（用分號隔開）', 'Keywords (semicolon separated)'],
-        ph: ['例：Large materials model; Deep learning', 'e.g. Large materials model; Deep learning'] },
-      { k: 'pacs', type: 'text', label: ['PACS 代碼', 'PACS'], ph: ['選填', 'optional'] },
-      { k: 'preprint', type: 'text', label: ['預印本編號', 'Preprint number'], ph: ['選填', 'optional'] },
-      { k: 'date', type: 'text', label: ['日期', 'Date'], ph: ['選填，留空由 LaTeX 填今天', 'optional'] }
+      { k: 'keywords', type: 'text', label: ['關鍵字（分號隔開）', 'Keywords (semicolon separated)'] },
+      { k: 'collaboration', type: 'text', label: ['合作團隊（選填）', 'Collaboration (optional)'] },
+      { k: 'preprint', type: 'text', label: ['預印本編號（選填）', 'Preprint number (optional)'] },
+      { k: 'pacs', type: 'text', label: ['PACS（選填）', 'PACS (optional)'] },
+      { k: 'date', type: 'text', label: ['日期（留空用編譯當天）', 'Date (blank: today)'] }
     ],
     build(v) {
       const out = [];
-      if (esc(v.title)) out.push('title: ' + esc(v.title));
-      if (esc(v.collaboration)) out.push('collaboration: ' + esc(v.collaboration));
+      if (esc(v.title)) out.push('title: ' + oneLine(v.title));
+      if (esc(v.collaboration)) out.push('collaboration: ' + oneLine(v.collaboration));
       const affils = nonEmptyRows(v.affils);
-      if (affils.length) {
-        out.push('affiliations:');
-        for (const a of affils) out.push('  - ' + esc(a.name));
-      }
+      if (affils.length) { out.push('affiliations:'); for (const a of affils) out.push('  - ' + oneLine(a.name)); }
+      out.push(...extraLines(v));
       for (const a of nonEmptyRows(v.authors)) {
         if (!esc(a.name)) continue;
-        out.push('author: ' + esc(a.name));
-        if (esc(a.thanks)) out.push('thanks: ' + esc(a.thanks));
-        if (esc(a.email)) out.push('email: ' + esc(a.email));
-        if (esc(a.affil)) {
-          /* 有機構清單就用索引（affil:），沒有就退回把整串當單位名稱寫死，
-             免得使用者只填了作者、什麼都產不出來。 */
-          if (affils.length) out.push('affil: ' + esc(a.affil).replace(/\s+/g, ''));
-          else out.push('affiliation: ' + esc(a.affil));
-        }
+        out.push('author: ' + oneLine(a.name));
+        if (esc(a.thanks)) out.push('thanks: ' + oneLine(a.thanks));
+        if (esc(a.email)) out.push('email: ' + oneLine(a.email));
+        /* 有單位清單就寫編號（affil:），沒有就把整串當單位名稱，免得只填作者時什麼都產不出來。 */
+        if (esc(a.affil)) out.push(affils.length ? 'affil: ' + esc(a.affil).replace(/\s+/g, '') : 'affiliation: ' + oneLine(a.affil));
+        out.push(...extraLines(a));
       }
-      if (esc(v.keywords)) out.push('keywords: ' + esc(v.keywords));
-      if (esc(v.pacs)) out.push('pacs: ' + esc(v.pacs));
-      if (esc(v.preprint)) out.push('preprint: ' + esc(v.preprint));
-      if (esc(v.date)) out.push('date: ' + esc(v.date));
-      return '```revtex-frontmatter\n' + lines(out) + '\n```';
+      if (esc(v.keywords)) out.push('keywords: ' + oneLine(v.keywords));
+      if (esc(v.pacs)) out.push('pacs: ' + oneLine(v.pacs));
+      if (esc(v.preprint)) out.push('preprint: ' + oneLine(v.preprint));
+      if (esc(v.date)) out.push('date: ' + oneLine(v.date));
+      return out.length ? '```revtex-frontmatter\n' + lines(out) + '\n```' : '';
     }
   },
   {
-    id: 'abstract',
-    short: ['摘要', 'Abstract'],
-    title: ['摘要', 'Abstract'],
-    hint: ['空一行就是新的一段，REVTeX 支援多段摘要。', 'Blank line starts a new paragraph; multi-paragraph abstracts are supported.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 8, label: ['摘要內文', 'Abstract text'] }],
-    build(v) { return '```revtex-abstract\n' + esc(v.body) + '\n```'; }
+    id: 'abstract', cat: 'info',
+    short: ['摘要', 'Abstract'], title: ['摘要', 'Abstract'],
+    hint: ['空一行是新的一段。', 'A blank line starts a new paragraph.'],
+    single: { find: fenceLoc(FENCES.revAbstract), read: t => ({ body: fenceBody(t) }) },
+    fields: [{ k: 'body', type: 'textarea', rows: 9, label: ['摘要內文', 'Abstract'] }],
+    build(v) { return esc(v.body) ? '```revtex-abstract\n' + esc(v.body) + '\n```' : ''; }
   },
   {
-    id: 'nonum',
-    short: ['不編號章節', 'Unnumbered'],
-    title: ['不編號的章節標題', 'Unnumbered section heading'],
-    hint: ['印出來是 INTRODUCTION 而不是 I. INTRODUCTION。自然科學的綜合期刊很常用。',
-           'Prints as INTRODUCTION instead of I. INTRODUCTION — common in multidisciplinary journals.'],
+    id: 'ack', cat: 'info',
+    short: ['致謝', 'Acknowledgments'], title: ['致謝', 'Acknowledgments'],
+    hint: ['排在正文之後、附錄與參考文獻之前。', 'Placed after the body, before the appendix and references.'],
+    single: { find: fenceLoc(FENCES.revAck), read: t => ({ body: fenceBody(t) }) },
+    fields: [{ k: 'body', type: 'textarea', rows: 6, label: ['致謝內文', 'Acknowledgments'] }],
+    build(v) { return esc(v.body) ? '```revtex-acknowledgments\n' + esc(v.body) + '\n```' : ''; }
+  },
+  {
+    id: 'cite', cat: 'write', inline: true,
+    short: ['引用', 'Citation'], title: ['引用參考文獻', 'Cite references'],
+    fields: [{ k: 'n', type: 'text', label: ['編號', 'Numbers'], ph: ['1  或  1,3  或  2-5', '1  or  1,3  or  2-5'], showIf: () => revBib().style !== 'key' },
+             { k: 'keys', type: 'text', label: ['鍵（分號隔開）', 'Keys (semicolon separated)'], ph: ['smith2020; lee2021', 'smith2020; lee2021'], showIf: () => revBib().style === 'key' }],
+    extra: (box, v) => { const b = revBib(); refPicker(box, v, b.refs, b.style); },
+    build(v) {
+      const keys = String(v.keys || '').split(/[;,\s]+/).map(x => x.replace(/^@/, '').trim()).filter(Boolean);
+      if (keys.length) return '[' + keys.map(k => '@' + k).join('; ') + ']';
+      const n = esc(v.n).replace(/\s+/g, ''); return n ? '[[' + n + ']]' : '';
+    }
+  },
+  {
+    id: 'xref', cat: 'write', inline: true,
+    short: ['交叉引用', 'Cross-reference'], title: ['指向圖、表、公式或章節', 'Refer to a figure, table, equation or section'],
+    hint: ['插入的是編號本身，例如 (1) 或 2；前面的「Eq.」「Fig.」「Table」自己打。', 'Inserts the number only, such as (1) or 2; type “Eq.”, “Fig.” or “Table” yourself.'],
     fields: [
-      { k: 'text', type: 'text', label: ['標題文字', 'Heading text'], ph: ['Introduction', 'Introduction'] },
-      { k: 'lv', type: 'select', label: ['層級', 'Level'],
-        opts: [['1', ['一級（章）', 'Level 1 (section)']], ['2', ['二級（節）', 'Level 2 (subsection)']],
-               ['3', ['三級', 'Level 3 (subsubsection)']]] }
+      { k: 'id', type: 'text', reflow: true, label: ['標籤', 'Label'], ph: ['fig:setup', 'fig:setup'] },
+      { k: 'kind', type: 'select', label: ['寫法', 'Form'], showIf: v => !XREF_PREFIX.test(esc(v.id)),
+        opts: [['ref', ['一般（圖 1、表 2、第 III 節）', 'Plain (Fig. 1, Table 2, Sec. III)']], ['eqref', ['公式，加括號 (1)', 'Equation, in parentheses (1)']]] }
+    ],
+    extra: (box, v) => labelPicker(box, v),
+    /* 有 fig:／tbl:／eq:／sec: 這類前綴的標籤用 [@標籤]（轉換程式自己判斷要不要加括號），其他用 \\ref／\\eqref。 */
+    build(v) { const id = esc(v.id); if (!id) return ''; return XREF_PREFIX.test(id) ? '[@' + id + ']' : '\\' + (v.kind === 'eqref' ? 'eqref' : 'ref') + '{' + id + '}'; }
+  },
+  {
+    id: 'equation', cat: 'write',
+    short: ['公式', 'Equation'], title: ['獨立公式', 'Display equation'],
+    hint: ['要在別處用「交叉引用」指到它，就填標籤。', 'Give it a label if you will refer to it with Cross-reference.'],
+    fields: [
+      { k: 'body', type: 'textarea', rows: 3, mono: true, label: ['算式（不含 $$）', 'Expression (without $$)'], ph: ['E = mc^2', 'E = mc^2'] },
+      { k: 'id', type: 'text', label: ['標籤（選填）', 'Label (optional)'], ph: ['eq:main', 'eq:main'] }
+    ],
+    build(v) { const b = esc(v.body); if (!b) return ''; const id = esc(v.id); return '$$\n' + b + '\n$$' + (id ? ' {#' + id + '}' : ''); }
+  },
+  {
+    id: 'figure', cat: 'write',
+    short: ['插圖', 'Figure'], title: ['插圖', 'Figure'],
+    hint: ['圖檔要放在匯出專案的同一個資料夾裡；圖說只能一行。', 'Keep the image next to the exported project; the caption is one line.'],
+    fields: [
+      { k: 'src', type: 'text', label: ['圖檔路徑', 'Image path'], ph: ['figs/fig1.png', 'figs/fig1.png'] },
+      { k: 'cap', type: 'text', label: ['圖說', 'Caption'] },
+      { k: 'id', type: 'text', label: ['標籤（交叉引用用，選填）', 'Label (for cross-references, optional)'], ph: ['fig:setup', 'fig:setup'] },
+      { k: 'wide', type: 'check', label: ['橫跨兩欄的大圖', 'Span both columns'] }
     ],
     build(v) {
-      const n = Math.max(1, Math.min(3, parseInt(v.lv || '1', 10) || 1));
-      return '#'.repeat(n) + ' ' + (esc(v.text) || 'Section') + ' {-}';
+      const attr = [esc(v.id) ? '#' + esc(v.id) : '', v.wide ? 'wide' : ''].filter(Boolean).join(' ');
+      return '![' + oneLine(v.cap) + '](' + (esc(v.src) || 'figs/fig1.png') + ')' + (attr ? '{' + attr + '}' : '');
     }
   },
   {
-    id: 'cite',
-    short: ['引用', 'Cite'],
-    title: ['內文引用', 'In-text citation'],
-    inline: true,
-    hint: ['直接寫編號就好：3 是單筆，1,3 是兩筆，2-14 是連號（PDF 會自己印成 [2–14]）。',
-           'Just type numbers: 3, or 1,3, or 2-14 for a run (the PDF prints [2–14]).'],
-    fields: [{ k: 'n', type: 'text', label: ['編號', 'Numbers'], ph: ['1  或  1,3  或  2-14', '1  or  1,3  or  2-14'] }],
-    build(v) { const n = esc(v.n).replace(/\s+/g, ''); return n ? '[[' + n + ']]' : ''; }
-  },
-  {
-    id: 'equation',
-    short: ['公式', 'Equation'],
-    title: ['帶標籤的公式（給交叉引用指過來）', 'Labelled equation (for cross-references)'],
-    hint: ['標籤選填；有填才能被「交叉引用」工具的 eqref 指到。這是跟插圖同一套 {#id} 慣例，只是使用者原本要自己記。',
-           'The label is optional; fill it in if the equation needs to be pointed at with the “Cross-reference” tool. '
-           + 'This is the same {#id} convention used for figures — previously you had to remember the syntax yourself.'],
+    id: 'table', cat: 'write',
+    short: [OUT('表格'), 'Table'], title: ['表格', 'Table'],
+    hint: ['勾「併左」把這一格併進左邊那一格；表頭不能合併。', 'Tick “merge” to join a cell with the one on its left; the header row cannot merge.'],
     fields: [
-      { k: 'body', type: 'text', label: ['算式（不含 $$）', 'Expression (without $$)'], ph: ['E = mc^2', 'E = mc^2'] },
-      { k: 'id', type: 'text', label: ['標籤（選填）', 'Label (optional)'], ph: ['eq1', 'eq1'] }
-    ],
-    build(v) {
-      const b = esc(v.body); if (!b) return '';
-      const id = esc(v.id);
-      return '$$\n' + b + '\n$$' + (id ? ' {#' + id + '}' : '');
-    }
-  },
-  {
-    id: 'xref',
-    short: ['交叉引用', 'Xref'],
-    title: ['交叉引用（指向圖、表、公式、章節）', 'Cross-reference (figure, table, equation, section)'],
-    inline: true,
-    hint: ['指的是你在插圖或公式上設的那個標籤。公式選 eqref 會自動加括號。',
-           'Points at a label you set on a figure or equation. eqref adds the parentheses.'],
-    fields: [
-      { k: 'id', type: 'text', label: ['標籤', 'Label'], ph: ['fig1', 'fig1'] },
-      { k: 'kind', type: 'select', label: ['種類', 'Kind'],
-        opts: [['ref', ['圖／表／章節（ref）', 'Figure / table / section (ref)']],
-               ['eqref', ['公式（eqref，會加括號）', 'Equation (eqref, adds parentheses)']]] }
-    ],
-    build(v) { const id = esc(v.id); return id ? '\\' + (v.kind || 'ref') + '{' + id + '}' : ''; }
-  },
-  {
-    id: 'table',
-    short: [OUT('表格'), 'Table'],
-    title: [OUT('表格（含合併儲存格）'), 'Table (with merged cells)'],
-    hint: [OUT('資料儲存格打勾「併左」會把該格併入左邊那格——這是我們自創的語法：格子裡只寫一個 > 字元。這裡不用記，勾選就自動處理。表頭列不能合併。'),
-           'Ticking \u201cmerge\u201d on a data cell merges it into the cell on its left \u2014 the underlying syntax is a cell whose entire content is a single > character. You don\u2019t need to know that; the checkbox handles it. The header row cannot merge.'],
-    fields: [
-      { k: 'grid', type: 'table', label: [OUT('表格內容'), 'Table content'] },
-      { k: 'caption', type: 'text', label: [OUT('表格標題（選填）'), 'Caption (optional)'] },
-      { k: 'id', type: 'text', label: [OUT('標籤（選填，供交叉引用）'), 'Label (optional, for cross-references)'], ph: ['tab1', 'tab1'] }
+      { k: 'grid', type: 'table' },
+      { k: 'caption', type: 'text', label: ['表說（選填）', 'Caption (optional)'] },
+      { k: 'id', type: 'text', label: ['標籤（交叉引用用，選填）', 'Label (for cross-references, optional)'], ph: ['tbl:results', 'tbl:results'] }
     ],
     build(v) {
       const st = (v.__tbl && v.__tbl.grid) || null;
       if (!st || !st.cells.length) return '';
       const alignMark = { l: '---', c: ':---:', r: '---:' }[st.align] || '---';
-      const lines = [];
-      const rowOut = row => '| ' + row.map(c => (c.merge ? '>' : esc(c.text) || ' ')).join(' | ') + ' |';
-      lines.push(rowOut(st.cells[0]));
-      lines.push('|' + Array(st.cols).fill(alignMark).join('|') + '|');
-      for (let r = 1; r < st.cells.length; r++) lines.push(rowOut(st.cells[r]));
-      const cap = esc(v.caption);
-      const id = esc(v.id);
-      if (cap || id) lines.push(': ' + cap + (id ? ' {#' + id + '}' : ''));
-      return lines.join('\n');
+      const out = [];
+      const rowOut = row => '| ' + row.map(c => (c.merge ? '>' : oneLine(c.text) || ' ')).join(' | ') + ' |';
+      out.push(rowOut(st.cells[0]));
+      out.push('|' + Array(st.cols).fill(alignMark).join('|') + '|');
+      for (let r = 1; r < st.cells.length; r++) out.push(rowOut(st.cells[r]));
+      const cap = oneLine(v.caption), id = esc(v.id);
+      if (cap || id) out.push(': ' + cap + (id ? ' {#' + id + '}' : ''));
+      return out.join('\n');
     }
   },
   {
-    id: 'figure',
-    short: ['插圖', 'Figure'],
-    title: ['插圖', 'Figure'],
-    hint: ['勾了「跨欄」就是 figure*（橫跨雙欄的大圖）。標籤用來給交叉引用指過來。',
-           'Tick “wide” for figure* (spanning both columns). The label is what cross-references point at.'],
-    fields: [
-      { k: 'cap', type: 'textarea', rows: 3, label: ['圖說', 'Caption'] },
-      { k: 'src', type: 'text', label: ['圖檔路徑', 'Image path'], ph: ['figs/fig1.png', 'figs/fig1.png'] },
-      { k: 'id', type: 'text', label: ['標籤（交叉引用用）', 'Label (for cross-references)'], ph: ['fig1', 'fig1'] },
-      { k: 'wide', type: 'check', label: ['跨欄大圖（figure*）', 'Wide figure (figure*)'] }
-    ],
-    build(v) {
-      const attr = [esc(v.id) ? '#' + esc(v.id) : '', v.wide ? 'wide' : ''].filter(Boolean).join(' ');
-      return '![' + esc(v.cap) + '](' + (esc(v.src) || 'figs/fig1.png') + ')' + (attr ? '{' + attr + '}' : '');
-    }
+    id: 'wide', cat: 'layout',
+    short: ['跨欄', 'Full width'], title: ['橫跨兩欄的區塊', 'Block across both columns'],
+    hint: ['放太寬的表格或公式；上下兩條短線是期刊樣式的接續記號。', 'For tables or equations too wide for one column; the short rules are the journal’s continuation marks.'],
+    fields: [{ k: 'body', type: 'textarea', rows: 7, mono: true, label: ['內容（表格、公式或段落）', 'Content (table, equation or text)'] }],
+    build(v) { return esc(v.body) ? '```revtex-wide\n' + esc(v.body) + '\n```' : ''; }
   },
   {
-    id: 'wide',
-    short: ['跨欄', 'Wide'],
-    title: ['跨欄區塊（橫跨雙欄版面）', 'Full-width block across both columns'],
-    hint: ['放大表格或寬公式用。上下那兩條短線是 REVTeX 官方的接續記號，不是瑕疵。',
-           'For wide tables or equations. The two short rules above/below are official REVTeX continuation marks.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 7, label: ['內容（Markdown 表格、$$ 公式或段落都可以）', 'Content (table, $$ math, or paragraphs)'] }],
-    build(v) { return '```revtex-wide\n' + esc(v.body) + '\n```'; }
-  },
-  {
-    id: 'longtable',
-    short: ['長表格', 'Long tbl'],
-    title: ['長表格（跨頁、每頁重複表頭）', 'Long table (spans pages, header repeats)'],
-    hint: ['寫成一般的 Markdown 表格就好，跨頁與表頭重複由 LaTeX 處理。',
-           'Write a normal Markdown table; page breaks and repeated headers are handled for you.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 7, label: ['Markdown 表格', 'Markdown table'],
+    id: 'longtable', cat: 'layout',
+    short: ['長表格', 'Long table'], title: ['跨頁的長表格', 'Long table across pages'],
+    hint: ['寫一般的 Markdown 表格；每頁會重複表頭。', 'Write a normal Markdown table; the header repeats on every page.'],
+    fields: [{ k: 'body', type: 'textarea', rows: 7, mono: true, label: ['表格', 'Table'],
                ph: ['| 欄一 | 欄二 |\n|---|---|\n| a | b |', '| A | B |\n|---|---|\n| a | b |'] }],
-    build(v) { return '```revtex-longtable\n' + esc(v.body) + '\n```'; }
+    build(v) { return esc(v.body) ? '```revtex-longtable\n' + esc(v.body) + '\n```' : ''; }
   },
   {
-    id: 'turnpage',
-    short: ['橫置', 'Rotate'],
-    title: ['橫置表格／圖（整頁旋轉 90 度）', 'Turnpage: rotate a table or figure 90°'],
-    hint: ['官方限制：一個橫置區塊只能放一個表或一張圖，而且不能跨頁。',
-           'Official limit: exactly one table or figure, and it cannot span pages.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 7, label: ['表格或圖（Markdown）', 'Table or figure (Markdown)'] }],
-    build(v) { return '```revtex-turnpage\n' + esc(v.body) + '\n```'; }
+    id: 'turnpage', cat: 'layout',
+    short: ['橫置', 'Landscape page'], title: ['整頁轉 90 度的表或圖', 'Table or figure rotated 90°'],
+    hint: ['一次只能放一個表或一張圖，而且不能跨頁。', 'One table or figure only, and it cannot span pages.'],
+    fields: [{ k: 'body', type: 'textarea', rows: 7, mono: true, label: ['表格或圖', 'Table or figure'] }],
+    build(v) { return esc(v.body) ? '```revtex-turnpage\n' + esc(v.body) + '\n```' : ''; }
   },
   {
-    id: 'subeq',
-    short: ['子公式', 'Sub-eq'],
-    title: ['子公式組（編號 1a、1b、1c）', 'Subequations (numbered 1a, 1b, 1c)'],
-    hint: ['一筆一條算式，跟書目一樣新增、填、刪除、整批插入。只要寫算式本體，$$ 由程式補上，順序就是 a/b/c 的順序。',
-           'One card per expression — add, fill, delete, then insert together. Just the expression itself; '
-           + '$$ delimiters are added for you, and card order becomes the a/b/c order.'],
-    fields: [{ k: 'items', type: 'entrylist', showIndex: false,
-               label: ['算式清單', 'Expressions'], addLabel: ['新增算式', 'Add expression'],
-               primary: { type: 'text', ph: ['E = mc^2', 'E = mc^2'] } }],
+    id: 'subeq', cat: 'layout',
+    short: ['子公式', 'Subequations'], title: ['子公式組（1a、1b、1c）', 'Subequations (1a, 1b, 1c)'],
+    fields: [{ k: 'items', type: 'entrylist', label: ['算式（依序是 a、b、c）', 'Expressions (a, b, c in order)'], addLabel: ['新增算式', 'Add expression'],
+               primary: { type: 'text', mono: true, ph: ['E = mc^2', 'E = mc^2'] } }],
     build(v) {
       const rows = (v.items || []).map(r => esc(r.text).replace(/^\$\$|\$\$$/g, '').trim()).filter(Boolean);
-      if (!rows.length) return '';
-      return '```revtex-subequations\n' + rows.map(r => '$$\n' + r + '\n$$').join('\n\n') + '\n```';
+      return rows.length ? '```revtex-subequations\n' + rows.map(r => '$$\n' + r + '\n$$').join('\n\n') + '\n```' : '';
     }
   },
   {
-    id: 'ack',
-    short: ['致謝', 'Ack.'],
-    title: ['致謝', 'Acknowledgments'],
-    hint: ['會排在正文之後、附錄與書目之前，位置由期刊樣式決定。',
-           'Placed after the body text; exact position follows the journal style.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 5, label: ['致謝內文', 'Acknowledgment text'] }],
-    build(v) { return '```revtex-acknowledgments\n' + esc(v.body) + '\n```'; }
-  },
-  {
-    id: 'appendix',
-    short: ['附錄', 'Appx'],
-    title: ['附錄起點', 'Start of appendices'],
-    hint: ['放一個標記就好，從這裡之後的章節都會變成附錄 A、附錄 B…（公式編號跟著變 (A1)）。',
-           'Just a marker: sections after it become Appendix A, B… and equations renumber to (A1).'],
-    fields: [{ k: 'first', type: 'text', label: ['順便建立第一個附錄標題（選填）', 'Also create the first appendix heading (optional)'],
-               ph: ['例：計算細節', 'e.g. Computational details'] }],
-    build(v) {
-      const t = esc(v.first);
-      return '```revtex-appendix\n```' + (t ? '\n\n# ' + t : '');
-    }
-  },
-  {
-    id: 'bib',
-    short: ['書目', 'Refs'],
-    title: ['參考文獻清單', 'Bibliography'],
-    hint: ['一筆一張卡片，跟「前置」的作者清單同一種邏輯：新增一筆、填、要刪再刪，最後按插入整批塞進去。編號依卡片順序自動補上 [1] [2] [3]…，內文用「引用」那個工具寫 [[1]] 指過來。',
-           'One card per reference — add, fill, delete as needed, then insert them all at once. Numbers are added in card order; cite them in the text with the “Cite” tool ([[1]]).'],
+    id: 'nonum', cat: 'layout',
+    short: ['不編號章節', 'Unnumbered heading'], title: ['不編號的章節標題', 'Unnumbered heading'],
+    hint: ['印成 INTRODUCTION，不是 I. INTRODUCTION。', 'Prints INTRODUCTION instead of I. INTRODUCTION.'],
     fields: [
-      { k: 'items', type: 'entrylist', showIndex: true,
-        label: ['文獻清單', 'References'], addLabel: ['新增文獻', 'Add reference'],
-        primary: { type: 'textarea', rows: 2,
-          ph: ['Martin RM. Electronic structure. Cambridge University Press, 2004.',
-               'Martin RM. Electronic structure. Cambridge University Press, 2004.'] } }
+      { k: 'text', type: 'text', label: ['標題', 'Heading'], ph: ['Introduction', 'Introduction'] },
+      { k: 'lv', type: 'select', label: ['層級', 'Level'],
+        opts: [['1', ['章', 'Section']], ['2', ['節', 'Subsection']], ['3', ['小節', 'Subsubsection']]] }
     ],
+    build(v) { const n = Math.max(1, Math.min(3, parseInt(v.lv || '1', 10) || 1)); return esc(v.text) ? '#'.repeat(n) + ' ' + oneLine(v.text) + ' {-}' : ''; }
+  },
+  {
+    id: 'bib', cat: 'refs',
+    short: ['參考文獻', 'References'], title: ['參考文獻', 'References'],
+    hint: ['內文用「引用」指過來；編號依順序自動排。', 'Cite them with Citation; numbers follow the order.'],
+    single: {
+      find: fenceLoc(FENCES.revBib),
+      read: t => {
+        const body = fenceBody(t), style = bibStyleOf(body);
+        return { __keyed: style === 'key', items: body.split('\n').filter(l => l.trim()).map(l => {
+          const m = style === 'key' ? l.match(BIB_KEY) : l.match(BIB_NUM);
+          return m ? (style === 'key' ? { key: m[1], text: m[2].trim() } : { text: m[3].trim() }) : { text: l.trim(), raw: true };
+        }) };
+      }
+    },
+    fields: [{ k: 'items', type: 'entrylist', showIndex: true, label: ['文獻', 'Entries'], addLabel: ['新增文獻', 'Add reference'],
+               primary: { type: 'textarea', rows: 2, ph: ['Martin RM. Electronic Structure. Cambridge University Press, 2004.', 'Martin RM. Electronic Structure. Cambridge University Press, 2004.'] } }],
     build(v) {
-      const items = (v.items || []).map(r => esc(r.text)).filter(Boolean);
+      const items = (v.items || []).filter(r => esc(r.text));
       if (!items.length) return '';
-      return '```revtex-bibliography\n' + items.map((t, i) => '[' + (i + 1) + '] ' + t).join('\n') + '\n```';
+      /* raw：讀回時不是「[N] 內容」格式的行（例如具名的「key: 內容」），原樣保留，不改成編號。 */
+      if (v.__keyed) return '```revtex-bibliography\n' + items.map((r, i) => r.raw ? oneLine(r.text) : (esc(r.key) || 'ref' + (i + 1)).replace(/\s+/g, '') + ': ' + oneLine(r.text)).join('\n') + '\n```';
+      return '```revtex-bibliography\n' + items.map((r, i) => r.raw ? oneLine(r.text) : '[' + (i + 1) + '] ' + oneLine(r.text)).join('\n') + '\n```';
     }
   },
   {
-    id: 'rawtex',
-    short: ['原生 TeX', 'Raw TeX'],
-    title: ['原生 LaTeX 逃生區塊', 'Raw LaTeX escape hatch'],
-    hint: ['真的需要手寫 LaTeX 時用這個，內容會原樣送進 .tex 不做任何轉換。',
-           'For the rare case you must hand-write LaTeX; the content passes through untouched.'],
-    fields: [{ k: 'body', type: 'textarea', rows: 6, label: ['LaTeX 原始碼', 'LaTeX source'] }],
-    build(v) { return '```tex\n' + esc(v.body) + '\n```'; }
+    id: 'appendix', cat: 'refs',
+    short: ['附錄', 'Appendix'], title: ['附錄起點', 'Start of appendix'],
+    hint: ['之後的章節變成附錄 A、B…，公式編號跟著變成 (A1)。', 'Sections after it become Appendix A, B…; equations become (A1).'],
+    marker: arr => findFence(arr, FENCES.revAppendix),
+    fields: [{ k: 'first', type: 'text', label: ['第一個附錄的標題（選填）', 'First appendix heading (optional)'] }],
+    build(v) { const t = oneLine(v.first); return '```revtex-appendix\n```' + (t ? '\n\n# ' + t : ''); }
+  },
+  {
+    id: 'rawtex', cat: 'refs',
+    short: ['LaTeX 原始碼', 'Raw LaTeX'], title: ['直接寫 LaTeX', 'Raw LaTeX'],
+    hint: ['原樣放進 .tex，不做任何轉換。', 'Passed to the .tex file unchanged.'],
+    fields: [{ k: 'body', type: 'textarea', rows: 7, mono: true, label: ['LaTeX', 'LaTeX'] }],
+    build(v) { return esc(v.body) ? '```tex\n' + esc(v.body) + '\n```' : ''; }
   }
 ];
 
-/* ---------- 臺灣論文模式 ---------------------------------------------
-   這一組的語法本來就比較清爽（引用就是 [[N]]、參考文獻就是 [N] …），
-   1.1.5.6.1 已經把 REVTeX 那邊也收斂成同一套。這裡把前置章、關鍵字、
-   圖說這些「要記格式但不難」的東西一起做成表單。                        */
-/* 1.1.5.6.8：原本誌謝／目錄／參考文獻只給了中文選項，twthesis-en-thesis（英文論文模式）
-   下使用者其實需要 Acknowledgements／Contents／References 這幾個英文標題字面值
-   才會被原生解析器的關鍵字比對認得——之前這三項完全沒有英文版可選，等於在
-   英文模式下這個工具是半殘的。現在中英各自成一個選項。 */
-const TW_THESIS_FM_CHAPTERS = [
-  [OUT('摘要'), ['摘要', 'Chinese abstract']],
-  ['Abstract', ['英文摘要', 'English abstract']],
-  [OUT('誌謝'), ['誌謝（中文）', 'Acknowledgements (Chinese heading)']],
-  ['Acknowledgements', ['誌謝（英文）', 'Acknowledgements (English heading)']],
-  [OUT('目錄'), ['目錄（中文）', 'Contents (Chinese heading)']],
-  ['Contents', ['目錄（英文）', 'Contents (English heading)']],
-  [OUT('參考文獻'), ['參考文獻（中文）', 'References (Chinese heading)']],
-  ['References', ['參考文獻（英文）', 'References (English heading)']]
-];
+/* ---------- 臺灣論文 ---------- */
+const TW_COVER_ZH = { '校名中文': 'university_zh', '系所中文': 'dept_zh', '論文類型中文': 'degree_zh', '大學英文': 'university_en2', '系所英文': 'dept_en2',
+  '論文類型英文': 'degree_en2', '中文標題': 'title_zh', '英文標題': 'title_en2', '研究生中文': 'student_zh', '研究生英文': 'student_en2',
+  '指導教授中文': 'advisor_zh', '指導教授英文': 'advisor_en2', '日期中文': 'date_zh', '日期英文': 'date_en2' };
+const TW_COVER_EN = { 'laboratory': 'lab', 'title': 'title', 'author': 'author', 'thesis statement': 'statement', 'degree': 'degree',
+  'department': 'department', 'university': 'university', 'date': 'date' };
+const TW_COVER_ZH_ORDER = ['university_zh', 'dept_zh', 'degree_zh', 'dept_en2', 'university_en2', 'degree_en2', 'title_zh', 'title_en2',
+  'student_zh', 'student_en2', 'advisor_zh', 'advisor_en2', 'date_zh', 'date_en2'];
+const keyOf = (map, f) => Object.keys(map).find(k => map[k] === f);
+const zhOnly = v => v.mode !== 'en', enOnly = v => v.mode === 'en';
 
 const TW_THESIS_TOOLS = [
   {
-    id: 'twthesis-cover',
-    short: [OUT('封面'), 'Cover'],
-    title: ['論文封面', 'Title page'],
-    hint: ['這是原生程式碼裡真的在解析的欄位，只是印出來的時候不會寫「指導教授中文」這種詞，而是顯示成「指導教授：」後面接你填的名字。中文欄位留空會用中山大學物理系的預留字，英文欄位留空一樣有預留字，不會噴錯。哪個語言的欄位會用到，跟你目前的主題（中文版／English）有關，下面先選一次，不確定就照目前主題選的那個。',
-           'These are the fields the renderer actually parses; at render time it never prints the raw field name, it prints a proper label followed by whatever you typed. Blank fields fall back to reasonable placeholder text. Which set applies depends on your current theme (Chinese vs English TW_THESIS) — pick below; if unsure, match your current theme.'],
+    id: 'twthesis-cover', cat: 'front',
+    short: [OUT('封面'), 'Cover'], title: ['論文封面', 'Title page'],
+    hint: ['留空的欄位印預留字；校徽在「偏好設定 → 臺灣論文」。', 'Blank fields print placeholder text; the logo is in Preferences → Taiwan thesis.'],
+    single: {
+      find: fenceLoc(FENCES.twCover),
+      read: t => {
+        const body = fenceBody(t), zh = kvParse(body, Object.fromEntries(Object.entries(TW_COVER_ZH).map(([k, f]) => [k.toLowerCase(), f])));
+        const en = kvParse(body, TW_COVER_EN);
+        const zhHits = Object.keys(zh).filter(k => k !== '__extra').length, enHits = Object.keys(en).filter(k => k !== '__extra').length;
+        return (enHits > zhHits || (zhHits === 0 && twEnglish())) ? Object.assign(en, { mode: 'en' }) : Object.assign(zh, { mode: 'zh' });
+      }
+    },
+    prepare: v => { if (!v.mode) v.mode = twEnglish() ? 'en' : 'zh'; },
     fields: [
-      { k: 'mode', type: 'select', reflow: true, label: [OUT('封面語言'), 'Cover language'],
-        opts: [['zh', [OUT('中文版（中山制式）'), 'Chinese (NSYSU formal)']], ['en', ['English', 'English']]] },
-      // ---- 中文欄位 ----
-      { k: 'university_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('學校名稱（中文）'), 'University (Chinese)'], ph: [OUT('國立中山大學'), '國立中山大學'] },
-      { k: 'dept_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('系所（中文）'), 'Department (Chinese)'], ph: [OUT('物理學系'), '物理學系'] },
-      { k: 'degree_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('論文類型（中文）'), 'Thesis type (Chinese)'], ph: [OUT('碩士論文'), '碩士論文'] },
-      { k: 'university_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('學校名稱（英文，印在中文封面上）'), 'University (English, shown on Chinese cover)'], ph: ['National Sun Yat-sen University', 'National Sun Yat-sen University'] },
-      { k: 'dept_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('系所（英文，印在中文封面上）'), 'Department (English, shown on Chinese cover)'], ph: ['Department of Physics', 'Department of Physics'] },
-      { k: 'degree_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('論文類型（英文，印在中文封面上）'), 'Thesis type (English, shown on Chinese cover)'], ph: ['Master\u2019s Thesis', 'Master\u2019s Thesis'] },
-      { k: 'title_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('論文標題（中文）'), 'Title (Chinese)'] },
-      { k: 'title_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('論文標題（英文）'), 'Title (English)'] },
-      { k: 'student_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('研究生（中文）'), 'Student (Chinese)'] },
-      { k: 'student_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('研究生（英文）'), 'Student (English)'] },
-      { k: 'advisor_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('指導教授（中文）'), 'Advisor (Chinese)'] },
-      { k: 'advisor_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('指導教授（英文）'), 'Advisor (English)'] },
-      { k: 'date_zh', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('日期（中文）'), 'Date (Chinese)'], ph: [OUT('中華民國一一五年七月'), '中華民國一一五年七月'] },
-      { k: 'date_en2', type: 'text', showIf: v => v.mode !== 'en', label: [OUT('日期（英文）'), 'Date (English)'], ph: ['July 2026', 'July 2026'] },
-      // ---- 英文欄位 ----
-      { k: 'lab', type: 'text', showIf: v => v.mode === 'en', label: ['Laboratory', 'Laboratory'] },
-      { k: 'title', type: 'text', showIf: v => v.mode === 'en', label: ['Title', 'Title'] },
-      { k: 'author', type: 'text', showIf: v => v.mode === 'en', label: ['Author', 'Author'] },
-      { k: 'statement', type: 'text', showIf: v => v.mode === 'en', label: ['Thesis statement', 'Thesis statement'], ph: ['A dissertation for the degree of', 'A dissertation for the degree of'] },
-      { k: 'degree', type: 'text', showIf: v => v.mode === 'en', label: ['Degree', 'Degree'], ph: ['Master of Science', 'Master of Science'] },
-      { k: 'department', type: 'text', showIf: v => v.mode === 'en', label: ['Department', 'Department'] },
-      { k: 'university', type: 'text', showIf: v => v.mode === 'en', label: ['University', 'University'] },
-      { k: 'date', type: 'text', showIf: v => v.mode === 'en', label: ['Date', 'Date'], ph: ['July 2026', 'July 2026'] }
+      /* 封面用哪一套由模式決定（中文版／英文版）；只有在一般 Markdown 模式下才讓人選。 */
+      { k: 'mode', type: 'select', reflow: true, label: ['封面版型', 'Cover layout'], showIf: () => docMode() !== 'tw',
+        opts: [['zh', ['中文論文', 'Chinese thesis']], ['en', ['英文論文', 'English thesis']]] },
+      { k: 'title_zh', type: 'text', showIf: zhOnly, label: ['論文標題（中文）', 'Title (Chinese)'] },
+      { k: 'title_en2', type: 'text', showIf: zhOnly, label: ['論文標題（英文）', 'Title (English)'] },
+      { k: 'student_zh', type: 'text', showIf: zhOnly, half: true, label: ['研究生（中文）', 'Student (Chinese)'] },
+      { k: 'student_en2', type: 'text', showIf: zhOnly, half: true, label: ['研究生（英文）', 'Student (English)'] },
+      { k: 'advisor_zh', type: 'text', showIf: zhOnly, half: true, label: ['指導教授（中文）', 'Advisor (Chinese)'] },
+      { k: 'advisor_en2', type: 'text', showIf: zhOnly, half: true, label: ['指導教授（英文）', 'Advisor (English)'] },
+      { k: 'date_zh', type: 'text', showIf: zhOnly, half: true, label: ['日期（中文）', 'Date (Chinese)'], ph: [OUT('中華民國一一五年七月'), '中華民國一一五年七月'] },
+      { k: 'date_en2', type: 'text', showIf: zhOnly, half: true, label: ['日期（英文）', 'Date (English)'], ph: ['July 2026', 'July 2026'] },
+      { k: 'university_zh', type: 'text', showIf: zhOnly, half: true, label: ['學校（中文）', 'University (Chinese)'], ph: [OUT('國立中山大學'), '國立中山大學'] },
+      { k: 'university_en2', type: 'text', showIf: zhOnly, half: true, label: ['學校（英文）', 'University (English)'], ph: ['National Sun Yat-sen University', 'National Sun Yat-sen University'] },
+      { k: 'dept_zh', type: 'text', showIf: zhOnly, half: true, label: ['系所（中文）', 'Department (Chinese)'], ph: [OUT('物理學系'), '物理學系'] },
+      { k: 'dept_en2', type: 'text', showIf: zhOnly, half: true, label: ['系所（英文）', 'Department (English)'], ph: ['Department of Physics', 'Department of Physics'] },
+      { k: 'degree_zh', type: 'text', showIf: zhOnly, half: true, label: ['論文類型（中文）', 'Thesis type (Chinese)'], ph: [OUT('碩士論文'), '碩士論文'] },
+      { k: 'degree_en2', type: 'text', showIf: zhOnly, half: true, label: ['論文類型（英文）', 'Thesis type (English)'], ph: ['Master’s Thesis', 'Master’s Thesis'] },
+      { k: 'title', type: 'text', showIf: enOnly, label: ['Title', 'Title'] },
+      { k: 'author', type: 'text', showIf: enOnly, half: true, label: ['Author', 'Author'] },
+      { k: 'date', type: 'text', showIf: enOnly, half: true, label: ['Date', 'Date'], ph: ['July 2026', 'July 2026'] },
+      { k: 'statement', type: 'text', showIf: enOnly, label: ['Thesis statement', 'Thesis statement'], ph: ['A thesis submitted in partial fulfillment of the requirements for the degree of', 'A thesis submitted in partial fulfillment of the requirements for the degree of'] },
+      { k: 'degree', type: 'text', showIf: enOnly, half: true, label: ['Degree', 'Degree'], ph: ['Master of Science', 'Master of Science'] },
+      { k: 'lab', type: 'text', showIf: enOnly, half: true, label: ['Laboratory', 'Laboratory'] },
+      { k: 'department', type: 'text', showIf: enOnly, half: true, label: ['Department', 'Department'] },
+      { k: 'university', type: 'text', showIf: enOnly, half: true, label: ['University', 'University'] }
     ],
     build(v) {
       const out = [];
       if (v.mode === 'en') {
-        if (esc(v.lab)) out.push('laboratory: ' + esc(v.lab));
-        if (esc(v.title)) out.push('title: ' + esc(v.title));
-        if (esc(v.author)) out.push('author: ' + esc(v.author));
-        if (esc(v.statement)) out.push('thesis statement: ' + esc(v.statement));
-        if (esc(v.degree)) out.push('degree: ' + esc(v.degree));
-        if (esc(v.department)) out.push('department: ' + esc(v.department));
-        if (esc(v.university)) out.push('university: ' + esc(v.university));
-        if (esc(v.date)) out.push('date: ' + esc(v.date));
+        for (const f of ['lab', 'title', 'author', 'statement', 'degree', 'department', 'university', 'date'])
+          if (esc(v[f])) out.push(keyName(v, f, keyOf(TW_COVER_EN, f)) + ': ' + oneLine(v[f]));
       } else {
-        if (esc(v.university_zh)) out.push(OUT('\u6821\u540d\u4e2d\u6587: ') + esc(v.university_zh));
-        if (esc(v.dept_zh)) out.push(OUT('\u7cfb\u6240\u4e2d\u6587: ') + esc(v.dept_zh));
-        if (esc(v.degree_zh)) out.push(OUT('\u8ad6\u6587\u985e\u578b\u4e2d\u6587: ') + esc(v.degree_zh));
-        if (esc(v.dept_en2)) out.push(OUT('\u7cfb\u6240\u82f1\u6587: ') + esc(v.dept_en2));
-        if (esc(v.university_en2)) out.push(OUT('\u5927\u5b78\u82f1\u6587: ') + esc(v.university_en2));
-        if (esc(v.degree_en2)) out.push(OUT('\u8ad6\u6587\u985e\u578b\u82f1\u6587: ') + esc(v.degree_en2));
-        if (esc(v.title_zh)) out.push(OUT('\u4e2d\u6587\u6a19\u984c: ') + esc(v.title_zh));
-        if (esc(v.title_en2)) out.push(OUT('\u82f1\u6587\u6a19\u984c: ') + esc(v.title_en2));
-        if (esc(v.student_zh)) out.push(OUT('\u7814\u7a76\u751f\u4e2d\u6587: ') + esc(v.student_zh));
-        if (esc(v.student_en2)) out.push(OUT('\u7814\u7a76\u751f\u82f1\u6587: ') + esc(v.student_en2));
-        if (esc(v.advisor_zh)) out.push(OUT('\u6307\u5c0e\u6559\u6388\u4e2d\u6587: ') + esc(v.advisor_zh));
-        if (esc(v.advisor_en2)) out.push(OUT('\u6307\u5c0e\u6559\u6388\u82f1\u6587: ') + esc(v.advisor_en2));
-        if (esc(v.date_zh)) out.push(OUT('\u65e5\u671f\u4e2d\u6587: ') + esc(v.date_zh));
-        if (esc(v.date_en2)) out.push(OUT('\u65e5\u671f\u82f1\u6587: ') + esc(v.date_en2));
+        for (const f of TW_COVER_ZH_ORDER) if (esc(v[f])) out.push(keyName(v, f, OUT(keyOf(TW_COVER_ZH, f))) + ': ' + oneLine(v[f]));
       }
-      if (!out.length) return '';
-      return '```twthesis-titlepage\n' + out.join('\n') + '\n```';
+      out.push(...extraLines(v));
+      return out.length ? '```twthesis-titlepage\n' + out.join('\n') + '\n```' : '';
     }
   },
   {
-    id: 'twthesis-titleback',
-    short: ['Titleback', 'Titleback'],
-    title: ['Titleback（英文論文專用的版權頁）', 'Titleback (English-thesis copyright page)'],
-    hint: [OUT('只有英文論文模式會用到這一頁，中文版沒有這個頁面。內容是一段自動組合的摘要句＋指導教授／地點／時間三行。'),
-           'Only used in English-thesis mode; the Chinese template has no equivalent page. Renders as one auto-composed summary sentence plus three key/value lines (Supervisor / Place / Time).'],
+    id: 'twthesis-approval', cat: 'front',
+    short: [OUT('審定書'), 'Approval page'], title: ['論文審定書', 'Thesis approval page'],
+    hint: ['接在封面後面，前置頁碼（i、ii…）從這一頁開始；圖片留空會先印一個框。', 'Follows the cover; front-matter page numbers start here. A blank image prints a frame.'],
+    single: { find: fenceLoc(FENCES.twApproval),
+      read: t => { const v = kvParse(fenceBody(t), { '圖片': 'image', '標題': 'title', '口試日期': 'date', '移除白底': 'knockout' }); v.knockout = /^(1|true|yes|是|移除|透明)$/i.test(String(v.knockout || '')); return v; } },
     fields: [
-      { k: 'lab', type: 'text', label: ['Laboratory', 'Laboratory'] },
-      { k: 'author', type: 'text', label: ['Author', 'Author'] },
-      { k: 'title', type: 'text', label: ['Title', 'Title'] },
-      { k: 'statement', type: 'text', label: ['Thesis statement', 'Thesis statement'], ph: ['A dissertation for the degree of', 'A dissertation for the degree of'] },
-      { k: 'degree', type: 'text', label: ['Degree', 'Degree'] },
-      { k: 'copyright', type: 'text', label: ['Copyright date', 'Copyright date'], ph: ['July 2026', 'July 2026'] },
-      { k: 'supervisor', type: 'text', label: ['Supervisor', 'Supervisor'] },
-      { k: 'place', type: 'text', label: ['Place', 'Place'], ph: ['Kaohsiung, Taiwan', 'Kaohsiung, Taiwan'] },
-      { k: 'time', type: 'text', label: ['Time (defaults to copyright date)', 'Time (defaults to copyright date)'] }
+      { k: 'image', type: 'text', label: ['審定書掃描圖', 'Scanned approval form'], ph: [OUT('image/論文審定書.png'), 'image/approval.png'] },
+      { k: 'date', type: 'text', label: ['口試日期', 'Oral defense date'] },
+      { k: 'title', type: 'text', label: ['頁面標題（選填）', 'Page title (optional)'], ph: [OUT('論文審定書'), 'Thesis Approval Form'] },
+      { k: 'knockout', type: 'check', label: ['掃描圖是白底，去掉白底', 'Remove the scan’s white background'] }
     ],
     build(v) {
       const out = [];
-      if (esc(v.lab)) out.push('laboratory: ' + esc(v.lab));
-      if (esc(v.author)) out.push('author: ' + esc(v.author));
-      if (esc(v.title)) out.push('title: ' + esc(v.title));
-      if (esc(v.statement)) out.push('thesis statement: ' + esc(v.statement));
-      if (esc(v.degree)) out.push('degree: ' + esc(v.degree));
-      if (esc(v.copyright)) out.push('copyright: ' + esc(v.copyright));
-      if (esc(v.supervisor)) out.push('supervisor: ' + esc(v.supervisor));
-      if (esc(v.place)) out.push('place: ' + esc(v.place));
-      if (esc(v.time)) out.push('time: ' + esc(v.time));
-      return '```twthesis-titleback\n' + out.join('\n') + '\n```';
-    }
-  },
-  {
-    id: 'twthesis-approval',
-    short: [OUT('審定書'), 'Approval'],
-    title: [OUT('論文審定書頁'), 'Thesis approval page'],
-    hint: ['封面後面一定要接這一頁，正文前頁碼（i、ii、iii…）是從這一頁開始算的。圖片留空會先印一個佔位框提醒你補圖，不會編譯失敗。',
-           'This page must follow the cover; front-matter page numbers (i, ii, iii…) start counting from here. Leaving the image blank shows a placeholder box instead of failing.'],
-    fields: [
-      { k: 'image', type: 'text', label: [OUT('審定書圖片路徑'), 'Approval scan image path'], ph: [OUT('image/論文審定書.png'), 'image/approval.png'] },
-      { k: 'title', type: 'text', label: [OUT('頁面標題（選填）'), 'Page title (optional)'], ph: [OUT('論文審定書'), 'Thesis Approval Form'] },
-      { k: 'date', type: 'text', label: [OUT('口試日期'), 'Oral defense date'] },
-      { k: 'knockout', type: 'check', label: [OUT('掃描圖是白底，移除白底讓它融入頁面'), 'Scan has a white background \u2014 remove it to blend into the page'] }
-    ],
-    build(v) {
-      const out = [];
-      if (esc(v.image)) out.push(OUT('\u5716\u7247: ') + esc(v.image));
-      if (esc(v.title)) out.push(OUT('\u6a19\u984c: ') + esc(v.title));
-      if (esc(v.date)) out.push(OUT('\u53e3\u8a66\u65e5\u671f: ') + esc(v.date));
-      if (v.knockout) out.push(OUT('\u79fb\u9664\u767d\u5e95: \u662f'));
+      if (esc(v.image)) out.push(keyName(v, 'image', OUT('圖片')) + ': ' + esc(v.image));
+      if (esc(v.title)) out.push(keyName(v, 'title', OUT('標題')) + ': ' + oneLine(v.title));
+      if (esc(v.date)) out.push(keyName(v, 'date', OUT('口試日期')) + ': ' + oneLine(v.date));
+      if (v.knockout) out.push(keyName(v, 'knockout', OUT('移除白底')) + ': ' + OUT('是'));
+      out.push(...extraLines(v));
       return '```twthesis-approval\n' + out.join('\n') + '\n```';
     }
   },
   {
-    id: 'twthesis-fm',
-    short: ['前置章', 'Front ch.'],
-    title: ['前置／後置無號章', 'Unnumbered front or back matter chapter'],
-    hint: ['摘要、誌謝、目錄、參考文獻這幾章不編號、自成一頁——只要標題文字用得對就會自動套用。',
-           'Abstract, acknowledgements, contents and references are unnumbered and start on a new page automatically.'],
+    id: 'twthesis-titleback', cat: 'front',
+    short: ['版權頁', 'Title back'], title: ['版權頁（英文論文）', 'Title back (English thesis)'],
+    hint: ['英文論文封面背面那一頁。', 'The page on the back of the English title page.'],
+    visible: () => !(docMode() === 'tw' && !twEnglish()),
+    single: { find: fenceLoc(FENCES.twTitleback),
+      read: t => kvParse(fenceBody(t), { 'laboratory': 'lab', 'author': 'author', 'title': 'title', 'thesis statement': 'statement', 'degree': 'degree',
+        'copyright': 'copyright', 'supervisor': 'supervisor', 'place': 'place', 'time': 'time' }) },
     fields: [
-      { k: 'name', type: 'select', label: ['章名', 'Chapter'],
-        opts: TW_THESIS_FM_CHAPTERS.map(x => [x[0], x[1]]) },
-      { k: 'body', type: 'textarea', rows: 4, label: ['內文（選填）', 'Body text (optional)'] }
+      { k: 'title', type: 'text', label: ['Title', 'Title'] },
+      { k: 'author', type: 'text', half: true, label: ['Author', 'Author'] },
+      { k: 'supervisor', type: 'text', half: true, label: ['Supervisor', 'Supervisor'] },
+      { k: 'statement', type: 'text', label: ['Thesis statement', 'Thesis statement'] },
+      { k: 'degree', type: 'text', half: true, label: ['Degree', 'Degree'] },
+      { k: 'lab', type: 'text', half: true, label: ['Laboratory', 'Laboratory'] },
+      { k: 'copyright', type: 'text', half: true, label: ['Copyright date', 'Copyright date'], ph: ['July 2026', 'July 2026'] },
+      { k: 'place', type: 'text', half: true, label: ['Place', 'Place'], ph: ['Kaohsiung, Taiwan', 'Kaohsiung, Taiwan'] },
+      { k: 'time', type: 'text', half: true, label: ['Time（留空用版權日期）', 'Time (blank: copyright date)'] }
     ],
     build(v) {
-      const n = esc(v.name) || OUT('摘要');
-      return '# ' + n + (esc(v.body) ? '\n\n' + esc(v.body) : '');
+      const out = [], keys = [['lab', 'laboratory'], ['author', 'author'], ['title', 'title'], ['statement', 'thesis statement'], ['degree', 'degree'],
+        ['copyright', 'copyright'], ['supervisor', 'supervisor'], ['place', 'place'], ['time', 'time']];
+      for (const [f, k] of keys) if (esc(v[f])) out.push(keyName(v, f, k) + ': ' + oneLine(v[f]));
+      out.push(...extraLines(v));
+      return out.length ? '```twthesis-titleback\n' + out.join('\n') + '\n```' : '';
     }
   },
   {
-    id: 'twthesis-keywords',
-    short: ['關鍵字', 'Keywords'],
-    title: ['摘要頁關鍵字', 'Keywords line on the abstract page'],
-    hint: ['會被排到摘要頁的版心底部，這是臺灣論文版型的規定位置。關鍵字本來就是一個一個獨立的詞，這裡改成逐項新增，不用自己記中文用「、」、英文用逗號的分隔慣例——程式會依語言自動接。',
-           'Pinned to the bottom of the abstract page, as the 臺灣論文 template requires. Add terms one at a time; the separator convention (、 for Chinese, comma for English) is applied for you.'],
+    id: 'twthesis-fm', cat: 'front',
+    short: ['摘要與致謝', 'Abstracts and thanks'], title: ['摘要與致謝的章', 'Abstract and acknowledgment chapters'],
+    hint: ['這幾章不編號、各自從新的一頁開始。', 'These chapters are unnumbered and each starts a new page.'],
+    prepare: v => { if (!v.name) v.name = 'zhabs'; },
+    marker: (arr, v) => { const re = FM_KINDS[(v && v.name) || 'zhabs'].re; return arr.findIndex(b => { const m = b.match(/^#\s+(.+?)\s*$/); return !!(m && re.test(m[1])); }); },
     fields: [
-      { k: 'en', type: 'check', label: ['英文（Keywords:）', 'English (Keywords:)'] },
-      { k: 'terms', type: 'list', label: [OUT('關鍵字清單'), 'Keywords'], addLabel: ['新增關鍵字', 'Add keyword'],
-        rows: [{ k: 'w', type: 'text', label: ['詞', 'Term'], grow: true, w: 260 }] }
+      { k: 'name', type: 'select', reflow: true, label: ['章', 'Chapter'],
+        opts: [['zhabs', ['中文摘要', 'Chinese abstract']], ['enabs', ['英文摘要', 'English abstract']], ['ack', ['致謝', 'Acknowledgments']]] },
+      { k: 'body', type: 'textarea', rows: 7, label: ['內文（選填）', 'Text (optional)'] }
     ],
     build(v) {
-      const terms = (v.terms || []).map(r => esc(r.w)).filter(Boolean);
+      const k = FM_KINDS[v.name || 'zhabs'], head = twEnglish() ? k.en : k.zh;
+      return '# ' + head + (esc(v.body) ? '\n\n' + esc(v.body) : '');
+    }
+  },
+  {
+    id: 'twthesis-keywords', cat: 'front',
+    short: ['關鍵字', 'Keywords'], title: ['摘要頁的關鍵字', 'Keywords on the abstract page'],
+    hint: ['排在摘要頁版心底部；中文用「、」、英文用逗號，程式會自動接。', 'Placed at the foot of the abstract page; separators are added for you.'],
+    prepare: v => { if (v.lang === undefined) v.lang = twEnglish() ? 'en' : 'zh'; },
+    single: {
+      find: (arr, v) => { const want = (v && v.lang) || 'zh'; for (let i = 0; i < arr.length; i++) { const m = arr[i].match(KW_LINE); if (m && (/^key/i.test(m[1]) ? 'en' : 'zh') === want) return { i, j: i, text: arr[i] }; } return null; },
+      read: t => { const m = t.match(KW_LINE); return { terms: String(m ? m[2] : '').split(/[、,，;；]/).map(x => x.trim()).filter(Boolean).map(w => ({ w })) }; }
+    },
+    fields: [
+      { k: 'lang', type: 'select', reflow: true, reread: true, label: ['哪一份摘要', 'Which abstract'],
+        opts: [['zh', [OUT('中文摘要（關鍵字：）'), 'Chinese abstract (關鍵字：)']], ['en', ['英文摘要（Keywords:）', 'English abstract (Keywords:)']]] },
+      { k: 'terms', type: 'list', label: ['關鍵字', 'Keywords'], addLabel: ['新增關鍵字', 'Add keyword'],
+        rows: [{ k: 'w', type: 'text', label: ['詞', 'Term'], grow: true }] }
+    ],
+    extra: (box, v) => {
+      const n = (v.terms || []).filter(r => esc(r.w)).length, ok = n >= 5 && n <= 7;
+      const p = document.createElement('p'); p.className = 'pt-meter' + (ok ? '' : ' warn');
+      p.textContent = T('排版要求 5 到 7 個，現在 N 個。', 'The layout expects 5 to 7; you have N.').replace('N', String(n));
+      box.appendChild(p);
+    },
+    build(v) {
+      const terms = (v.terms || []).map(r => oneLine(r.w)).filter(Boolean);
       if (!terms.length) return '';
-      const sep = v.en ? ', ' : OUT('、');
-      return (v.en ? '**Keywords:** ' : OUT('**關鍵字：** ')) + terms.join(sep);
+      return v.lang === 'en' ? '**Keywords:** ' + terms.join(', ') : OUT('**關鍵字：** ') + terms.join(OUT('、'));
     }
   },
   {
-    id: 'twthesis-toc',
-    short: [OUT('目錄'), 'Contents'],
-    title: [OUT('目錄標記'), 'Table of contents marker'],
-    hint: [OUT('這是純標記，沒有欄位可填——目錄內容是排版時自動從你的標題掃出來的，標題文字會依目前語言自動印成「目錄」或「Contents」。放這個標記的位置就是目錄要出現的位置。'),
-           'A pure marker with nothing to fill in \u2014 contents are generated automatically from your headings at layout time, with a title that follows your document language. Where you insert this marker is where the contents page appears.'],
-    fields: [],
-    build() { return '```twthesis-toc\n```'; }
+    id: 'twthesis-toc', cat: 'toc',
+    short: [OUT('目錄'), 'Contents'], title: ['目錄', 'Table of contents'],
+    hint: ['目錄會依標題自動產生；放在哪裡，目錄就出現在哪裡。', 'Built from your headings; it appears where you place it.'],
+    marker: arr => findFence(arr, FENCES.twToc), fields: [], build() { return '```twthesis-toc\n```'; }
   },
   {
-    id: 'twthesis-lof',
-    short: [OUT('圖目錄'), 'List of Fig.'],
-    title: [OUT('圖目錄標記'), 'List of figures marker'],
-    hint: [OUT('跟目錄一樣是純標記，自動從你放的圖片圖說掃出來，不用填任何東西。'),
-           'A marker like Contents \u2014 auto-generated from your figure captions, nothing to fill in.'],
-    fields: [],
-    build() { return '```twthesis-lof\n```'; }
+    id: 'twthesis-lof', cat: 'toc',
+    short: [OUT('圖目錄'), 'List of figures'], title: ['圖目錄', 'List of figures'],
+    hint: ['依圖說自動產生。', 'Built from your figure captions.'],
+    marker: arr => findFence(arr, FENCES.twLof), fields: [], build() { return '```twthesis-lof\n```'; }
   },
   {
-    id: 'twthesis-lot',
-    short: [OUT('表目錄'), 'List of Tab.'],
-    title: [OUT('表目錄標記'), 'List of tables marker'],
-    hint: [OUT('跟目錄一樣是純標記，自動從你放的表格表說掃出來，不用填任何東西。'),
-           'A marker like Contents \u2014 auto-generated from your table captions, nothing to fill in.'],
-    fields: [],
-    build() { return '```twthesis-lot\n```'; }
+    id: 'twthesis-lot', cat: 'toc',
+    short: [OUT('表目錄'), 'List of tables'], title: ['表目錄', 'List of tables'],
+    hint: ['依表說自動產生。', 'Built from your table captions.'],
+    marker: arr => findFence(arr, FENCES.twLot), fields: [], build() { return '```twthesis-lot\n```'; }
   },
   {
-    id: 'twthesis-cap',
-    short: ['圖表說明', 'Caption'],
-    title: ['圖說／表說', 'Figure or table caption'],
-    hint: ['編號後面用半形句點，句點後不要再加冒號——加了會被格式檢查抓出來。',
-           'Use a period after the number; do not add a colon after it (the format check flags that).'],
-    fields: [
-      { k: 'kind', type: 'select', label: ['類型', 'Kind'],
-        opts: [[OUT('圖'), ['圖', 'Figure (Chinese)']], [OUT('表'), ['表', 'Table (Chinese)']],
-               ['Figure', ['Figure', 'Figure']], ['Table', ['Table', 'Table']]] },
-      { k: 'no', type: 'text', label: ['編號', 'Number'], ph: ['1  或  2-1', '1  or  2-1'] },
-      { k: 'body', type: 'text', label: ['說明文字', 'Caption text'] }
-    ],
-    build(v) {
-      const k = esc(v.kind) || OUT('圖');
-      const sp = /^[A-Za-z]/.test(k) ? ' ' : ' ';
-      return k + sp + (esc(v.no) || '1') + '. ' + esc(v.body);
-    }
-  },
-  {
-    id: 'twthesis-cite',
-    short: ['引用', 'Cite'],
-    title: ['內文引用', 'In-text citation'],
-    inline: true,
-    hint: ['寫編號就好。點下去會跳到對應的參考文獻。', 'Just the number; clicking it jumps to the reference.'],
+    id: 'twthesis-cite', cat: 'write', inline: true,
+    short: ['引用', 'Citation'], title: ['引用參考文獻', 'Cite references'],
+    hint: ['點引用會跳到那一筆參考文獻。', 'Clicking a citation jumps to the reference.'],
     fields: [{ k: 'n', type: 'text', label: ['編號', 'Numbers'], ph: ['1  或  1,3  或  2-5', '1  or  1,3  or  2-5'] }],
+    extra: (box, v) => refPicker(box, v, twRefs()),
     build(v) { const n = esc(v.n).replace(/\s+/g, ''); return n ? '[[' + n + ']]' : ''; }
   },
   {
-    id: 'twthesis-refs',
-    short: ['參考文獻', 'Refs'],
-    title: ['參考文獻清單', 'Reference list'],
-    hint: ['一筆一張卡片，新增、填、刪除、整批插入——跟書目的邏輯一樣。編號依卡片順序自動補，內文用「引用」指過來就是可點的連結。',
-           'One card per reference — add, fill, delete, then insert together. Numbers follow card order; cite them in the text with the “Cite” tool to get a clickable link.'],
+    id: 'twthesis-cap', cat: 'write',
+    short: ['插圖與圖說', 'Figure and caption'], title: ['插圖、圖說與表說', 'Figures and captions'],
+    hint: ['圖說放在圖的下一段，表說放在表格的下一段；會收進圖目錄、表目錄。', 'Put a figure caption after the image and a table caption after the table; they go into the lists.'],
+    /* 1.2.8（審查）：編號預設接在文件裡同類的上一個後面（圖 2.1 → 2.2）；使用者自己改過就不動。 */
+    prepare: v => { if (!v.kind) v.kind = 'fig'; if (!v.no) v.no = nextCaptionNo(v.kind); },
     fields: [
-      { k: 'items', type: 'entrylist', showIndex: true,
-        label: ['參考文獻', 'References'], addLabel: ['新增文獻', 'Add reference'],
-        primary: { type: 'textarea', rows: 2, ph: [OUT('王小明。量子力學。台北：某出版社，2020。'), 'Author. Title. Publisher, Year.'] } },
-      { k: 'head', type: 'check', label: ['同時加上「參考文獻」標題', 'Also add the “References” heading'] }
+      { k: 'kind', type: 'select', reflow: true, label: ['種類', 'Kind'], opts: [['fig', ['圖', 'Figure']], ['tab', ['表', 'Table']]],
+        onChange: (v, old) => { if (!v.no || v.no === nextCaptionNo(old)) v.no = nextCaptionNo(v.kind); } },
+      { k: 'src', type: 'text', showIf: v => v.kind !== 'tab', label: ['圖檔（選填；填了會連圖一起插入）', 'Image (optional; inserts the image too)'], ph: ['image/fig2-1.png', 'image/fig2-1.png'] },
+      { k: 'no', type: 'text', half: true, label: ['編號', 'Number'], ph: ['2.1', '2.1'] },
+      { k: 'body', type: 'text', label: ['說明', 'Caption'] }
     ],
+    extra: (box, v) => {
+      const last = lastCaption(v.kind === 'tab' ? 'tab' : 'fig');
+      if (!last) return;
+      const p = document.createElement('p'); p.className = 'pt-meter';
+      p.textContent = T('文件裡上一個是 N，編號已接著填好。', 'The last one is N; the number continues from it.').replace('N', last);
+      box.appendChild(p);
+    },
     build(v) {
-      const items = (v.items || []).map(r => esc(r.text)).filter(Boolean);
-      if (!items.length) return '';
-      const rows = items.map((t, i) => '[' + (i + 1) + '] ' + t);
-      return (v.head ? '# ' + OUT('參考文獻') + '\n\n' : '') + rows.join('\n\n');
+      const en = twEnglish(), tab = v.kind === 'tab';
+      const label = en ? (tab ? 'Table' : 'Figure') : (tab ? OUT('表') : OUT('圖'));
+      const no = esc(v.no).replace(/\s+/g, '') || '1', body = oneLine(v.body);
+      /* 排版程式只認「**圖 2.1：**說明」與「**Figure 2.1:** text」（01.js 圖說規則）。 */
+      const cap = '**' + label + ' ' + no + (en ? ':** ' : OUT('：**')) + body;
+      return !tab && esc(v.src) ? '![' + body + '](' + esc(v.src) + ')\n\n' + cap : cap;
     }
   },
   {
-    id: 'twthesis-appendix',
-    short: [OUT('附錄'), 'Appendix'],
-    title: [OUT('附錄起點'), 'Start of appendices'],
-    hint: [OUT('放一個標記就好，從這裡之後的章節標題會自動改用字母編號（附錄 A、附錄 B…）。'),
-           'Just a marker: section headings after it automatically switch to letter numbering (Appendix A, B\u2026).'],
-    fields: [{ k: 'first', type: 'text', label: [OUT('順便建立第一個附錄標題（選填）'), 'Also create the first appendix heading (optional)'] }],
+    id: 'twthesis-refs', cat: 'refs',
+    short: ['參考文獻', 'References'], title: ['參考文獻', 'References'],
+    hint: ['編號依順序自動排；內文用「引用」指過來，點了會跳到那一筆。', 'Numbers follow the order; cite them with Citation.'],
+    single: {
+      find: arr => { const r = twRefRegion(arr); return r && !r.mixed ? r : null; },
+      read: t => ({ items: t.split('\n').map(l => l.match(REF_LINE)).filter(Boolean).map(m => ({ text: m[2].trim() })) })
+    },
+    fields: [
+      { k: 'items', type: 'entrylist', showIndex: true, label: ['文獻', 'Entries'], addLabel: ['新增文獻', 'Add reference'],
+        primary: { type: 'textarea', rows: 2, ph: [OUT('王小明。量子力學。臺北：某出版社，2020。'), 'Author. Title. Publisher, Year.'] } },
+      { k: 'head', type: 'check', label: ['同時加上「參考文獻」標題', 'Also add the References heading'], showIf: () => !hasRefsHeading() }
+    ],
     build(v) {
-      const t = esc(v.first);
-      return '```twthesis-appendix\n```' + (t ? '\n\n# ' + t : '');
+      const items = (v.items || []).map(r => oneLine(r.text)).filter(Boolean);
+      if (!items.length) return '';
+      const rows = items.map((t, i) => '[' + (i + 1) + '] ' + t);
+      return (v.head && !hasRefsHeading() ? '# ' + (twEnglish() ? 'References' : OUT('參考文獻')) + '\n\n' : '') + rows.join('\n\n');
     }
   },
-
+  {
+    id: 'twthesis-appendix', cat: 'refs',
+    short: [OUT('附錄'), 'Appendix'], title: ['附錄起點', 'Start of appendix'],
+    hint: ['之後的章改用字母編號（附錄 A、附錄 B…）。', 'Chapters after it are lettered (Appendix A, B…).'],
+    marker: arr => findFence(arr, FENCES.twAppendix),
+    fields: [{ k: 'first', type: 'text', label: ['第一個附錄的標題（選填）', 'First appendix heading (optional)'] }],
+    build(v) { const t = oneLine(v.first); return '```twthesis-appendix\n```' + (t ? '\n\n# ' + t : ''); }
+  }
 ];
+const FM_KINDS = {
+  zhabs: { zh: OUT('中文摘要'), en: 'Chinese Abstract', re: /^(中文摘要|摘要|Chinese Abstract.*)$/i },
+  enabs: { zh: OUT('英文摘要'), en: 'Abstract', re: /^(英文摘要|Abstract)$/i },
+  ack: { zh: OUT('致謝'), en: 'Acknowledgments', re: /^(誌\s*謝|致\s*謝|Acknowledge?ments?)$/i }
+};
+const KW_LINE = /^\s*\*\*\s*(關\s*鍵\s*字|關鍵詞|Key\s*words?)\s*[：:]\s*\*\*\s*(.*)$/i;
+const CAP_LINE = /^\s*\*\*\s*(圖|表|Figure|Table)\s*([0-9A-Za-z]+(?:[.\-][0-9A-Za-z]+)*)\s*[：:]\s*\*\*/i;
+function lastCaption(kind, numberOnly){
+  let last = '', no = '';
+  for (const b of docBlocks()) { const m = b.match(CAP_LINE); if (m && ((/圖|Figure/i.test(m[1]) ? 'fig' : 'tab') === kind)) { last = m[1] + ' ' + m[2]; no = m[2]; } }
+  return numberOnly ? no : last;
+}
+/* 下一個編號：最後一段數字加一（2.1 → 2.2、3-2 → 3-3、4 → 5）；文件裡還沒有就從 1 開始。 */
+function nextCaptionNo(kind){
+  const no = lastCaption(kind === 'tab' ? 'tab' : 'fig', true);
+  if (!no) return '1';
+  const m = no.match(/^(.*?)(\d+)$/);
+  return m ? m[1] + (Number(m[2]) + 1) : no;
+}
+const hasRefsHeading = () => docBlocks().some(b => /^#\s+(參考文獻|參考書目|References?|Bibliography)\s*$/i.test(b));
 
+/* ★ 這個陣列的字面值會被 tests/ui_content_checks.cjs 單獨取出來執行，只能引用兩個工具陣列。 */
 const GROUPS = [
   { id: 'rev', label: 'REV', title: ['REVTeX 4.2 國際期刊語法', 'REVTeX 4.2 (international journals)'], tools: REVTEX_TOOLS },
   { id: 'twthesis', label: 'TW', title: ['臺灣論文語法工具', 'Taiwan Thesis syntax tools'], tools: TW_THESIS_TOOLS }
 ];
+const GROUP_CATS = { rev: REV_CATS, twthesis: TW_CATS };
+const GROUP_NAME = { rev: ['國際論文工具', 'Paper tools'], twthesis: ['臺灣論文工具', 'Thesis tools'] };
+
+/* ---------- 從文件挑選：參考文獻與標籤 ------------------------------------ */
+function refPicker(box, v, refs, style){
+  const keyed = style === 'key';
+  const wrap = document.createElement('div'); wrap.className = 'pt-field';
+  const lab = document.createElement('div'); lab.className = 'pt-label';
+  lab.textContent = refs.length ? T('從文件的參考文獻挑選', 'Pick from the references') : T('文件裡還沒有參考文獻；先用「參考文獻」加入，或直接在上面填。', 'No references yet; add them with References, or type above.');
+  wrap.appendChild(lab);
+  if (refs.length) {
+    const list = document.createElement('div'); list.className = 'pt-pick'; list.setAttribute('role', 'group');
+    const chosen = keyed
+      ? new Set(String(v.keys || '').split(/[;,\s]+/).map(x => x.replace(/^@/, '')).filter(Boolean))
+      : new Set(String(v.n || '').split(',').flatMap(x => { const m = x.match(/^(\d+)-(\d+)$/); if (!m) return [Number(x)]; const a = []; for (let k = +m[1]; k <= +m[2]; k++) a.push(k); return a; }));
+    for (const r of refs) {
+      const id = keyed ? r.key : r.n;
+      const row = document.createElement('label'); row.className = 'pt-pick-row';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = chosen.has(id); cb.value = String(id);
+      const no = document.createElement('span'); no.className = 'pt-pick-no'; no.textContent = keyed ? r.key : '[' + r.n + ']';
+      const tx = document.createElement('span'); tx.className = 'pt-pick-text'; tx.textContent = r.text;
+      row.append(cb, no, tx); list.appendChild(row);
+      cb.addEventListener('change', () => {
+        const picked = [...list.querySelectorAll('input:checked')].map(x => x.value);
+        const k = keyed ? 'keys' : 'n';
+        v[k] = keyed ? picked.join('; ') : compressNums(picked.map(Number));
+        const inp = panelEl().querySelector('input[data-k="' + k + '"]'); if (inp) inp.value = v[k];
+      });
+    }
+    wrap.appendChild(list);
+  }
+  box.appendChild(wrap);
+}
+function labelPicker(box, v){
+  const labels = revLabels();
+  const wrap = document.createElement('div'); wrap.className = 'pt-field';
+  const lab = document.createElement('div'); lab.className = 'pt-label';
+  lab.textContent = labels.length ? T('從文件裡設過標籤的項目挑選', 'Pick from labelled items in the document') : T('文件裡還沒有設標籤的圖、表、公式或章節；插入時填「標籤」就能在這裡挑。', 'Nothing is labelled yet; give a figure, table or equation a label and it shows up here.');
+  wrap.appendChild(lab);
+  if (labels.length) {
+    const KIND = { fig: ['圖', 'Figure'], tab: ['表', 'Table'], eq: ['公式', 'Equation'], sec: ['章節', 'Section'] };
+    const list = document.createElement('div'); list.className = 'pt-pick'; list.setAttribute('role', 'listbox');
+    for (const l of labels) {
+      const row = document.createElement('button'); row.type = 'button'; row.className = 'pt-pick-row'; row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', String(v.id === l.id));
+      const no = document.createElement('span'); no.className = 'pt-pick-no'; no.textContent = P(KIND[l.kind]);
+      const tx = document.createElement('span'); tx.className = 'pt-pick-text'; tx.textContent = (l.text || '') + '　' + l.id;
+      row.append(no, tx); list.appendChild(row);
+      row.addEventListener('click', () => {
+        v.id = l.id; v.kind = l.kind === 'eq' ? 'eqref' : 'ref';
+        list.querySelectorAll('.pt-pick-row').forEach(x => x.setAttribute('aria-selected', String(x === row)));
+        renderForm();
+      });
+    }
+    wrap.appendChild(list);
+  }
+  box.appendChild(wrap);
+}
 
 /* ---------- 樣式 --------------------------------------------------------- */
 const CSS = `
-#ty-toolbar .${MOUNT_CLASS}{display:flex;align-items:center;gap:3px;flex:0 0 auto;
-  padding-left:8px;margin-left:6px;border-left:1px solid var(--border,#ddd)}
-#ty-toolbar .${MOUNT_CLASS} .tb-btn{min-width:38px;font-weight:750;letter-spacing:.04em;font-size:11px}
-#ty-toolbar .${MOUNT_CLASS} .tb-btn.pt-open{background:var(--accent-soft,#eef);color:var(--accent,#36c)}
-#${PANEL_ID}{position:fixed;z-index:210;width:min(760px,calc(100vw - 24px));max-height:min(78vh,680px);
-  display:flex;flex-direction:column;background:var(--bg-panel,#fff);color:var(--text-strong,#111);
-  border:1px solid var(--border-strong,#ccc);border-radius:12px;
-  box-shadow:var(--mac-shadow-popover,0 12px 40px rgba(0,0,0,.22));overflow:hidden;font:13px/1.5 var(--font-ui,system-ui)}
+#ty-toolbar .${MOUNT_CLASS}{display:flex;align-items:center;gap:var(--space-half);flex:0 0 auto;padding-left:var(--space-2);margin-left:var(--space-1h);border-left:1px solid var(--ui-line)}
+#ty-toolbar .${MOUNT_CLASS} .tb-btn{min-width:36px;font-size:var(--fs-11);font-weight:var(--fw-semibold);letter-spacing:.02em}
+#ty-toolbar .${MOUNT_CLASS} .tb-btn[hidden]{display:none}
+#ty-toolbar .${MOUNT_CLASS} .tb-btn.pt-open{background:var(--ui-selected);color:var(--ui-text-strong)}
+#${PANEL_ID}{position:fixed;z-index:210;display:grid;grid-template-columns:184px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;
+  width:min(760px,calc(100vw - 24px));height:min(560px,calc(100vh - 24px));overflow:hidden;color:var(--ui-text-strong);font:var(--fs-13)/var(--lh-13) var(--font-ui)}
 #${PANEL_ID}[hidden]{display:none}
-#${PANEL_ID} .pt-chips{display:flex;flex-wrap:wrap;gap:5px;padding:9px 11px;border-bottom:1px solid var(--border,#e2e2e2);
-  background:var(--bg-secondary,var(--bg-hover,#f6f6f6));flex:0 0 auto}
-#${PANEL_ID} .pt-chip{padding:4px 11px;border-radius:999px;border:1px solid var(--border,#ddd);background:transparent;
-  color:var(--text-strong,#111);font:600 12px/1.5 var(--font-ui,system-ui);cursor:pointer;white-space:nowrap}
-#${PANEL_ID} .pt-chip:hover{background:var(--bg-hover,#eee)}
-#${PANEL_ID} .pt-chip.on{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
-#${PANEL_ID} .pt-body{flex:1 1 auto;overflow:auto;padding:12px 13px 4px}
-#${PANEL_ID} .pt-title{font-weight:700;font-size:13.5px;margin:0 0 3px}
-#${PANEL_ID} .pt-hint{color:var(--text-muted,#777);font-size:11.5px;margin:0 0 11px;line-height:1.55}
-#${PANEL_ID} .pt-field{margin-bottom:10px}
-#${PANEL_ID} .pt-label{display:block;font-size:11.5px;font-weight:650;color:var(--text-muted,#666);margin-bottom:4px}
-#${PANEL_ID} input[type=text],#${PANEL_ID} textarea,#${PANEL_ID} select{
-  width:100%;box-sizing:border-box;background:var(--bg-editor,#fff);color:var(--text-strong,#111);
-  border:1px solid var(--border,#ddd);border-radius:7px;padding:6px 8px;font:13px/1.5 var(--font-ui,system-ui);outline:none}
-#${PANEL_ID} input[type=text]:focus,#${PANEL_ID} textarea:focus{border-color:var(--accent,#36c)}
-#${PANEL_ID} textarea{resize:vertical;min-height:64px;font-family:var(--font-mono,ui-monospace,Menlo,monospace);font-size:12.5px}
-/* 1.1.5.6.8：改用 CSS Grid 而不是 flex row。
-   舊版是 flex 一排塞四個固定寬欄位＋一個 grow 欄位——固定寬欄位的總寬度
-   （機構 118 + 信箱 178 + 備註 178 = 474px）逼近甚至超過面板寬度，grow 欄位
-   （姓名）被擠壓到只剩個位數像素，肉眼看起來像「欄位被壓扁」「叉叉沒對齊」，
-   其實是同一個根因：寬度預算沒抓對，不是排版邏輯錯了。
-   Grid 用明確的 grid-template-columns（每行透過 --pt-cols 指定），
-   刪除鈕固定佔最後一欄，天生對齊，不會因為前面欄位寬度而跑位。
-   面板本身也加寬到 760px，給欄位留出足夠空間。 */
-#${PANEL_ID} .pt-row{display:grid;grid-template-columns:var(--pt-cols,1fr);gap:6px;align-items:end;margin-bottom:8px}
-#${PANEL_ID} .pt-row .pt-cell{display:flex;flex-direction:column;gap:3px;min-width:0}
-#${PANEL_ID} .pt-cell .pt-sub{font-size:10.5px;color:var(--text-muted,#888);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#${PANEL_ID} .pt-no{min-width:0;text-align:right;
-  color:var(--text-muted,#888);font:650 11.5px/1 var(--font-mono,ui-monospace,Menlo,monospace);padding-bottom:8px}
-#${PANEL_ID} .pt-del{min-width:0;width:100%;height:30px;border-radius:7px;
-  border:1px solid var(--border,#ddd);background:transparent;color:var(--text-muted,#888);cursor:pointer;line-height:1}
-#${PANEL_ID} .pt-del:hover{color:var(--status-error,#b3261e);border-color:var(--status-error,#b3261e)}
-#${PANEL_ID} .pt-add-wrap{display:flex;justify-content:flex-end;margin-top:2px}
-#${PANEL_ID} .pt-add{padding:5px 12px;border-radius:7px;border:1px dashed var(--border-strong,#ccc);
-  background:transparent;color:var(--text-muted,#666);font:620 12px/1 var(--font-ui,system-ui);cursor:pointer}
-#${PANEL_ID} .pt-add:hover{color:var(--accent,#36c);border-color:var(--accent,#36c)}
-/* 卡片式清單（書目、子公式）：一條資料本身就是一段長文字，跟作者那種
-   「幾個短欄位並排」形狀不一樣，硬套同一個 grid 只會逼欄位越擠越窄。
-   改成每條一張卡片：主要內容在上，次要欄位（若有）在下，刪除鈕在右上角。 */
-#${PANEL_ID} .pt-elist-item{position:relative;border:1px solid var(--border,#ddd);border-radius:9px;
-  padding:9px 34px 9px 10px;margin-bottom:8px;background:var(--bg-editor,#fff)}
-#${PANEL_ID} .pt-elist-no{font:650 10.5px/1 var(--font-mono,ui-monospace,Menlo,monospace);color:var(--text-muted,#888);margin-bottom:4px}
-#${PANEL_ID} .pt-elist-del{position:absolute;top:7px;right:7px;width:23px;height:23px;border-radius:6px;
-  border:1px solid var(--border,#ddd);background:var(--bg-panel,#fff);color:var(--text-muted,#888);cursor:pointer;line-height:1;padding:0}
-#${PANEL_ID} .pt-elist-del:hover{color:var(--status-error,#b3261e);border-color:var(--status-error,#b3261e)}
-#${PANEL_ID} .pt-elist-secrow{display:flex;gap:8px;margin-top:6px}
-#${PANEL_ID} .pt-elist-secrow .pt-cell{flex:0 0 auto;min-width:0}
-#${PANEL_ID} .pt-foot{flex:0 0 auto;display:flex;gap:8px;align-items:center;justify-content:flex-end;
-  padding:10px 13px;border-top:1px solid var(--border,#e2e2e2);background:var(--bg-secondary,var(--bg-hover,#f6f6f6))}
-#${PANEL_ID} .pt-foot .pt-spacer{margin-right:auto;color:var(--text-muted,#888);font-size:11px}
-#${PANEL_ID} .pt-btn{padding:6px 15px;border-radius:8px;border:1px solid var(--border,#ddd);background:transparent;
-  color:var(--text-strong,#111);font:640 12.5px/1 var(--font-ui,system-ui);cursor:pointer}
-#${PANEL_ID} .pt-btn:hover{background:var(--bg-hover,#eee)}
-#${PANEL_ID} .pt-btn.primary{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
-#${PANEL_ID} .pt-btn.primary:hover{filter:brightness(1.06)}
-#${PANEL_ID} .pt-empty{color:var(--text-muted,#888);font-size:12px;padding:18px 4px;line-height:1.7}
-#${PANEL_ID} .pt-tbl-dims{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-#${PANEL_ID} .pt-tbl-dims .pt-cell{min-width:120px}
-#${PANEL_ID} .pt-tbl-wrap{overflow-x:auto;border:1px solid var(--border,#ddd);border-radius:9px;padding:10px;margin-bottom:8px}
-#${PANEL_ID} .pt-tbl-grid{border-collapse:separate;border-spacing:4px}
+#${PANEL_ID} .pt-nav{grid-row:1/3;grid-column:1;display:flex;flex-direction:column;gap:var(--space-half);min-height:0;overflow-y:auto;
+  padding:var(--space-3) var(--space-2);background:var(--ui-chrome);border-right:1px solid var(--ui-divider)}
+#${PANEL_ID} .pt-nav-title{padding:var(--space-half) var(--space-2) 0;font-size:var(--fs-13);font-weight:var(--fw-semibold)}
+#${PANEL_ID} .pt-nav-h{margin:var(--space-3) var(--space-2) var(--space-half);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+#${PANEL_ID} .pt-nav-item{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex:none;min-height:var(--h-menu);margin:0;padding:0 var(--space-2);
+  border:0;border-radius:var(--r-sm);background:transparent;color:var(--ui-text);font:var(--fs-13)/var(--lh-13) var(--font-ui);text-align:left;cursor:pointer}
+#${PANEL_ID} .pt-nav-item[aria-selected="true"]{background:var(--ui-selected);color:var(--ui-text-strong);font-weight:var(--fw-medium)}
+#${PANEL_ID} .pt-has{flex:none;font-size:var(--fs-11);font-weight:var(--fw-regular);color:var(--ui-text-muted)}
+#${PANEL_ID} .pt-body{grid-row:1;grid-column:2;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-5);background:var(--ui-surface)}
+#${PANEL_ID} .pt-title{margin:0 0 var(--space-1);font-size:var(--fs-14);line-height:var(--lh-14);font-weight:var(--fw-semibold)}
+#${PANEL_ID} .pt-hint{margin:0 0 var(--space-4);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+#${PANEL_ID} .pt-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-3)}
+#${PANEL_ID} .pt-field{grid-column:1/-1;margin:0 0 var(--space-3);min-width:0}
+#${PANEL_ID} .pt-field.half{grid-column:auto}
+#${PANEL_ID} .pt-label{display:block;margin:0 0 var(--space-1);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+#${PANEL_ID} input[type=text],#${PANEL_ID} textarea,#${PANEL_ID} select{width:100%;box-sizing:border-box;margin:0;border:1px solid var(--ui-line-strong);border-radius:var(--r-sm);
+  background:var(--ui-canvas);color:var(--ui-text-strong);font:var(--fs-13)/var(--lh-13) var(--font-ui);outline:none}
+#${PANEL_ID} input[type=text],#${PANEL_ID} select{height:var(--h-control);padding:0 var(--space-2)}
+#${PANEL_ID} select{-webkit-appearance:none;appearance:none;padding-right:28px;background:var(--ui-canvas) var(--cp-chevron) no-repeat right 9px center/12px 12px}
+#${PANEL_ID} textarea{display:block;padding:var(--space-1h) var(--space-2);resize:vertical;min-height:60px}
+#${PANEL_ID} .mono{font-family:var(--font-mono);font-size:var(--fs-12)}
+#${PANEL_ID} input[type=text]:focus,#${PANEL_ID} textarea:focus,#${PANEL_ID} select:focus{border-color:var(--ui-accent);box-shadow:var(--focus-ring)}
+#${PANEL_ID} input::placeholder,#${PANEL_ID} textarea::placeholder{color:var(--ui-text-muted);opacity:.7}
+#${PANEL_ID} .pt-check{display:flex;align-items:center;gap:var(--space-2);font-size:var(--fs-13);cursor:pointer}
+#${PANEL_ID} input[type=checkbox]{margin:0;accent-color:var(--ui-accent)}
+#${PANEL_ID} .pt-row{display:grid;grid-template-columns:var(--pt-cols,1fr);gap:var(--space-1h);align-items:end;margin-bottom:var(--space-1h)}
+#${PANEL_ID} .pt-cell{display:flex;flex-direction:column;gap:var(--space-half);min-width:0}
+#${PANEL_ID} .pt-sub{font-size:var(--fs-11);line-height:var(--lh-11);color:var(--ui-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#${PANEL_ID} .pt-row:not(:first-of-type) .pt-sub{display:none}
+#${PANEL_ID} .pt-no{align-self:end;text-align:right;color:var(--ui-text-muted);font:var(--fs-12)/var(--h-control) var(--font-ui);font-variant-numeric:tabular-nums}
+#${PANEL_ID} .pt-del,#${PANEL_ID} .pt-elist-del{width:28px;height:var(--h-control);padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--ui-text-muted);font:16px/1 var(--font-ui);cursor:pointer}
+#${PANEL_ID} .pt-add{margin:var(--space-half) 0 0;padding:0;border:0;background:none;color:var(--ui-accent);font:var(--fs-12)/var(--lh-12) var(--font-ui);cursor:pointer}
+#${PANEL_ID} .pt-elist-item{display:grid;grid-template-columns:auto minmax(0,1fr) 28px;gap:var(--space-1h);align-items:start;padding:var(--space-1h) 0;border-top:.5px solid var(--ui-line)}
+#${PANEL_ID} .pt-elist-item:last-of-type{border-bottom:.5px solid var(--ui-line)}
+#${PANEL_ID} .pt-elist-no{min-width:24px;padding-top:var(--space-1h);color:var(--ui-text-muted);font:var(--fs-12)/var(--lh-12) var(--font-ui);font-variant-numeric:tabular-nums;text-align:right}
+#${PANEL_ID} .pt-elist-item.no-index{grid-template-columns:minmax(0,1fr) 28px}
+#${PANEL_ID} .pt-elist-item.keyed{grid-template-columns:120px minmax(0,1fr) 28px}
+#${PANEL_ID} .pt-title+.pt-form{margin-top:var(--space-3)}
+#${PANEL_ID} .pt-meter{margin:calc(var(--space-1) * -1) 0 var(--space-3);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+#${PANEL_ID} .pt-meter.warn{color:var(--ui-warn)}
+#${PANEL_ID} .pt-pick{max-height:200px;overflow-y:auto;border:1px solid var(--ui-line);border-radius:var(--r-sm);background:var(--ui-canvas)}
+#${PANEL_ID} .pt-pick-row{display:flex;align-items:center;gap:var(--space-2);width:100%;min-height:var(--h-menu);margin:0;padding:var(--space-1) var(--space-2);box-sizing:border-box;
+  border:0;border-bottom:.5px solid var(--ui-line);background:transparent;color:var(--ui-text);font:var(--fs-12)/var(--lh-12) var(--font-ui);text-align:left;cursor:pointer}
+#${PANEL_ID} .pt-pick-row:last-child{border-bottom:0}
+#${PANEL_ID} .pt-pick-row[aria-selected="true"]{background:var(--ui-selected);color:var(--ui-text-strong)}
+#${PANEL_ID} .pt-pick-no{flex:none;min-width:34px;color:var(--ui-text-muted);font-variant-numeric:tabular-nums}
+#${PANEL_ID} .pt-pick-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#${PANEL_ID} .pt-tbl-dims{display:flex;gap:var(--space-3);margin-bottom:var(--space-2);flex-wrap:wrap}
+#${PANEL_ID} .pt-tbl-dims .pt-cell{width:120px}
+#${PANEL_ID} .pt-tbl-wrap{overflow-x:auto;margin-bottom:var(--space-1)}
+#${PANEL_ID} .pt-tbl-grid{border-collapse:separate;border-spacing:var(--space-1)}
 #${PANEL_ID} .pt-tbl-grid td{vertical-align:top;padding:0}
-#${PANEL_ID} .pt-tbl-grid input[type=text]{width:120px;font-size:12.5px}
-#${PANEL_ID} .pt-tbl-grid th{font-size:10.5px;color:var(--text-muted,#888);font-weight:650;text-align:left;padding:0 0 3px 2px}
-#${PANEL_ID} .pt-tbl-merge{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:10px;color:var(--text-muted,#888);white-space:nowrap}
-#${PANEL_ID} .pt-tbl-merge input{margin:0}
-#${PANEL_ID} .pt-tbl-head input{font-weight:650}
+#${PANEL_ID} .pt-tbl-grid input[type=text]{width:118px}
+#${PANEL_ID} .pt-tbl-head input[type=text]{font-weight:var(--fw-medium)}
+#${PANEL_ID} .pt-tbl-merge{display:flex;align-items:center;gap:var(--space-1);margin-top:var(--space-half);font-size:var(--fs-11);color:var(--ui-text-muted);white-space:nowrap}
+#${PANEL_ID} .pt-empty{padding:var(--space-2) 0;color:var(--ui-text-muted);font-size:var(--fs-12)}
+#${PANEL_ID} .pt-foot{grid-row:2;grid-column:2;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-5);background:var(--ui-surface);border-top:.5px solid var(--ui-line)}
+#${PANEL_ID} .pt-status{flex:1;min-width:0;font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+#${PANEL_ID} .pt-status.warn{color:var(--ui-warn)}
+#${PANEL_ID} .pt-btn{flex:none;height:28px;padding:0 var(--space-3);border:.5px solid var(--ui-line-strong);border-radius:var(--r-sm);background:var(--ui-surface);
+  color:var(--ui-text-strong);font:var(--fs-12)/1 var(--font-ui);cursor:pointer}
+#${PANEL_ID} .pt-btn.primary{border-color:transparent;background:var(--ui-accent);color:var(--ui-on-accent,#fff);font-weight:var(--fw-medium)}
+#${PANEL_ID} button:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+@media (hover:hover) and (pointer:fine){
+  #${PANEL_ID} .pt-nav-item:not([aria-selected="true"]):hover,#${PANEL_ID} .pt-pick-row:hover,#${PANEL_ID} .pt-del:hover,#${PANEL_ID} .pt-elist-del:hover,
+  #${PANEL_ID} .pt-btn:not(.primary):hover{background:var(--ui-hover)}
+  #${PANEL_ID} .pt-btn.primary:hover{box-shadow:inset 0 0 0 99px var(--ui-on-accent-hover,rgba(255,255,255,.1))}
+  #${PANEL_ID} .pt-add:hover{text-decoration:underline;text-underline-offset:2px}
+}
+/* 跳到文件裡既有的區塊時，短暫標一下那一塊 */
+@keyframes cp171-pt-flash{from{background:var(--ui-accent-soft)}to{background:transparent}}
+.cp171-pt-flash{animation:cp171-pt-flash 1.2s var(--ease-out)}
+@media (prefers-reduced-motion:reduce){.cp171-pt-flash{animation:none}}
+@media (max-width:700px){
+  #${PANEL_ID}{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+  #${PANEL_ID} .pt-nav{grid-row:1;grid-column:1;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:var(--space-2);border-right:0;border-bottom:1px solid var(--ui-divider)}
+  #${PANEL_ID} .pt-nav-title,#${PANEL_ID} .pt-nav-h,#${PANEL_ID} .pt-has{display:none}
+  #${PANEL_ID} .pt-nav-item{white-space:nowrap}
+  #${PANEL_ID} .pt-body{grid-row:2;grid-column:1;padding:var(--space-3) var(--space-4)}
+  #${PANEL_ID} .pt-foot{grid-row:3;grid-column:1;padding:var(--space-2) var(--space-4)}
+  #${PANEL_ID} .pt-form{grid-template-columns:minmax(0,1fr)}
+  #${PANEL_ID} .pt-field.half{grid-column:1/-1}
+  #${PANEL_ID} .pt-status{display:none}
+  /* 窄螢幕：重複列的欄位改成換行排列（作者列四個欄位放不下一行），每一列都顯示欄名 */
+  #${PANEL_ID} .pt-row{display:flex;flex-wrap:wrap;align-items:flex-end}
+  #${PANEL_ID} .pt-row .pt-cell{flex:1 1 140px}
+  #${PANEL_ID} .pt-row .pt-no{flex:0 0 18px}
+  #${PANEL_ID} .pt-row:has(.pt-sub){position:relative;padding-right:32px}
+  #${PANEL_ID} .pt-row:has(.pt-sub) .pt-del{position:absolute;top:calc(var(--lh-11) + var(--space-half));right:0}
+  #${PANEL_ID} .pt-row+.pt-row:has(.pt-sub) .pt-del{top:calc(var(--lh-11) + var(--space-half) + var(--space-2))}
+  #${PANEL_ID} .pt-row .pt-del{flex:0 0 28px}
+  #${PANEL_ID} .pt-row:not(:first-of-type) .pt-sub{display:block}
+  #${PANEL_ID} .pt-row+.pt-row{margin-top:var(--space-2);padding-top:var(--space-2);border-top:.5px solid var(--ui-line)}
+}
 `;
 
 function ensureStyle() {
@@ -692,25 +883,28 @@ function ensureStyle() {
 }
 
 /* ---------- 面板 --------------------------------------------------------- */
-let panel = null, curGroup = null, curTool = null, values = Object.create(null);
+let panel = null, curGroup = null, curTool = null, values = Object.create(null), bookmark = null, ctx = null, early = null;
+const lastTool = Object.create(null);
 
 function panelEl() {
   if (panel && panel.isConnected) return panel;
   panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.hidden = true;
-  panel.innerHTML = '<div class="pt-chips"></div><div class="pt-body"></div>'
-    + '<div class="pt-foot"><span class="pt-spacer"></span>'
+  panel.setAttribute('role', 'dialog');
+  panel.innerHTML = '<nav class="pt-nav" role="tablist" aria-orientation="vertical"></nav><div class="pt-body"></div>'
+    + '<div class="pt-foot"><span class="pt-status" aria-live="polite"></span>'
     + '<button type="button" class="pt-btn" data-act="cancel"></button>'
-    + '<button type="button" class="pt-btn primary" data-act="insert"></button></div>';
+    + '<button type="button" class="pt-btn primary" data-act="go"></button></div>';
   document.body.appendChild(panel);
   panel.addEventListener('click', onPanelClick);
+  panel.addEventListener('keydown', onPanelKey);
   return panel;
 }
 
 function onPanelClick(e) {
-  const chip = e.target.closest('.pt-chip');
-  if (chip) { selectTool(chip.dataset.tool); return; }
+  const item = e.target.closest('.pt-nav-item');
+  if (item) { selectTool(item.dataset.tool); return; }
   const add = e.target.closest('.pt-add');
   if (add) { addRow(add.dataset.field); return; }
   const del = e.target.closest('.pt-del, .pt-elist-del');
@@ -718,15 +912,25 @@ function onPanelClick(e) {
   const btn = e.target.closest('.pt-btn');
   if (!btn) return;
   if (btn.dataset.act === 'cancel') hidePanel();
-  if (btn.dataset.act === 'insert') doInsert();
+  if (btn.dataset.act === 'go') doGo();
+}
+function onPanelKey(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doGo(); return; }
+  const item = e.target.closest && e.target.closest('.pt-nav-item');
+  if (!item || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  e.preventDefault();
+  const all = [...panelEl().querySelectorAll('.pt-nav-item')], i = all.indexOf(item);
+  const next = all[(i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length];
+  if (next) selectTool(next.dataset.tool);
 }
 
 function hidePanel() {
   if (panel) panel.hidden = true;
-  document.querySelectorAll('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn.pt-open')
-    .forEach(b => b.classList.remove('pt-open'));
+  document.querySelectorAll('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn.pt-open').forEach(b => b.classList.remove('pt-open'));
   curGroup = null;
 }
+
+const groupTools = g => g.tools.filter(t => typeof t.visible !== 'function' || t.visible());
 
 function openGroup(gid, anchorBtn) {
   const g = GROUPS.find(x => x.id === gid);
@@ -734,221 +938,254 @@ function openGroup(gid, anchorBtn) {
   if (curGroup === gid && panel && !panel.hidden) { hidePanel(); return; }
   ensureStyle();
   const p = panelEl();
+  /* 書籤優先用按下滑鼠那一刻記的（見檔尾 window 的 mousedown）：臺灣論文頁面模式下，點工具列會先讓段落編輯框收起來。 */
+  bookmark = (early && Date.now() - early.at < 1500) ? early.bm : captureBookmark();
+  early = null;
   curGroup = gid;
-  curTool = g.tools.length ? g.tools[0] : null;
-  resetValues();
-  renderChips(g);
-  renderForm();
+  const tools = groupTools(g);
+  curTool = tools.find(t => t.id === lastTool[gid]) || tools[0] || null;
   p.hidden = false;
+  selectTool(curTool && curTool.id, true);
   position(anchorBtn);
-  document.querySelectorAll('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn')
-    .forEach(b => b.classList.toggle('pt-open', b.dataset.ptGroup === gid));
+  document.querySelectorAll('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn').forEach(b => b.classList.toggle('pt-open', b.dataset.ptGroup === gid));
 }
 
 function position(anchorBtn) {
   const p = panelEl();
   const r = anchorBtn && anchorBtn.getBoundingClientRect ? anchorBtn.getBoundingClientRect() : null;
   const vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
-  const pw = p.offsetWidth || 520, ph = p.offsetHeight || 380;
-  /* 先貼著按鈕左緣往下開；右邊或下面放不下就往回夾，不讓面板跑出畫面。
-     窄視窗時寧可蓋住一點工具列，也不要有一半在畫面外點不到。 */
-  let left = r ? r.left : 40, top = r ? r.bottom + 7 : 60;
+  const pw = p.offsetWidth || 760;
+  /* 貼著按鈕往下開；右邊放不下就往左挪，高度夾在視窗內，不讓面板跑出畫面。 */
+  let left = r && r.width ? r.left : 40, top = r && r.height ? r.bottom + 6 : 60;
   if (left + pw > vw - 10) left = Math.max(8, vw - pw - 10);
-  if (top + ph > vh - 10) top = Math.max(8, vh - ph - 10);
+  if (vh - top - 12 < 360) top = Math.max(8, vh - 12 - Math.min(560, vh - 24));
   p.style.left = Math.round(left) + 'px';
   p.style.top = Math.round(top) + 'px';
+  p.style.height = Math.round(Math.min(560, vh - top - 12)) + 'px';
+  p.style.transformOrigin = (r ? Math.round(r.left + r.width / 2 - left) + 'px' : 'center') + ' top';
 }
 
-function renderChips(g) {
-  const box = panelEl().querySelector('.pt-chips');
-  box.textContent = '';
-  for (const t of g.tools) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'pt-chip' + (curTool && curTool.id === t.id ? ' on' : '');
-    b.dataset.tool = t.id;
-    b.textContent = T(t.short[0], t.short[1]);
-    box.appendChild(b);
+function renderNav(g) {
+  const nav = panelEl().querySelector('.pt-nav');
+  nav.textContent = '';
+  nav.setAttribute('aria-label', P(GROUP_NAME[g.id]));
+  const title = document.createElement('div'); title.className = 'pt-nav-title'; title.textContent = P(GROUP_NAME[g.id]);
+  nav.appendChild(title);
+  const arr = docBlocks(), tools = groupTools(g);
+  for (const [cat, label] of GROUP_CATS[g.id]) {
+    const list = tools.filter(t => t.cat === cat);
+    if (!list.length) continue;
+    const h = document.createElement('div'); h.className = 'pt-nav-h'; h.textContent = P(label); nav.appendChild(h);
+    for (const t of list) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'pt-nav-item'; b.dataset.tool = t.id; b.setAttribute('role', 'tab');
+      const on = !!(curTool && curTool.id === t.id);
+      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1;
+      const name = document.createElement('span'); name.textContent = P(t.short); b.appendChild(name);
+      if (presentIn(t, arr)) { const has = document.createElement('span'); has.className = 'pt-has'; has.textContent = T('已有', 'In doc'); b.appendChild(has); }
+      nav.appendChild(b);
+    }
   }
   const foot = panelEl().querySelector('.pt-foot');
-  foot.querySelector('[data-act=cancel]').textContent = T('取消','Cancel');
-  foot.querySelector('[data-act=insert]').textContent = T('插入','Insert');
-  foot.querySelector('.pt-spacer').textContent = T(g.title[0], g.title[1]);
+  foot.querySelector('[data-act=cancel]').textContent = T('取消', 'Cancel');
+}
+/* 清單上的「已有」：單份區塊與標記看文件裡有沒有；摘要與致謝、關鍵字依目前選項，不在清單上標。 */
+function presentIn(t, arr) {
+  try {
+    if (t.id === 'twthesis-fm' || t.id === 'twthesis-keywords') return false;
+    if (t.single) return !!t.single.find(arr, {});
+    if (t.marker) return t.marker(arr, {}) >= 0;
+  } catch (_) {}
+  return false;
 }
 
-function selectTool(id) {
+function selectTool(id, fromOpen) {
   const g = GROUPS.find(x => x.id === curGroup);
   if (!g) return;
-  const t = g.tools.find(x => x.id === id);
-  if (!t) return;
+  const t = g.tools.find(x => x.id === id) || null;
   curTool = t;
+  if (t) lastTool[g.id] = t.id;
   resetValues();
-  panelEl().querySelectorAll('.pt-chip').forEach(c => c.classList.toggle('on', c.dataset.tool === id));
+  renderNav(g);
   renderForm();
+  /* 清單重畫後原本的按鈕已經不在，把焦點交給新選中的那一項（鍵盤上下移動才接得下去）。 */
+  if (!fromOpen) { const b = panelEl().querySelector('.pt-nav-item[aria-selected="true"]'); if (b) b.focus({ preventScroll: true }); }
 }
 
-/* 清空表單值並套用「依目前主題而定」的預設。
-   ★ 必須在 openGroup 與 selectTool 兩處都呼叫：selectTool 也會重建 values，
-   只在 openGroup 做預選的話，切到別的工具再切回封面就會退回中文欄位組
-   （twthesis-en 主題下實機驗證抓到的）。 */
-function resetValues() {
-  values = Object.create(null);
-  if (isTwThesisEnglish()) values.mode = 'en';
+/* 依目前文件決定預設值，並讀回已存在的區塊。selectTool 與會改變讀取對象的欄位（reread）都會呼叫。 */
+function resetValues(keep) {
+  values = keep || Object.create(null);
+  ctx = { existing: null, marker: -1 };
+  if (!curTool) return;
+  if (typeof curTool.prepare === 'function') curTool.prepare(values);
+  analyze();
 }
-
+function analyze() {
+  ctx = { existing: null, marker: -1 };
+  const arr = docBlocks();
+  try {
+    if (curTool.single) {
+      const loc = curTool.single.find(arr, values);
+      if (loc) {
+        ctx.existing = loc;
+        const read = curTool.single.read(loc.text);
+        for (const k of Object.keys(read)) values[k] = read[k];
+      }
+    }
+    if (curTool.marker) ctx.marker = curTool.marker(arr, values);
+  } catch (e) { K.log && K.log.warn && K.log.warn('papertools', 'read back failed: ' + (e && e.message)); }
+}
 
 function renderForm() {
   const body = panelEl().querySelector('.pt-body');
   body.textContent = '';
   if (!curTool) {
-    const d = document.createElement('div');
-    d.className = 'pt-empty';
-    d.textContent = T('這一組的工具還在製作中，下一個版本補上。','Tools for this group are still being built; coming in the next version.');
-    body.appendChild(d);
-    return;
+    const d = document.createElement('div'); d.className = 'pt-empty';
+    d.textContent = T('這一組沒有可用的工具。', 'No tools here.');
+    body.appendChild(d); updateFoot(); return;
   }
-  const h = document.createElement('p'); h.className = 'pt-title';
-  h.textContent = T(curTool.title[0], curTool.title[1]); body.appendChild(h);
-  if (curTool.hint) {
-    const p = document.createElement('p'); p.className = 'pt-hint';
-    p.textContent = T(curTool.hint[0], curTool.hint[1]); body.appendChild(p);
-  }
+  const h = document.createElement('h3'); h.className = 'pt-title';
+  h.textContent = P(curTool.title); body.appendChild(h);
+  if (curTool.hint) { const p = document.createElement('p'); p.className = 'pt-hint'; p.textContent = P(curTool.hint); body.appendChild(p); }
+  const form = document.createElement('div'); form.className = 'pt-form'; body.appendChild(form);
   for (const f of curTool.fields) {
     if (typeof f.showIf === 'function' && !f.showIf(values)) continue;
-    body.appendChild(renderField(f));
+    form.appendChild(renderField(f));
   }
+  if (typeof curTool.extra === 'function') {
+    const box = document.createElement('div'); box.className = 'pt-field'; form.appendChild(box);
+    curTool.extra(box, values);
+  }
+  updateFoot();
 }
 
-function renderField(f) {
+function updateFoot() {
+  const foot = panelEl().querySelector('.pt-foot'), st = foot.querySelector('.pt-status'), go = foot.querySelector('[data-act=go]');
+  st.classList.remove('warn');
+  if (!curTool) { go.hidden = true; st.textContent = ''; return; }
+  go.hidden = false;
+  if (ctx && ctx.marker >= 0) {
+    go.textContent = T('跳到該處', 'Go to it');
+    st.textContent = curTool.id === 'twthesis-fm' ? T('文件裡已經有這一章，內文直接在文件裡改。', 'This chapter is already in the document; edit its text there.') : T('文件裡已經有了。', 'Already in the document.');
+  } else if (ctx && ctx.existing) {
+    go.textContent = T('更新', 'Update');
+    st.textContent = T('已讀入文件裡的內容；更新會改寫原本那一份。', 'Loaded from the document; Update rewrites it in place.');
+  } else {
+    go.textContent = T('插入', 'Insert');
+    if (!bookmark || bookmark.kind === 'none') { st.textContent = NO_PLACE(); st.classList.add('warn'); }
+    else st.textContent = curTool.inline ? T('插在游標處。', 'Inserted at the cursor.') : T('插在游標所在段落的後面。', 'Inserted after the paragraph with the cursor.');
+  }
+}
+const NO_PLACE = () => T('先在文件裡點一下要插入的位置，再打開這裡。', 'Click in the document where it should go, then open this again.');
+function warn(msg) { const st = panelEl().querySelector('.pt-status'); st.textContent = msg; st.classList.add('warn'); }
+
+function fieldBox(f) {
   const wrap = document.createElement('div');
-  wrap.className = 'pt-field';
-  /* label 缺漏防呆：欄位定義忘了寫 label 時，以前這裡會直接讀 f.label[0] 拋
-     TypeError，整個表單一片空白、面板等於掛掉（table 與 twthesis-keywords 兩個
-     欄位各踩過一次）。標題只是輔助說明，沒有它照樣能填，不該讓它有能力
-     炸掉整份表單——所以改成缺就不畫。 */
-  if (f.label) {
-    const lab = document.createElement('label');
-    lab.className = 'pt-label';
-    lab.textContent = T(f.label[0], f.label[1]);
+  wrap.className = 'pt-field' + (f.half ? ' half' : '');
+  if (f.label && f.type !== 'check') {
+    const lab = document.createElement('label'); lab.className = 'pt-label';
+    lab.textContent = P(f.label); lab.htmlFor = 'pt-f-' + f.k;
     wrap.appendChild(lab);
   }
-
+  return wrap;
+}
+function renderField(f) {
+  const wrap = fieldBox(f);
   if (f.type === 'list') {
-    if (!Array.isArray(values[f.k])) values[f.k] = [Object.create(null)];
+    if (!Array.isArray(values[f.k]) || !values[f.k].length) values[f.k] = [Object.create(null)];
     values[f.k].forEach((row, idx) => wrap.appendChild(renderListRow(f, row, idx)));
-    const addWrap = document.createElement('div'); addWrap.className = 'pt-add-wrap';
-    const add = document.createElement('button');
-    add.type = 'button'; add.className = 'pt-add'; add.dataset.field = f.k;
-    add.textContent = '＋ ' + T(f.addLabel[0], f.addLabel[1]);
-    addWrap.appendChild(add);
-    wrap.appendChild(addWrap);
+    wrap.appendChild(addButton(f));
     return wrap;
   }
-  if (f.type === 'table') {
-    wrap.appendChild(renderTableEditor(f));
-    return wrap;
-  }
+  if (f.type === 'table') { wrap.appendChild(renderTableEditor(f)); return wrap; }
   if (f.type === 'entrylist') {
-    if (!Array.isArray(values[f.k])) values[f.k] = [Object.create(null)];
+    if (!Array.isArray(values[f.k]) || !values[f.k].length) values[f.k] = [Object.create(null)];
     values[f.k].forEach((row, idx) => wrap.appendChild(renderEntryListItem(f, row, idx)));
-    const addWrap = document.createElement('div'); addWrap.className = 'pt-add-wrap';
-    const add = document.createElement('button');
-    add.type = 'button'; add.className = 'pt-add'; add.dataset.field = f.k; add.dataset.entrylist = '1';
-    add.textContent = '＋ ' + T(f.addLabel[0], f.addLabel[1]);
-    addWrap.appendChild(add);
-    wrap.appendChild(addWrap);
+    wrap.appendChild(addButton(f));
     return wrap;
   }
   if (f.type === 'check') {
-    wrap.textContent = '';
-    const lb = document.createElement('label');
-    lb.style.display = 'flex'; lb.style.alignItems = 'center'; lb.style.gap = '7px';
-    lb.style.fontSize = '12.5px'; lb.style.cursor = 'pointer';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.checked = !!values[f.k];
+    const lb = document.createElement('label'); lb.className = 'pt-check';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!values[f.k]; cb.dataset.k = f.k;
     cb.addEventListener('change', () => { values[f.k] = cb.checked; });
-    lb.appendChild(cb);
-    lb.appendChild(document.createTextNode(T(f.label[0], f.label[1])));
+    lb.appendChild(cb); lb.appendChild(document.createTextNode(P(f.label)));
     wrap.appendChild(lb);
     return wrap;
   }
   if (f.type === 'select') {
-    const sel = document.createElement('select');
-    for (const [val, lbl] of f.opts) {
-      const o = document.createElement('option');
-      o.value = val; o.textContent = T(lbl[0], lbl[1]);
-      sel.appendChild(o);
-    }
+    const sel = document.createElement('select'); sel.id = 'pt-f-' + f.k; sel.dataset.k = f.k;
+    for (const [val, lbl] of f.opts) { const o = document.createElement('option'); o.value = val; o.textContent = P(lbl); sel.appendChild(o); }
     if (values[f.k] === undefined) values[f.k] = f.opts[0][0];
     sel.value = values[f.k];
     sel.addEventListener('change', () => {
+      const old = values[f.k];
       values[f.k] = sel.value;
-      if (f.reflow) renderForm();   // 這顆選單會決定其他欄位要不要顯示（例如封面中／英文切換）
+      if (typeof f.onChange === 'function') f.onChange(values, old);
+      if (f.reread || curTool.marker) { const keep = Object.create(null); keep[f.k] = sel.value; resetValues(keep); }
+      if (f.reflow || f.reread || curTool.marker) renderForm();
     });
     wrap.appendChild(sel);
     return wrap;
   }
   if (f.type === 'textarea') {
-    const ta = document.createElement('textarea');
-    ta.rows = f.rows || 5;
-    ta.value = values[f.k] || '';
+    const ta = document.createElement('textarea'); ta.id = 'pt-f-' + f.k; ta.dataset.k = f.k;
+    ta.rows = f.rows || 5; ta.value = values[f.k] || ''; if (f.mono) ta.className = 'mono';
+    if (f.ph) ta.placeholder = P(f.ph);
     ta.addEventListener('input', () => { values[f.k] = ta.value; });
     wrap.appendChild(ta);
     return wrap;
   }
   const inp = document.createElement('input');
-  inp.type = 'text';
+  inp.type = 'text'; inp.id = 'pt-f-' + f.k; inp.dataset.k = f.k; inp.spellcheck = false;
   inp.value = values[f.k] || '';
-  if (f.ph) inp.placeholder = T(f.ph[0], f.ph[1]);
+  if (f.ph) inp.placeholder = P(f.ph);
   inp.addEventListener('input', () => { values[f.k] = inp.value; });
+  if (f.reflow) inp.addEventListener('change', () => { renderForm(); const again = panelEl().querySelector('input[data-k="' + f.k + '"]'); if (again) again.focus(); });
   wrap.appendChild(inp);
   return wrap;
 }
+function addButton(f) {
+  const add = document.createElement('button');
+  add.type = 'button'; add.className = 'pt-add'; add.dataset.field = f.k;
+  add.textContent = '＋ ' + P(f.addLabel);
+  return add;
+}
 
-/* grid-template-columns 由這一行的實際欄位組成：每個 c.w（px）或 grow（1fr），
-   編號欄與刪除鈕各自固定寬度。同一個 field 的每一列用同一份設定產生，
-   所以天生對齊——不會因為某一列內容長一點就跟其他列的欄位對不齊。 */
+/* 重複列：同一個欄位的每一列用同一份 grid-template-columns，天生對齊；欄名只在第一列顯示。 */
 function gridCols(f) {
   const parts = [];
-  if (f.numbered) parts.push('26px');
-  for (const c of f.rows) parts.push(c.grow ? 'minmax(160px,1fr)' : (c.w || 120) + 'px');
-  parts.push('34px');   // 刪除鈕欄
+  if (f.numbered) parts.push('20px');
+  for (const c of f.rows) parts.push(c.grow ? 'minmax(140px,1fr)' : (c.w || 120) + 'px');
+  parts.push('28px');
   return parts.join(' ');
 }
 function renderListRow(f, row, idx) {
   const r = document.createElement('div');
   r.className = 'pt-row';
   r.style.setProperty('--pt-cols', gridCols(f));
-  if (f.numbered) {
-    const no = document.createElement('span');
-    no.className = 'pt-no'; no.textContent = String(idx + 1);
-    r.appendChild(no);
-  }
+  if (f.numbered) { const no = document.createElement('span'); no.className = 'pt-no'; no.textContent = String(idx + 1); r.appendChild(no); }
   for (const c of f.rows) {
-    const cell = document.createElement('div');
-    cell.className = 'pt-cell';
-    const sub = document.createElement('span');
-    sub.className = 'pt-sub'; sub.textContent = T(c.label[0], c.label[1]);
-    cell.appendChild(sub);
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = row[c.k] || '';
-    if (c.ph) inp.placeholder = T(c.ph[0], c.ph[1]);
-    inp.addEventListener('input', () => { row[c.k] = inp.value; });
-    cell.appendChild(inp);
-    r.appendChild(cell);
+    const cell = document.createElement('div'); cell.className = 'pt-cell';
+    if (f.rows.length > 1) { const sub = document.createElement('span'); sub.className = 'pt-sub'; sub.textContent = P(c.label); cell.appendChild(sub); }
+    const inp = document.createElement('input'); inp.type = 'text'; inp.spellcheck = false;
+    inp.value = row[c.k] || ''; inp.setAttribute('aria-label', P(c.label) + ' ' + (idx + 1));
+    if (c.ph) inp.placeholder = P(c.ph);
+    inp.addEventListener('input', () => { row[c.k] = inp.value; if (curTool && curTool.id === 'twthesis-keywords') refreshExtra(); });
+    cell.appendChild(inp); r.appendChild(cell);
   }
   const del = document.createElement('button');
   del.type = 'button'; del.className = 'pt-del';
   del.dataset.field = f.k; del.dataset.idx = String(idx);
-  del.textContent = '×';
-  del.title = T('刪除這一列','Remove this row');
+  del.textContent = '×'; del.title = T('刪除這一列', 'Remove this row'); del.setAttribute('aria-label', del.title);
   r.appendChild(del);
   return r;
 }
+function refreshExtra() {
+  const meter = panelEl().querySelector('.pt-meter');
+  if (!meter || !curTool || typeof curTool.extra !== 'function') return;
+  const box = meter.parentNode; box.textContent = ''; curTool.extra(box, values);
+}
 
-/* 卡片式清單：一條資料 = 一大段內容（書目、子公式），不是「幾個短欄位並排」，
-   所以不套用 grid 欄位模型，改成上下堆疊的卡片，刪除鈕固定在右上角。 */
 function ensureTableState(f) {
   if (!values.__tbl) values.__tbl = {};
   const st = values.__tbl[f.k] || (values.__tbl[f.k] = { cols: 3, rows: 2, align: 'l', cells: [] });
@@ -966,123 +1203,80 @@ function ensureTableState(f) {
 function renderTableEditor(f) {
   const box = document.createElement('div');
   const st = ensureTableState(f);
-
-  const dims = document.createElement('div');
-  dims.className = 'pt-tbl-dims';
+  const dims = document.createElement('div'); dims.className = 'pt-tbl-dims';
   const mkSel = (label, val, opts, onchange) => {
     const cell = document.createElement('div'); cell.className = 'pt-cell';
-    const sub = document.createElement('span'); sub.className = 'pt-sub'; sub.textContent = label;
-    cell.appendChild(sub);
-    const sel = document.createElement('select');
-    for (const o of opts) { const op = document.createElement('option'); op.value = String(o); op.textContent = String(o); sel.appendChild(op); }
+    const sub = document.createElement('span'); sub.className = 'pt-sub'; sub.textContent = label; cell.appendChild(sub);
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', label);
+    for (const [v, t] of opts) { const op = document.createElement('option'); op.value = String(v); op.textContent = String(t); sel.appendChild(op); }
     sel.value = String(val);
     sel.addEventListener('change', () => { onchange(sel.value); renderForm(); });
-    cell.appendChild(sel);
-    return cell;
+    cell.appendChild(sel); return cell;
   };
-  dims.appendChild(mkSel(T('欄數','Columns'), st.cols, [2,3,4,5,6,7,8], v => { st.cols = Number(v); }));
-  dims.appendChild(mkSel(T('列數（不含表頭）','Rows (excl. header)'), st.rows, Array.from({length:15},(_,i)=>i+1), v => { st.rows = Number(v); }));
-  dims.appendChild(mkSel(T('對齊','Align'), st.align,
-    [[T('靠左','Left'),'l'],[T('置中','Center'),'c'],[T('靠右','Right'),'r']].map(x=>x[1]), v => { st.align = v; }));
-  /* mkSel 的 opts 目前只吃單一值陣列；對齊改用文字對照，這裡直接覆蓋掉剛才那個空選單。 */
-  dims.lastChild.remove();
-  const alignCell = document.createElement('div'); alignCell.className = 'pt-cell';
-  const alignSub = document.createElement('span'); alignSub.className = 'pt-sub'; alignSub.textContent = T('對齊','Align');
-  alignCell.appendChild(alignSub);
-  const alignSel = document.createElement('select');
-  for (const [lbl, val] of [[T('靠左','Left'),'l'],[T('置中','Center'),'c'],[T('靠右','Right'),'r']]) {
-    const op = document.createElement('option'); op.value = val; op.textContent = lbl; alignSel.appendChild(op);
-  }
-  alignSel.value = st.align;
-  alignSel.addEventListener('change', () => { st.align = alignSel.value; });
-  alignCell.appendChild(alignSel);
-  dims.appendChild(alignCell);
+  dims.appendChild(mkSel(T('欄數', 'Columns'), st.cols, [2, 3, 4, 5, 6, 7, 8].map(n => [n, n]), v => { st.cols = Number(v); }));
+  dims.appendChild(mkSel(T('列數（不含表頭）', 'Rows (excl. header)'), st.rows, Array.from({ length: 15 }, (_, i) => [i + 1, i + 1]), v => { st.rows = Number(v); }));
+  dims.appendChild(mkSel(T('對齊', 'Align'), st.align, [['l', T('靠左', 'Left')], ['c', T('置中', 'Center')], ['r', T('靠右', 'Right')]], v => { st.align = v; }));
   box.appendChild(dims);
-
   const wrapDiv = document.createElement('div'); wrapDiv.className = 'pt-tbl-wrap';
   const table = document.createElement('table'); table.className = 'pt-tbl-grid';
   for (let r = 0; r < st.cells.length; r++) {
     const tr = document.createElement('tr'); if (r === 0) tr.className = 'pt-tbl-head';
     for (let c = 0; c < st.cols; c++) {
-      const td = document.createElement('td');
-      const cellData = st.cells[r][c];
-      const inp = document.createElement('input'); inp.type = 'text';
-      inp.value = cellData.text || '';
-      inp.placeholder = r === 0 ? (T('表頭 ','Header ') + (c + 1)) : '';
+      const td = document.createElement('td'), cellData = st.cells[r][c];
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = cellData.text || '';
+      inp.placeholder = r === 0 ? (T('表頭 ', 'Header ') + (c + 1)) : '';
+      inp.setAttribute('aria-label', (r === 0 ? T('表頭 ', 'Header ') : T('第 R 列 ', 'Row R ').replace('R', String(r))) + (c + 1));
       inp.addEventListener('input', () => { cellData.text = inp.value; });
       td.appendChild(inp);
       if (r > 0 && c > 0) {
         const mrg = document.createElement('label'); mrg.className = 'pt-tbl-merge';
         const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!cellData.merge;
-        cb.addEventListener('change', () => { cellData.merge = cb.checked; inp.disabled = cb.checked; if (cb.checked) inp.value = ''; });
+        cb.addEventListener('change', () => { cellData.merge = cb.checked; inp.disabled = cb.checked; if (cb.checked) { inp.value = ''; cellData.text = ''; } });
         inp.disabled = !!cellData.merge;
-        mrg.appendChild(cb);
-        mrg.appendChild(document.createTextNode(T('併左','\u2190 merge')));
+        mrg.appendChild(cb); mrg.appendChild(document.createTextNode(T('併左', 'Merge left')));
         td.appendChild(mrg);
       }
       tr.appendChild(td);
     }
     table.appendChild(tr);
   }
-  wrapDiv.appendChild(table);
-  box.appendChild(wrapDiv);
+  wrapDiv.appendChild(table); box.appendChild(wrapDiv);
   return box;
 }
+/* 一筆一段的清單（參考文獻、子公式）：編號、內容、刪除鈕一列，細線分隔。 */
 function renderEntryListItem(f, row, idx) {
-  const card = document.createElement('div');
-  card.className = 'pt-elist-item';
-  if (f.showIndex) {
-    const no = document.createElement('div');
-    no.className = 'pt-elist-no';
-    /* 先拿完整雙語模板（不在字面值中間插入串接），再用 .replace 填數字——
-       避免把中／英文字面值切成好幾段，那樣 i18n 稽核追不出這幾段其實
-       是同一句話的一部分，會誤判成漏翻。 */
-    no.textContent = T('第 N 筆','Entry N').replace('N', String(idx + 1));
-    card.appendChild(no);
+  const item = document.createElement('div');
+  item.className = 'pt-elist-item' + (f.showIndex ? '' : ' no-index') + (values.__keyed ? ' keyed' : '');
+  if (f.showIndex && !values.__keyed) { const no = document.createElement('span'); no.className = 'pt-elist-no'; no.textContent = row.raw ? '·' : '[' + (idx + 1) + ']'; item.appendChild(no); }
+  if (values.__keyed && !row.raw) {
+    const key = document.createElement('input'); key.type = 'text'; key.className = 'pt-elist-key mono'; key.spellcheck = false;
+    key.value = row.key || ''; key.placeholder = T('鍵', 'key'); key.setAttribute('aria-label', T('鍵', 'Key') + ' ' + (idx + 1));
+    key.addEventListener('input', () => { row.key = key.value; });
+    item.appendChild(key);
   }
   const p = f.primary;
-  let field;
-  if (p.type === 'textarea') {
-    field = document.createElement('textarea');
-    field.rows = p.rows || 2;
-  } else {
-    field = document.createElement('input');
-    field.type = 'text';
-  }
-  field.value = row.text || '';
-  if (p.ph) field.placeholder = T(p.ph[0], p.ph[1]);
+  const field = p.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
+  if (p.type === 'textarea') field.rows = p.rows || 2; else field.type = 'text';
+  if (p.mono) field.className = 'mono';
+  field.value = row.text || ''; field.spellcheck = false;
+  field.setAttribute('aria-label', P(f.label) + ' ' + (idx + 1));
+  if (p.ph) field.placeholder = P(p.ph);
   field.addEventListener('input', () => { row.text = field.value; });
-  card.appendChild(field);
-  if (f.secondary && f.secondary.length) {
-    const sec = document.createElement('div');
-    sec.className = 'pt-elist-secrow';
-    for (const c of f.secondary) {
-      const cell = document.createElement('div');
-      cell.className = 'pt-cell'; if (c.w) cell.style.width = c.w + 'px';
-      const sub = document.createElement('span');
-      sub.className = 'pt-sub'; sub.textContent = T(c.label[0], c.label[1]);
-      cell.appendChild(sub);
-      const inp = document.createElement('input'); inp.type = 'text';
-      inp.value = row[c.k] || '';
-      if (c.ph) inp.placeholder = T(c.ph[0], c.ph[1]);
-      inp.addEventListener('input', () => { row[c.k] = inp.value; });
-      cell.appendChild(inp);
-      sec.appendChild(cell);
-    }
-    card.appendChild(sec);
-  }
+  item.appendChild(field);
   const del = document.createElement('button');
   del.type = 'button'; del.className = 'pt-elist-del';
-  del.dataset.field = f.k; del.dataset.idx = String(idx); del.dataset.entrylist = '1';
-  del.textContent = '×'; del.title = T('刪除這一筆','Remove this entry');
-  card.appendChild(del);
-  return card;
+  del.dataset.field = f.k; del.dataset.idx = String(idx);
+  del.textContent = '×'; del.title = T('刪除這一筆', 'Remove this entry'); del.setAttribute('aria-label', del.title);
+  item.appendChild(del);
+  return item;
 }
-
 function addRow(k) {
   if (!Array.isArray(values[k])) values[k] = [];
   values[k].push(Object.create(null));
   renderForm();
+  const rows = panelEl().querySelectorAll('[data-field="' + k + '"].pt-del, [data-field="' + k + '"].pt-elist-del');
+  const last = rows[rows.length - 1]; const inp = last && last.parentNode.querySelector('input,textarea');
+  if (inp) inp.focus();
 }
 function delRow(k, idx) {
   if (!Array.isArray(values[k])) return;
@@ -1091,31 +1285,132 @@ function delRow(k, idx) {
   renderForm();
 }
 
-/* ---------- 插入 --------------------------------------------------------- */
-function doInsert() {
+/* ---------- 寫回文件 -------------------------------------------------------
+ * 打開面板時記下游標（以前在表單裡打字後，瀏覽器的選取跑到表單上，宿主找不到游標，
+ * 內容就被插到文件最後）。 */
+function captureBookmark() {
+  try {
+    if (srcMode() && srcview) return { kind: 'source', s: srcview.selectionStart | 0, e: srcview.selectionEnd | 0 };
+    const pe = document.getElementById('pe-text');
+    if (pe && typeof peIndex !== 'undefined' && peIndex >= 0) return { kind: 'paper', i: peIndex, s: pe.selectionStart | 0, e: pe.selectionEnd | 0 };
+    if (activeIndex >= 0 && editor.children[activeIndex]) return { kind: 'block', i: activeIndex, off: caretOffsetIn(editor.children[activeIndex]) };
+    const sel = getSelection(), el = sel && sel.rangeCount ? blockElOf(sel.anchorNode) : null;
+    if (el && editor.contains(el)) return { kind: 'block', i: blockIndexOf(el), off: null };
+  } catch (_) {}
+  return { kind: 'none' };
+}
+function commitOpenEdits() {
+  try { if (typeof commitPaperEdit === 'function') commitPaperEdit(); } catch (_) {}
+  try { if (activeIndex >= 0) deactivate(true); } catch (_) {}
+}
+function flash(i) {
+  try {
+    const el = editor.children[i]; if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    el.classList.remove('cp171-pt-flash'); void el.offsetWidth; el.classList.add('cp171-pt-flash');
+    setTimeout(() => el.classList.remove('cp171-pt-flash'), 1300);
+  } catch (_) {}
+}
+function sourceOffset(arr, i) { let a = 0; for (let k = 0; k < i; k++) a += arr[k].length + 1; return a; }
+function sourceReplace(a, z, text) {
+  const native = srcReplaceRange(a, z, text);
+  if (!native) srcview.dispatchEvent(new Event('input', { bubbles: true }));
+  try { srcview.focus(); srcview.setSelectionRange(a + text.length, a + text.length); if (typeof srcJumpToOffset === 'function') srcJumpToOffset(a, true, false); } catch (_) {}
+}
+/* 用新內容取代文件第 i～j 塊（locate 在最新的文件上重新找一次，避免提交編輯後索引位移）。 */
+function replaceBlocks(locate, text) {
+  if (srcMode()) {
+    const arr = splitToBlocks(String(srcview.value || '')), loc = locate(arr);
+    if (!loc) return false;
+    const a = sourceOffset(arr, loc.i), z = sourceOffset(arr, loc.j) + arr[loc.j].length;
+    sourceReplace(a, z, text);
+    return true;
+  }
+  commitOpenEdits();
+  const loc = locate(blocks.slice());
+  if (!loc) return false;
+  const parts = splitToBlocks(text);
+  pushUndo();
+  blocks[loc.i] = parts[0]; rerender(loc.i);
+  for (let k = loc.j; k > loc.i; k--) removeBlockAt(k);
+  for (let m = 1; m < parts.length; m++) insertBlockAfter(loc.i + m - 1, parts[m]);
+  onEdited();
+  flash(loc.i);
+  return true;
+}
+/* 區塊語法：插在書籤那一段的後面，前後各留一個空行，原文看起來才清楚。 */
+function insertBlockText(text) {
+  const bm = bookmark || { kind: 'none' };
+  if (srcMode()) {
+    /* 插在游標所在「整個區塊」的後面：游標在圍欄或公式裡時，插在行尾會把新內容塞進那個區塊。 */
+    if (bm.kind !== 'source') return false;
+    const v = String(srcview.value || ''), at = Math.max(bm.s, bm.e);
+    const arr = splitToBlocks(v);
+    let lineEnd = v.length;
+    for (let k = 0, base = 0; k < arr.length; k++) { const end = base + arr[k].length; if (at <= end) { lineEnd = end; break; } base = end + 1; }
+    const before = v.slice(0, lineEnd), after = v.slice(lineEnd);
+    const lead = !before.trim() ? '' : (/\n\s*$/.test(before) ? '\n' : '\n\n');
+    const tail = /^\n[ \t]*\n/.test(after) || !after.trim() ? '' : '\n';
+    sourceReplace(lineEnd, lineEnd, lead + text + tail);
+    return true;
+  }
+  commitOpenEdits();
+  if (bm.kind !== 'block' && bm.kind !== 'paper') return false;
+  let i = bm.i;
+  i = Math.max(0, Math.min(blocks.length - 1, i));
+  const parts = splitToBlocks(text);
+  const seq = [...(blocks[i] && blocks[i].trim() ? [''] : []), ...parts, ...(blocks[i + 1] !== undefined && blocks[i + 1].trim() ? [''] : [])];
+  pushUndo();
+  for (let k = 0; k < seq.length; k++) insertBlockAfter(i + k, seq[k]);
+  onEdited();
+  flash(i + (blocks[i] && blocks[i].trim() ? 2 : 1));
+  return true;
+}
+/* 行內記號（引用、交叉引用）：插在記下的游標處；沒有游標就請使用者先點一下。 */
+function insertInlineText(text) {
+  const bm = bookmark || { kind: 'none' };
+  if (bm.kind === 'source' && srcMode()) { sourceReplace(bm.s, bm.e, text); return true; }
+  if (bm.kind === 'paper') {
+    const pe = document.getElementById('pe-text');
+    if (pe && typeof peIndex !== 'undefined' && peIndex === bm.i) {
+      pe.focus(); pe.setSelectionRange(bm.s, bm.e); peReplaceRange(bm.s, bm.e, text);
+      try { if (typeof paperEditSyncFromTextarea === 'function') paperEditSyncFromTextarea(); } catch (_) {}
+      return true;
+    }
+    return replaceBlocks(arr => (arr[bm.i] === undefined ? null : { i: bm.i, j: bm.i, text: arr[bm.i] }),
+      String(blocks[bm.i] || '').slice(0, bm.s) + text + String(blocks[bm.i] || '').slice(bm.e));
+  }
+  if (bm.kind === 'block' && bm.off !== null) {
+    try { activate(bm.i, bm.off); insertTextAtCaret(text); return true; } catch (_) { return false; }
+  }
+  return false;
+}
+
+function doGo() {
   if (!curTool) return;
+  if (ctx && ctx.marker >= 0) {
+    const i = ctx.marker;
+    hidePanel();
+    if (srcMode()) { try { const arr = splitToBlocks(String(srcview.value || '')); srcview.focus(); srcJumpToOffset(sourceOffset(arr, i), true, true); } catch (_) {} }
+    else flash(i);
+    return;
+  }
   let text = '';
   try { text = curTool.build(values); } catch (e) {
-    K.log && K.log.error && K.log.error('papertools', T('產生語法失敗','Failed to build syntax'), e);
-    return;
+    K.log && K.log.error && K.log.error('papertools', T('產生語法失敗', 'Failed to build syntax'), e);
+    warn(T('產生內容時出錯了。', 'Something went wrong building the text.')); return;
   }
-  if (!text) return;
-  /* 一律走宿主既有的插入命令：它已經處理好 source mode、undo、
-     游標定位與 onEdited()。自己去動 blocks 陣列必然跟宿主打架。 */
+  if (!text) { warn(T('還沒有填內容。', 'Nothing filled in yet.')); return; }
+  if (!(ctx && ctx.existing) && (!bookmark || bookmark.kind === 'none')) { warn(NO_PLACE()); return; }
+  let ok = false;
   try {
-    /* 行內記號（引用、交叉引用）要塞在游標所在的那一句話裡，不能自成一段；
-       區塊語法反過來一定要自成一段，否則圍欄會被前一段吃掉。 */
-    if (curTool.inline && typeof window.insertTextAtCaret === 'function') window.insertTextAtCaret(text);
-    else if (typeof window.insertParagraphSyntax === 'function') window.insertParagraphSyntax(text);
-    else if (typeof window.insertTextAtCaret === 'function') window.insertTextAtCaret(text + '\n');
-    else {
-      K.log && K.log.error && K.log.error('papertools', T('找不到宿主插入函式','Host insert function not found'));
-      return;
-    }
+    if (ctx && ctx.existing) ok = replaceBlocks(arr => curTool.single.find(arr, values), text);
+    else if (curTool.inline) ok = insertInlineText(text);
+    else ok = insertBlockText(text);
   } catch (e) {
-    K.log && K.log.error && K.log.error('papertools', T('插入失敗','Insert failed'), e);
-    return;
+    K.log && K.log.error && K.log.error('papertools', T('寫入失敗', 'Write failed'), e);
   }
+  if (!ok) { warn(curTool.inline ? NO_PLACE() : T('找不到要改的地方，文件可能已經變了；重新打開再試一次。', 'Could not find the place to change; reopen and try again.')); return; }
   hidePanel();
 }
 
@@ -1135,13 +1430,7 @@ function mount() {
     b.type = 'button';
     b.className = 'tb-btn';
     b.dataset.ptGroup = grp.id;
-    /* ★ CP171-58.1：補上 data-action + data-zh/data-en——這兩者是格式工具列
-       #ty-toolbar 既有 tbTipShow() 即時提示機制唯一認得的掛鉤（見 tbBar 的
-       delegated mouseover：closest('.tb-btn[data-action]')）。沒有它，這顆鈕
-       就只剩下面這行原生 title，瀏覽器原生提示延遲久、樣式也對不上。
-       action id 刻意加 pt- 前綴，跟 TB_CATALOG 的工具 id 錯開，避免撞到
-       tbBar 的 mousedown 委派（undo/redo/paragraph/more 之外都會 tbTool(id)
-       查表，查不到就是安全的 no-op，但仍要避免撞名）。 */
+    /* data-action + data-zh/data-en 是格式列即時提示（tbTipShow）認得的掛鉤；pt- 前綴避開 TB_CATALOG 的工具 id。 */
     b.dataset.action = 'pt-' + grp.id;
     b.setAttribute('data-zh', grp.title[0]);
     b.setAttribute('data-en', grp.title[1]);
@@ -1154,23 +1443,40 @@ function mount() {
   }
   const more = row.querySelector('.tb-more-btn');
   if (more) row.insertBefore(g, more); else row.appendChild(g);
+  if (typeof syncVisibility === 'function') syncVisibility();
+}
+
+/* 國際論文模式只顯示 REV、臺灣論文模式只顯示 TW；一般 Markdown 模式兩個都顯示。 */
+function syncVisibility() {
+  const mode = docMode();
+  document.querySelectorAll('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn').forEach(b => {
+    b.hidden = (mode === 'intl' && b.dataset.ptGroup === 'twthesis') || (mode === 'tw' && b.dataset.ptGroup === 'rev');
+  });
+  if (panel && !panel.hidden && curGroup) {
+    const b = document.querySelector('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn[data-pt-group="' + curGroup + '"]');
+    if (b && b.hidden) hidePanel();
+  }
 }
 
 /* tbBuild() 會 textContent='' 整條重建，所以用 observer 補回自己這一段。
-   不去改宿主的 tbBuild：那條函式被還原流程、偏好設定、語言切換多處呼叫，
-   包裝它等於在四個地方各埋一顆地雷。 */
+   模式切換會改 html／body 的 class 或 data-theme，同樣在這裡更新顯示哪一組。 */
 function watch() {
   const bar = document.getElementById('ty-toolbar');
   if (!bar) return;
   try {
     new MutationObserver(() => { mount(); }).observe(bar, { childList: true });
+    let raf = 0;
+    const later = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; syncVisibility(); }); };
+    const mo = new MutationObserver(later);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+    if (document.body) mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    if (K.on) { K.on('flag', later); K.on('enterIntlMode', later); }
   } catch (_) { /* 無 MutationObserver 的測試環境：靠下面的輪詢 */ }
 }
 
 function boot() {
   mount(); watch();
-  /* 工具列可能在 CP171 之後才建好（還原流程、settings.showToolbar 開關），
-     前 20 秒每 500ms 補一次，之後交給 observer。 */
+  /* 工具列可能在 CP171 之後才建好（還原流程、顯示工具列開關），前 20 秒每 500ms 補一次，之後交給 observer。 */
   let n = 0;
   const iv = setInterval(() => { mount(); if (++n > 40) clearInterval(iv); }, 500);
 }
@@ -1178,8 +1484,12 @@ function boot() {
 try {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
-} catch (e) { K.log && K.log.error && K.log.error('papertools', T('boot 失敗','Boot failed'), e); }
+} catch (e) { K.log && K.log.error && K.log.error('papertools', T('boot 失敗', 'Boot failed'), e); }
 
+/* window 的捕獲階段比宿主掛在 document 上的處理器都早：在段落編輯框被收起之前先記下游標。 */
+window.addEventListener('mousedown', e => {
+  if (e.target && e.target.closest && e.target.closest('#ty-toolbar .' + MOUNT_CLASS + ' .tb-btn')) early = { at: Date.now(), bm: captureBookmark() };
+}, true);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && panel && !panel.hidden) { hidePanel(); e.stopPropagation(); }
 }, true);
@@ -1195,20 +1505,23 @@ window.addEventListener('resize', () => {
   if (b) position(b); else hidePanel();
 });
 
-/* 核心 K 是凍結物件（kernel 尾端 Object.freeze），直接掛屬性會拋
-   TypeError: object is not extensible——UI 煙霧測試抓到的。
-   對外介面改掛在自己的全域名稱下，並保留一次 try 讓未凍結的舊核心也能用。 */
+/* 核心 K 是凍結物件，對外介面掛在自己的全域名稱下（網站導覽用 open(群組, 按鈕)）。 */
 const API = {
   open: openGroup,
   close: hidePanel,
+  select: id => selectTool(id),
   groups: () => GROUPS.map(g => ({ id: g.id, tools: g.tools.map(t => t.id) })),
   buildOnly: (gid, tid, v) => {
     const g = GROUPS.find(x => x.id === gid); if (!g) return '';
     const t = g.tools.find(x => x.id === tid); if (!t) return '';
     return t.build(v || {});
+  },
+  readOnly: (gid, tid, text) => {
+    const g = GROUPS.find(x => x.id === gid); const t = g && g.tools.find(x => x.id === tid);
+    return t && t.single ? t.single.read(String(text || '')) : null;
   }
 };
 try { window.__CP171_PTOOLS__ = API; } catch (_) {}
 try { if (Object.isExtensible(K)) K.papertools = API; } catch (_) {}
-K.log && K.log.info && K.log.info('papertools', T('論文語法工具列已就緒','Paper syntax toolbar ready'));
+K.log && K.log.info && K.log.info('papertools', T('論文語法工具列已就緒', 'Paper syntax toolbar ready'));
 })();

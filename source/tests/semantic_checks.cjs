@@ -61,7 +61,7 @@ try {
   const normalize = callable(core, 'normalizeThemeSettings', {
     settings,
     THEME_SETTING_ALIASES: { 'twthesis_en': 'twthesis-en', 'blackout-game': 'blackoutgame' },
-    THEME_SETTING_VALUES: ['github', 'sepia', 'blackout', 'blackoutgame', 'paper', 'twthesis', 'twthesis-en', 'revtex']
+    THEME_SETTING_VALUES: ['github', 'moss', 'blackout', 'blackoutgame', 'paper', 'twthesis', 'twthesis-en', 'revtex']
   });
   check(normalize() === true && settings.theme === 'github' && settings.dark === true, 'night alias should resolve to github + dark');
   settings.theme = 'twthesis2'; settings.dark = false; settings.twthesisPrint = false;

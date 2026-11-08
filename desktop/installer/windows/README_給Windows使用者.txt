@@ -1,7 +1,7 @@
-Ekdeta 1.2.5 — Windows x64 使用方式
+EKdelta Desktop 1.2.8 — Windows x64 使用方式
 ====================================
 
-最簡單：執行「製作 Windows x64 免安裝版_免Node.cmd」，完成後解壓 portable ZIP，直接開 Ekdeta.exe。
+最簡單：執行「製作 Windows x64 免安裝版_免Node.cmd」，完成後解壓 portable ZIP，直接開 EKdelta Desktop.exe。
 如果希望固定安裝，雙擊 portable 資料夾內的「安裝 Portable 到本機.cmd」。
 
 一般 Markdown、MathLive 與臺灣論文不需要 LaTeX Engine Pack。

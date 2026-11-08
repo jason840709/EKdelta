@@ -33,27 +33,16 @@ const BUILD   = 'CP171-INTL-PAPER-ISOLATED-PIPELINE';
    鍵，載入時由 ensureFlags() 補齊，不會報錯，也不影響任何既有鍵。          */
 const FLAG_DEFAULTS = Object.freeze({
   enabled:        true,   // 主開關。false 時 CP171 完全休眠
-  parser:         true,   // 啟用 CP171 獨立解析器（僅供 CP171 自己用）
-  emitter:        true,   // 啟用 REVTeX 發射器
-  /* takeoverTex 預設 true（v6.0 起，見 DECISION-v6.0.md 第二節）。
-   * 原本關閉是因為沒把握 emitter 對官方 REVTeX 4.2 規範的相容性；現在已
-   * 用使用者提供的官方套件（revtex-tds-2023-05-30.zip）重新編譯九份黃金
-   * 語料庫，9/9 零錯誤。
-   *
-   * 更重要的原因：使用者回報「版面設定面板調好了，PDF 卻沒有正確反映」
-   * ——查出根因是設定面板的即時預覽（\documentclass 那行）呼叫的是這裡
-   * 的 cp171-20-emit.js classOptions()，但關閉時實際編譯走的是完全獨立
-   * 的原生 CP166 發射器（revtexTexDocument()），兩條路徑各自讀
-   * settings.revtex*，沒有任何機制保證兩者一致。開啟這個旗標後，預覽跟
-   * 實際編譯變成同一個函式呼叫，這種不同步在架構上就不可能再發生。 */
-  takeoverTex:    true,   // 插點 P1：接管「匯出 .tex」
-  takeoverPdf:    false,  // 插點 P2：接管「匯出 PDF」（階段 III 才開）
-  proofView:      false,  // 校樣分屏視圖（階段 III）
+  /* takeoverTex 旗標於 1.2.6 移除：舊發射器（04.js revtexTexDocument）退役，
+   * 所有流程都呼叫唯一入口 mainTex()，不再有「用哪個發射器」的選擇。
+   * ensureFlags() 會把舊設定檔裡殘留的 takeoverTex 鍵清掉。
+   * 1.2.7 再移除 parser、emitter、takeoverPdf、proofView 四個從來沒有程式讀的旗標，
+   * 舊設定檔裡的同名鍵同樣由 ensureFlags() 清掉。 */
   /* 1.1.5.5：預設打開。停筆自動編譯是這個模式最主要的價值——左邊寫、右邊自己跟上；
      預設關著等於要使用者自己發現，而面板上又沒有說明它是什麼。 */
   autoCompile:    true,   // 影子編譯（階段 III）
   debounceMs:     800,    // 影子編譯防抖
-  engine:         'auto', // auto | busytex | companion
+  engine:         'auto', // auto（＝busytex）| busytex | companion（1.2.7 起只有明確指定才連本機服務）
   companionUrl:   'http://127.0.0.1:8787',
   allowOutsideMode: false, // 測試用：允許在非 revtex 模式下呼叫（預設關）
   /* v5.0：CP171 是否作用中，不再由 settings.cp170Mode 決定（那個變數跟原生

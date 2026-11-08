@@ -12,7 +12,7 @@
 
 <p align="center">
   一套把 Markdown、臺灣碩博士論文與 REVTeX 4.2 放在同一個寫作環境裡的工具。<br>
-  <strong>v1.2.5 · 單檔 HTML + Electron 桌面版 · Jason Chen</strong>
+  <strong>v1.2.8 · 單檔 HTML + Electron 桌面版 · Jason Chen</strong>
 </p>
 
 <table align="center">
@@ -20,7 +20,7 @@
     <td align="center">
       <strong>「EKdelta」這個名字</strong><br><br>
       <strong>EKdelta</strong> 結合了希臘語中與「出版、發行」相關的 <strong>ekd-</strong> 語根，以及科學上代表「變化」的希臘字母 <strong>delta（δ）</strong>，描述從 Markdown 手稿走到學位論文與期刊稿件的過程。<br><br>
-      <sub>1.2.2–1.2.3 版名為 Ekdeta，更早名為 Typora HTML，都是同一個程式。</sub>
+      <sub>1.2.2–1.2.3 版名為 Ekdeta（桌面版到 1.2.6），更早名為 Typora HTML，都是同一個程式。</sub>
     </td>
   </tr>
 </table>
@@ -60,7 +60,7 @@ EKdelta 不是把 Markdown「畫得像論文」而已。Markdown 是真正的來
 從 GitHub Release 下載：
 
 ```text
-EKdelta-1.2.5.html
+EKdelta-1.2.8.html
 ```
 
 用 Chrome 或 Edge 開啟即可。這個 HTML 就是完整 Core，不是 demo。一般 Markdown、MathLive、圖片、表格和臺灣論文流程都能直接使用。
@@ -75,7 +75,7 @@ Repository 裡的 `desktop/` 是同一份 EKdelta Core 的 Electron 外殼，不
 - Windows x64 可以建 NSIS 安裝版。
 - Windows 還有一條免 Node.js 的 portable 建置流程：下載固定 Electron runtime，先驗證官方 SHA-256，再把 EKdelta 打成可攜版。
 
-完整步驟見 [`docs/DESKTOP.zh-TW.md`](docs/DESKTOP.zh-TW.md)。GitHub Release 也會附上 `EKdelta-Electron-Desktop-1.2.5.zip` 桌面建置包。這一版的桌面 App 名稱仍是 EKdelta：App 名稱決定設定與引擎的存放位置，改名要搭配實機打包測試。
+完整步驟見 [`docs/DESKTOP.zh-TW.md`](docs/DESKTOP.zh-TW.md)。GitHub Release 也會附上 `EKdelta-Electron-Desktop-1.2.8.zip` 桌面建置包。1.2.8 起桌面 App 叫 EKdelta Desktop（1.2.7 叫 EKdelta，更早叫 Ekdeta），使用墨藍圖示；已有 Ekdeta 或 Typora HTML 的使用者資料夾會原地沿用，文件與設定不必搬。
 
 ## 臺灣碩博士論文：Markdown → PDF
 
@@ -115,7 +115,7 @@ PDF + main.tex + REVTeX project ZIP
 
 一般 Markdown、MathLive、臺灣論文 PDF 都**不需要**大型 TeX Engine Pack。
 
-只有真的要讓 EKdelta 執行 REVTeX / LaTeX 編譯時才需要。EKdelta 1.2.5 使用 BusyTeX 1.2.3 / TeX Live 2026 recommended，會驗證下面五個檔案的大小與 SHA-256：
+只有真的要讓 EKdelta 執行 REVTeX / LaTeX 編譯時才需要。EKdelta 1.2.8 使用 BusyTeX 1.2.3 / TeX Live 2026 recommended，會驗證下面五個檔案的大小與 SHA-256：
 
 ```text
 busytex.js
@@ -172,7 +172,7 @@ EKdelta/
 python3 source/build.py --output EKdelta.html
 ```
 
-目前 1.2.5 的公開 source 已經驗證，可以重建出和正式交接產品逐位元組相同的 `EKdelta.html`。
+目前 1.2.8 的公開 source 已經驗證，可以重建出和正式交接產品逐位元組相同的 `EKdelta.html`。
 
 核心驗證：
 
@@ -180,13 +180,13 @@ python3 source/build.py --output EKdelta.html
 node source/tests/behavior.mjs EKdelta.html
 node source/tests/semantic_checks.cjs source/src/scripts
 node source/tests/ui_content_checks.cjs EKdelta.html
-python3 source/tests/audit_product.py EKdelta.html --name EKdelta --version 1.2.5
+python3 source/tests/audit_product.py EKdelta.html --name EKdelta --version 1.2.8
 ```
 
 更多重現資訊見 [`VALIDATION.md`](VALIDATION.md)。
 
 ## 作者與授權
 
-EKdelta 1.2.5 由 **Jason Chen** 開發。
+EKdelta 1.2.8 由 **Jason Chen** 開發。
 
 第一方原始碼與文件採 MIT License。KaTeX、MathLive、PDF.js、REVTeX、Electron、字型與外部 BusyTeX Engine Pack 依各自授權。詳細資訊見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。

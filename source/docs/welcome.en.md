@@ -1,6 +1,6 @@
 # Welcome to EKdelta
 
-> **Current version: 1.2.5.** Write Markdown notes, Taiwan Thesis documents in Chinese or English, and REVTeX 4.2 journal manuscripts.
+> **Current version: 1.2.8.** Write Markdown notes, Taiwan Thesis documents in Chinese or English, and REVTeX 4.2 journal manuscripts.
 
 EKdelta puts the editor in one HTML file. Open it in a browser, or use it with the desktop shell. Ordinary editing and built-in math work offline; web images need a connection, and REVTeX compilation requires an Engine Pack.
 
@@ -49,7 +49,7 @@ An imported Markdown document does not automatically write changes back to the o
 
 ### Ordinary notes and articles
 
-Write directly in Mode → Markdown Mode. Choose GitHub, Night, Sepia, Blackout, or Blackout Game from Theme. Appearance and document mode are separate choices.
+Write directly in Mode → Markdown Mode. Choose GitHub, Night, Moss, Blackout, or Blackout Game from Theme. Appearance and document mode are separate choices.
 
 ### Taiwan Thesis
 

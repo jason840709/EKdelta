@@ -243,6 +243,21 @@ async function run(force){
   if (!E) { setState(S.ERROR, '引擎層缺失'); return null; }
   if (state === S.COMPILING && !force) return null;
 
+  /* 1.2.6：引擎還沒載入就不嘗試編譯——原本每改一次字就失敗一次，三次後還會關掉
+     自動編譯；現在只等待，並請畫面顯示「載入 LaTeX 引擎」。載入完成（engine:ready）
+     會自動重新編譯。 */
+  try {
+    const proof = window.__CP169A_TEX_PROOF__, pst = proof && proof.getState && proof.getState();
+    if (pst && !pst.initialized) {
+      /* Mac 桌面殼已登記本機引擎：開始（或繼續）載入，完成後 engine:ready 自動重新編譯。 */
+      if (pst.directRoot) {
+        if (!pst.busy && typeof proof.startRegistered === 'function') proof.startRegistered();
+        setState(S.IDLE, '載入引擎中'); return null;
+      }
+      setState(S.IDLE, '等待載入引擎'); K.emit('engine:needed', { busy: !!pst.busy }); return null;
+    }
+  } catch (_) {}
+
   const snap = fullSignature();
   if (!snap.md) { setState(S.ERROR, '取不到內容'); return null; }
 

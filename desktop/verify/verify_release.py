@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Ekdeta 1.2.5 desktop static release gate; does not launch Electron."""
+"""EKdelta Desktop static release gate (EKdelta in 1.2.7, Ekdeta before); does not launch Electron."""
 from pathlib import Path
 import json, re, subprocess, sys, os
 ROOT=Path(__file__).resolve().parent.parent
@@ -11,10 +11,10 @@ def check(name,ok,detail=''):
 
 pkg=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))
 lock=json.loads((ROOT/'package-lock.json').read_text(encoding='utf-8'))
-check('product name = Ekdeta',pkg.get('productName')=='Ekdeta' and pkg.get('build',{}).get('productName')=='Ekdeta')
+check('product name = EKdelta Desktop',pkg.get('productName')=='EKdelta Desktop' and pkg.get('build',{}).get('productName')=='EKdelta Desktop')
 check('application ID = org.ekdeta.app',pkg.get('build',{}).get('appId')=='org.ekdeta.app')
 check('lockfile root matches package',all(lock.get(k)==pkg.get(k) and lock['packages'][''].get(k)==pkg.get(k) for k in ['name','version']))
-check('shell version = 1.2.5',pkg.get('version')=='1.2.5',pkg.get('version'))
+check('shell version = 1.2.8',pkg.get('version')=='1.2.8',pkg.get('version'))
 check('electron direct version pinned',pkg.get('devDependencies',{}).get('electron')=='33.4.11',pkg.get('devDependencies',{}).get('electron'))
 check('electron-builder direct version pinned',pkg.get('devDependencies',{}).get('electron-builder')=='25.0.0',pkg.get('devDependencies',{}).get('electron-builder'))
 check('asar enabled',pkg.get('build',{}).get('asar') is True)
@@ -60,14 +60,16 @@ check('manual init can retry from directRoot',"state.directRoot?cp169StartDirect
 for rel in ['src/main.js','src/menu.js','src/store.js','src/protocol.js','src/bridge.js','verify/e2e_probe.js','verify/e2e_engine_probe.js','verify/e2e_direct_stream_probe.js','verify/e2e_real_engine_probe.js']:
     r=subprocess.run(['node','--check',str(ROOT/rel)],capture_output=True,text=True)
     check(rel+' node --check',r.returncode==0,r.stderr.strip())
-for rel in ['installer/安裝 Ekdeta.command','release-tools/製作 macOS 安裝包.command','release-tools/驗證 macOS 發佈包.command','scripts/footprint.sh','build/pkg-scripts/postinstall','release-tools/驗證真實 LaTeX 引擎與磁碟占用.command']:
+for rel in ['installer/安裝 EKdelta Desktop.command','release-tools/製作 macOS 安裝包.command','release-tools/驗證 macOS 發佈包.command','scripts/footprint.sh','build/pkg-scripts/postinstall','release-tools/驗證真實 LaTeX 引擎與磁碟占用.command']:
     p=ROOT/rel; r=subprocess.run(['bash','-n',str(p)],capture_output=True,text=True)
     check(rel+' bash -n',r.returncode==0,r.stderr.strip())
     check(rel+' executable',os.access(p,os.X_OK),oct(p.stat().st_mode & 0o777))
 
 main=(ROOT/'src/main.js').read_text(encoding='utf-8'); menu=(ROOT/'src/menu.js').read_text(encoding='utf-8'); store=(ROOT/'src/store.js').read_text(encoding='utf-8'); protocol=(ROOT/'src/protocol.js').read_text(encoding='utf-8'); bridge=(ROOT/'src/bridge.js').read_text(encoding='utf-8')
-check('application uses Ekdeta data directory',"app.setName('Ekdeta')" in main)
-check('scheme = ekdeta',"const SCHEME = 'ekdeta'" in protocol)
+check('application name EKdelta Desktop, data folder chosen by profile.js before ready',"app.setName('EKdelta Desktop')" in main and "require('./profile').resolve(app.getPath('appData'))" in main and "app.setPath('userData', profile.dir)" in main and 'proto.setScheme(profile.scheme)' in main)
+profile=(ROOT/'src/profile.js').read_text(encoding='utf-8')
+check('profile keeps existing folders and their scheme',"{ name: 'EKdelta', scheme: 'ekdeta' }" in profile and "{ name: 'Ekdeta', scheme: 'ekdeta' }" in profile and "{ name: 'Typora HTML', scheme: 'typora' }" in profile and 'fs.renameSync' not in profile and 'fs.rmSync' not in profile and 'fs.unlinkSync' not in profile)
+check('default scheme ekdeta, settable before ready',"let SCHEME = 'ekdeta'" in protocol and 'function setScheme(s)' in protocol and 'get SCHEME()' in protocol)
 check('bridge API is consistent','window.__EKDETA_SHELL__ =' in bridge and '__EKDETA_SHELL__.snapshot()' in main)
 check('first-run onboarding implemented','async function showOnboarding' in main and 'onboardingState()' in main)
 check('Shell menu exposes Initial Setup',"T('初始設定…', 'Initial Setup…')" in menu)
@@ -80,7 +82,7 @@ check('engine protocol cache-control no-store',"'cache-control': 'no-store'" in 
 check('engine status shows transport','engineTransport' in main)
 check('bridge uses product engine API','__CP169A_TEX_PROOF__' in bridge and 'engineAutoLoad' in bridge)
 
-inst=(ROOT/'installer/安裝 Ekdeta.command').read_text(encoding='utf-8')
+inst=(ROOT/'installer/安裝 EKdelta Desktop.command').read_text(encoding='utf-8')
 check('basic installer uses native admin dialog','with administrator privileges' in inst)
 check('basic installer does not teach sudo/xattr','sudo ' not in inst and 'xattr ' not in inst)
 ver_text='\n'.join((ROOT/x).read_text(encoding='utf-8',errors='replace') for x in ['verify/e2e_probe.js','verify/e2e_engine_probe.js','verify/e2e_direct_stream_probe.js','verify/verify_browser.py'])

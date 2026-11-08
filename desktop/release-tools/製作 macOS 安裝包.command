@@ -37,7 +37,7 @@ fi
 
 node sync_app_html.js
 APPVER="$(/usr/bin/grep -m1 "const APP_VERSION" resources/default/app.html | /usr/bin/sed -E "s/.*'([^']+)'.*/\1/")"
-echo "Ekdeta 內建 HTML 版本：$APPVER"
+echo "EKdelta 內建 HTML 版本：$APPVER"
 echo "Node: $(node --version)"
 echo "npm : $(npm --version)"
 echo "專案：$ROOT"
@@ -73,17 +73,17 @@ case "$ARCH" in
 esac
 
 # 整理「一般使用者」看到的基礎安裝資料夾：只有 App、雙擊安裝器、說明。
-INSTALLDIR="dist/Ekdeta_基礎安裝"
+INSTALLDIR="dist/EKdelta-Desktop_基礎安裝"
 rm -rf "$INSTALLDIR"
 mkdir -p "$INSTALLDIR"
-APP_PATH="$(find dist -maxdepth 3 -type d -name 'Ekdeta.app' -print -quit 2>/dev/null || true)"
+APP_PATH="$(find dist -maxdepth 3 -type d -name 'EKdelta Desktop.app' -print -quit 2>/dev/null || true)"
 if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
-  /usr/bin/ditto "$APP_PATH" "$INSTALLDIR/Ekdeta.app"
+  /usr/bin/ditto "$APP_PATH" "$INSTALLDIR/EKdelta Desktop.app"
 else
-  echo "找不到打包後的 Ekdeta.app。"
+  echo "找不到打包後的 EKdelta Desktop.app。"
   exit 22
 fi
-cp "installer/安裝 Ekdeta.command" "$INSTALLDIR/"
+cp "installer/安裝 EKdelta Desktop.command" "$INSTALLDIR/"
 cp "installer/README_給使用者.txt" "$INSTALLDIR/"
 
 # 至少確認三種主要發佈物真的存在。
@@ -108,6 +108,6 @@ echo "============================================================"
 
 /usr/bin/open "$ROOT/dist"
 /usr/bin/osascript <<APPLESCRIPT
-set msg to "macOS 安裝包已建立完成。\n\n產物在：\n$ROOT/dist\n\n給使用者時，可用 .dmg（拖入 Applications）、.pkg（逐步安裝精靈），或『Ekdeta_基礎安裝』裡的 App + .command。"
+set msg to "macOS 安裝包已建立完成。\n\n產物在：\n$ROOT/dist\n\n給使用者時，可用 .dmg（拖入 Applications）、.pkg（逐步安裝精靈），或『EKdelta-Desktop_基礎安裝』裡的 App + .command。"
 display dialog msg buttons {"打開產物資料夾"} default button 1 with icon note
 APPLESCRIPT

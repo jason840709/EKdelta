@@ -317,11 +317,11 @@ const CATS = [
 const CSS = `
 #ty-toolbar .${MOUNT_CLASS}{display:flex;align-items:center;gap:3px;flex:0 0 auto;
   padding-left:8px;margin-left:6px;border-left:1px solid var(--border,#ddd)}
-#ty-toolbar .${MOUNT_CLASS} .tb-btn{min-width:38px;font-weight:750;font-size:13px;line-height:1}
-#ty-toolbar .${MOUNT_CLASS} .tb-btn.mi-open{background:var(--accent-soft,#eef);color:var(--accent,#36c)}
+#ty-toolbar .${MOUNT_CLASS} .tb-btn{min-width:38px;font-weight:600;font-size:var(--fs-13);line-height:1}
+#ty-toolbar .${MOUNT_CLASS} .tb-btn.mi-open{background:var(--accent-soft,#eef);color:var(--accent,var(--ui-accent))}
 #${PANEL_ID}{position:fixed;z-index:212;width:min(700px,calc(100vw - 24px));max-height:min(80vh,700px);
   display:flex;flex-direction:column;background:var(--bg-panel,#fff);color:var(--text-strong,#111);
-  border:1px solid var(--border-strong,#ccc);border-radius:12px;
+  border:1px solid var(--border-strong,#ccc);border-radius:var(--r-lg);
   box-shadow:var(--mac-shadow-popover,0 12px 40px rgba(0,0,0,.22));overflow:hidden;
   font:13px/1.5 var(--font-ui,system-ui)}
 #${PANEL_ID}[hidden]{display:none}
@@ -330,71 +330,71 @@ const CSS = `
 #${PANEL_ID} .mi-chip{padding:4px 11px;border-radius:999px;border:1px solid var(--border,#ddd);background:transparent;
   color:var(--text-strong,#111);font:600 12px/1.5 var(--font-ui,system-ui);cursor:pointer;white-space:nowrap}
 #${PANEL_ID} .mi-chip:hover{background:var(--bg-hover,#eee)}
-#${PANEL_ID} .mi-chip.on{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
+#${PANEL_ID} .mi-chip.on{background:var(--accent,var(--ui-accent));border-color:var(--accent,var(--ui-accent));color:#fff}
 #${PANEL_ID} .mi-pal{flex:0 1 auto;overflow:auto;padding:10px 11px 6px;
   display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:5px;
   max-height:min(38vh,290px);border-bottom:1px solid var(--border,#e2e2e2)}
 #${PANEL_ID} .mi-key{min-height:38px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--border,#e0e0e0);border-radius:8px;background:var(--bg-editor,#fff);
+  border:1px solid var(--border,#e0e0e0);border-radius:var(--r-md);background:var(--bg-editor,#fff);
   color:var(--text-strong,#111);cursor:pointer;padding:3px 4px;overflow:hidden}
-#${PANEL_ID} .mi-key:hover{border-color:var(--accent,#36c);background:var(--accent-soft,#eef)}
+#${PANEL_ID} .mi-key:hover{border-color:var(--accent,var(--ui-accent));background:var(--accent-soft,#eef)}
 #${PANEL_ID} .mi-key .katex{font-size:1.02em}
 #${PANEL_ID} .mi-key .mi-raw{font:12px/1.3 var(--font-mono,ui-monospace,Menlo,monospace);color:var(--text-muted,#777)}
 #${PANEL_ID} .mi-edit{flex:0 0 auto;padding:10px 11px 4px}
 #${PANEL_ID} .mi-labrow{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
-#${PANEL_ID} .mi-label{display:block;font-size:11.5px;font-weight:650;color:var(--text-muted,#666)}
+#${PANEL_ID} .mi-label{display:block;font-size:var(--fs-12);font-weight:600;color:var(--text-muted,#666)}
 #${PANEL_ID} .mi-labrow .mi-spacer{flex:1 1 auto}
-#${PANEL_ID} .mi-raw-toggle{padding:2px 9px;border-radius:6px;border:1px solid var(--border,#ddd);
+#${PANEL_ID} .mi-raw-toggle{padding:2px 9px;border-radius:var(--r-sm);border:1px solid var(--border,#ddd);
   background:transparent;color:var(--text-muted,#666);
   font:600 11px/1.4 var(--font-ui,system-ui);cursor:pointer}
 #${PANEL_ID} .mi-raw-toggle:hover{background:var(--bg-hover,#eee);color:var(--text-strong,#111)}
-#${PANEL_ID} .mi-raw-toggle.on{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
+#${PANEL_ID} .mi-raw-toggle.on{background:var(--accent,var(--ui-accent));border-color:var(--accent,var(--ui-accent));color:#fff}
 #${PANEL_ID} .mi-raw-toggle[hidden]{display:none}
 /* MathLive 視覺編輯面。外框刻意做得跟原始碼那個 textarea 一樣，
    兩種模式切換時版面不會跳動。 */
 #${PANEL_ID} math-field.mi-mf{display:block;width:100%;box-sizing:border-box;
   background:var(--bg-editor,#fff);color:var(--text-strong,#111);
-  border:1px solid var(--border,#ddd);border-radius:7px;padding:8px 9px;
-  font-size:19px;min-height:62px;outline:none;
+  border:1px solid var(--border,#ddd);border-radius:var(--r-sm);padding:8px 9px;
+  font-size:var(--fs-20);min-height:62px;outline:none;
   /* MathLive 的 Shadow DOM 會直接讀 prefers-color-scheme。若 macOS 是暗色、
      本程式卻正在 GitHub/亮色主題，它的結構高亮會變成深灰塊。把互動色明確
      綁回本程式主題，避免系統外觀與文件主題互相打架。 */
-  --caret-color:var(--accent,#36c);
+  --caret-color:var(--accent,var(--ui-accent));
   --selection-color:var(--text-strong,#111);
   --selection-background-color:var(--sel,var(--accent-soft,#dbeafe));
-  --contains-highlight-color:var(--accent,#36c);
+  --contains-highlight-color:var(--accent,var(--ui-accent));
   --contains-highlight-background-color:var(--accent-soft,#eef);
   --text-highlight-background-color:var(--accent-soft,#eef);
   --composition-background-color:var(--accent-soft,#eef);
   --composition-text-color:var(--text-strong,#111)}
-#${PANEL_ID} math-field.mi-mf:focus-within{border-color:var(--accent,#36c)}
+#${PANEL_ID} math-field.mi-mf:focus-within{border-color:var(--accent,var(--ui-accent))}
 #${PANEL_ID} math-field.mi-mf[hidden]{display:none}
 #${PANEL_ID} textarea.mi-src[hidden]{display:none}
 #${PANEL_ID} .mi-prev[hidden]{display:none}
 #${PANEL_ID} textarea.mi-src{width:100%;box-sizing:border-box;background:var(--bg-editor,#fff);
-  color:var(--text-strong,#111);border:1px solid var(--border,#ddd);border-radius:7px;padding:7px 9px;
+  color:var(--text-strong,#111);border:1px solid var(--border,#ddd);border-radius:var(--r-sm);padding:7px 9px;
   font:13px/1.6 var(--font-mono,ui-monospace,Menlo,monospace);outline:none;resize:vertical;min-height:62px}
-#${PANEL_ID} textarea.mi-src:focus{border-color:var(--accent,#36c)}
+#${PANEL_ID} textarea.mi-src:focus{border-color:var(--accent,var(--ui-accent))}
 #${PANEL_ID} .mi-prev-wrap{flex:1 1 auto;overflow:auto;padding:4px 11px 10px;min-height:70px}
-#${PANEL_ID} .mi-prev{border:1px dashed var(--border,#ddd);border-radius:8px;padding:12px 10px;
+#${PANEL_ID} .mi-prev{border:1px dashed var(--border,#ddd);border-radius:var(--r-md);padding:12px 10px;
   min-height:52px;display:flex;align-items:center;justify-content:center;text-align:center;
   background:var(--bg-secondary,#fafafa);overflow-x:auto}
 #${PANEL_ID} .mi-prev.err{border-color:var(--status-error,#b3261e)}
-#${PANEL_ID} .mi-empty{color:var(--text-muted,#999);font-size:12px}
-#${PANEL_ID} .mi-msg{margin-top:5px;font-size:11.5px;line-height:1.5;color:var(--text-muted,#888);min-height:16px}
+#${PANEL_ID} .mi-empty{color:var(--text-muted,#999);font-size:var(--fs-12)}
+#${PANEL_ID} .mi-msg{margin-top:5px;font-size:var(--fs-12);line-height:1.5;color:var(--text-muted,#888);min-height:16px}
 #${PANEL_ID} .mi-msg.err{color:var(--status-error,#b3261e)}
 #${PANEL_ID} .mi-foot{display:flex;align-items:center;gap:8px;padding:9px 11px;flex:0 0 auto;
   border-top:1px solid var(--border,#e2e2e2);background:var(--bg-secondary,var(--bg-hover,#f6f6f6))}
 #${PANEL_ID} .mi-mode{display:flex;gap:4px}
-#${PANEL_ID} .mi-mode button{padding:4px 10px;border-radius:7px;border:1px solid var(--border,#ddd);
+#${PANEL_ID} .mi-mode button{padding:4px 10px;border-radius:var(--r-sm);border:1px solid var(--border,#ddd);
   background:transparent;color:var(--text-strong,#111);font:600 11.5px/1.4 var(--font-ui,system-ui);cursor:pointer}
-#${PANEL_ID} .mi-mode button.on{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
+#${PANEL_ID} .mi-mode button.on{background:var(--accent,var(--ui-accent));border-color:var(--accent,var(--ui-accent));color:#fff}
 #${PANEL_ID} .mi-spacer{flex:1 1 auto}
-#${PANEL_ID} .mi-btn{padding:5px 14px;border-radius:8px;border:1px solid var(--border-strong,#ccc);
+#${PANEL_ID} .mi-btn{padding:5px 14px;border-radius:var(--r-md);border:1px solid var(--border-strong,#ccc);
   background:var(--bg-panel,#fff);color:var(--text-strong,#111);
   font:620 12.5px/1.5 var(--font-ui,system-ui);cursor:pointer}
 #${PANEL_ID} .mi-btn:hover{background:var(--bg-hover,#f0f0f0)}
-#${PANEL_ID} .mi-btn.primary{background:var(--accent,#36c);border-color:var(--accent,#36c);color:#fff}
+#${PANEL_ID} .mi-btn.primary{background:var(--accent,var(--ui-accent));border-color:var(--accent,var(--ui-accent));color:#fff}
 #${PANEL_ID} .mi-btn.primary:hover{filter:brightness(1.06)}
 `;
 
@@ -1079,7 +1079,8 @@ function mount() {
   b.dataset.action = 'mi-open';
   b.setAttribute('data-zh', '公式輸入（點符號、看預覽、再插入）');
   b.setAttribute('data-en', 'Formula input (pick symbols, preview, insert)');
-  b.textContent = '∑';
+  /* 1.2.7：與工具列同一套圖示（M33）；取不到時退回文字 ∑ */
+  if (typeof window.ekdIcon === 'function') b.innerHTML = window.ekdIcon('sigma'); else b.textContent = '∑';
   b.title = T('公式輸入（點符號、看預覽、再插入）','Formula input (pick symbols, preview, insert)');
   b.setAttribute('aria-label', T('公式輸入','Formula input'));
   b.addEventListener('mousedown', e => e.preventDefault());   /* 保住編輯區選取 */

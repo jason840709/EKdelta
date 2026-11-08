@@ -24,13 +24,13 @@ The layout you see on the right is compiled by the official REVTeX 4.2 class. Us
 
 # Model and methods
 
-Describe your system and methods here. Inline mathematics such as $E = \hbar\omega$ and $k_B T$ flows with the text. Displayed equations are numbered automatically:
+Describe your system and methods here. Inline mathematics such as $E = \hbar\omega$ and $k_B T$ flows with the text. Displayed equations are numbered automatically; write `{-}` after the closing `$$` for an unnumbered one, or `{#eq:name}` and refer to it as `[@eq:name]`:
 
 $$
 G_{\mathrm{ch}} = \left( G_{\mathrm{meas}}^{-1} - R_s \right)^{-1}.
-$$
+$$ {#eq:channel}
 
-Equations that are genuinely wider than one column are detected at compile time and span both columns automatically, with no manual markup:
+Equations wider than one column are measured at compile time: one that is only slightly too wide is broken onto two lines inside its column, and one that is much too wide spans both columns. No manual markup is needed:
 
 $$
 \sigma_G^2 = \left( \frac{1}{(1-gr)^2} \right)^2 \sigma_g^2 + \left( \frac{g^2}{(1-gr)^2} \right)^2 \sigma_r^2 + 2 \frac{g^2}{(1-gr)^4} \mathrm{Cov}(g,r).
@@ -40,7 +40,7 @@ Short equations stay inside their column. If you want a block to span both colum
 
 # Results
 
-Summarize your main findings here, and point to tables and figures from the text. A compact single-column table:
+Summarize your main findings here, and point to tables and figures from the text, for example Table [@tbl:samples] and Eq. [@eq:channel]. A compact single-column table:
 
 | Sample | Length (um) | Exponent |
 | :-- | --: | --: |
@@ -48,7 +48,9 @@ Summarize your main findings here, and point to tables and figures from the text
 | B | 2.5 | 0.42 |
 | C | 4.8 | 0.55 |
 
-Wider material can be forced to span both columns with a `revtex-wide` fence. Its content is ordinary Markdown:
+: Sample lengths and fitted exponents. {#tbl:samples}
+
+Wider material can be forced to span both columns with a `revtex-wide` fence. Its content is ordinary Markdown; a table inside it becomes a full-width numbered table, which the journal style places at the top of a page:
 
 ```revtex-wide
 | Model | Response function | Parameters | Primary diagnostic |
@@ -56,7 +58,9 @@ Wider material can be forced to span both columns with a `revtex-wide` fence. It
 | P | $\Phi_P(X)=1+c_2u^2+c_4u^4$, $u=X/(1+|X|)$ | 2 | Flexible local curvature |
 | L | $\Phi_L(X)=[1+b\ln(1+X^2)]^q$ | 2 | Slow high-bias evolution |
 
-This block spans both columns in two-column modes and behaves like normal text in one-column modes.
+: Candidate response functions. {#tbl:models}
+
+Other content in the fence, such as this paragraph, spans both columns in place in two-column modes and behaves like normal text in one-column modes.
 ```
 
 Figures require an image file next to the exported project. Once the file exists, reference it with the usual Markdown syntax; the caption becomes the figure caption:
@@ -93,7 +97,7 @@ datta1995: S. Datta, Electronic Transport in Mesoscopic Systems (Cambridge Unive
 
 # Sample derivation
 
-Appendices start after the `revtex-appendix` marker and are lettered automatically. Keep derivations that would interrupt the main argument here:
+Appendices start after the `revtex-appendix` marker. Journals that number their sections (for example PRB or PRA) letter appendices A, B, and so on; PRL does not number sections, so there an appendix carries only its title. Keep derivations that would interrupt the main argument here:
 
 $$
 \frac{dV_{\mathrm{app}}}{dI} = \frac{dV_{\mathrm{ch}}}{dI} + R_s.

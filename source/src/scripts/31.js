@@ -122,7 +122,8 @@ function readme(info){
 - REVTeX 4.2（\`revtex4-2.cls\`）${info.bibtex ? '與 \`apsrev4-2.bst\`' : ''}
 - 標準套件：${(info.packages || []).join('、') || 'amsmath、amssymb、graphicx'}
 ${info.engine === 'xelatex' ? '- XeLaTeX（本稿含中日韓文字，pdfLaTeX 無法處理）與 xeCJK\n' : ''}
-所有選擇性套件都以 \`\\IfFileExists\` 包裹並附退化定義，缺套件時會降級而不是編譯中止。
+投稿版 main.tex 直接載入用到的標準套件，不使用 APS 作者指南不允許的 \`\\IfFileExists\`、\`\\sbox\`、\`\\resizebox\` 等寫法；
+寬公式與寬表格依最近一次預覽編譯量到的結果寫成 equation／multline／widetext 與 \`\\squeezetable\`。
 
 ## 檔案
 
@@ -163,8 +164,12 @@ async function build(opts){
     }
   }
 
-  const emit = last.emit;
-  const comp = last.compile;
+  /* 1.2.6：main.tex 由唯一入口產生（投稿版：沒有 APS 不允許的量測巨集），內容與附上的
+     main.pdf 是同一份 Markdown（last.md）。書目檔名取自發射器的 bibFiles。 */
+  const E2 = K.need('emit');
+  const md = (last && last.md) || opts.markdown || currentMarkdown();
+  const emit = (E2 && E2.mainTex) ? E2.mainTex(md, { settings: (typeof settings !== 'undefined' ? settings : {}), purpose: 'submission' }) : last.emit;
+  const comp = last && last.compile;
   const enc = new TextEncoder();
   const entries = [];
   const fileNotes = [];
@@ -174,14 +179,14 @@ async function build(opts){
 
   if (comp && comp.pdf) {
     entries.push({ name: 'main.pdf', data: comp.pdf });
-    fileNotes.push({ name: 'main.pdf', note: '由 main.tex 編譯而得，與原始檔同一份真相' });
+    fileNotes.push({ name: 'main.pdf', note: '由同一份 Markdown 編譯而得' });
   }
 
   // 書目
-  const bibName = (emit.tex.match(/\\bibliography\{([^}]+)\}/) || [])[1];
-  const hasBib = !!bibName;
-  if (hasBib) {
-    const bibData = opts.bib || (last.bibText) || '';
+  const bibNames = emit.bibFiles || [];
+  const hasBib = bibNames.length > 0;
+  for (const bibName of bibNames) {
+    const bibData = (opts.bib && typeof opts.bib === 'object') ? opts.bib[bibName] : (bibNames.length === 1 ? opts.bib : null);
     if (bibData) {
       entries.push({ name: bibName + '.bib', data: enc.encode(bibData) });
       fileNotes.push({ name: bibName + '.bib', note: '文獻資料' });
@@ -190,15 +195,16 @@ async function build(opts){
     }
   }
 
-  // 圖檔
+  // 圖檔：發射器回傳 {src, path}；依 src 找檔案、放在 path（main.tex 引用的名稱）
   const assets = emit.assets || [];
   let missing = 0;
   for (const a of assets) {
-    const bytes = opts.assetResolver ? await opts.assetResolver(a) : null;
+    const src = typeof a === 'string' ? a : a.src, dest = typeof a === 'string' ? a : a.path;
+    const bytes = opts.assetResolver ? await opts.assetResolver(src) : null;
     if (bytes) {
-      entries.push({ name: a, data: bytes });
-      fileNotes.push({ name: a, note: '圖檔' });
-    } else { missing++; fileNotes.push({ name: a, note: '⚠ 未附上（找不到檔案）' }); }
+      entries.push({ name: dest, data: bytes });
+      fileNotes.push({ name: dest, note: '圖檔' });
+    } else { missing++; fileNotes.push({ name: dest, note: '⚠ 未附上（找不到檔案）' }); }
   }
 
   const warnings = (emit.warnings || []).slice();

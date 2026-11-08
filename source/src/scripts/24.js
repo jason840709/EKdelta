@@ -308,7 +308,20 @@ function normalizeRuntime(values, options){
   lastAdjustments = adjustments.map(x => Object.assign({}, x));
   return { changed, values:normalized, adjustments:lastAdjustments.slice() };
 }
-function resetRuntime(){ return normalizeRuntime(DEFAULTS, { replace:true, reason:'reset' }); }
+/* 1.2.8（M37）：偏好設定「國際論文」頁可以指定新論文的預設期刊、排版模式與紙張（settings.intlNewDocDefaults；鍵名刻意不以 revtex 開頭，否則會被當成文件設定而不存進偏好）。
+   沒有版面區塊的文件第一次進入國際論文模式、以及「這份文件恢復預設版面」都用這組；
+   已經有區塊的文件照區塊，不受影響。值仍經過 normalizeRuntime 的白名單與學會／期刊連動檢查。 */
+const NEW_DOC_KEYS = Object.freeze(['revtexSociety','revtexJournal','revtexMode','revtexPaper']);
+function newDocDefaults(){
+  const out = cloneDefaults();
+  try {
+    const u = settings.intlNewDocDefaults;
+    if (u && typeof u === 'object' && !Array.isArray(u))
+      for (const k of NEW_DOC_KEYS) if (typeof u[k] === 'string' && u[k]) out[k] = u[k];
+  } catch (_) {}
+  return out;
+}
+function resetRuntime(){ return normalizeRuntime(newDocDefaults(), { replace:true, reason:'reset' }); }
 
 function lineTable(text){
   const s = String(text == null ? '' : text);
@@ -686,7 +699,7 @@ function installListeners(){
 
 const API = Object.freeze({
   version:VERSION, schema:SCHEMA, language:CANONICAL_LANG,
-  keys:() => KEYS.slice(), defaults:() => cloneDefaults(),
+  keys:() => KEYS.slice(), defaults:() => cloneDefaults(), newDocDefaults:() => newDocDefaults(), newDocKeys:() => NEW_DOC_KEYS.slice(),
   findBlocks, parseBody, parseDocument, serializeBlock,
   effectiveTwoColumn, compatibilityAdjustments, normalizeRuntime, resetRuntime, activateActive,
   runtimeChanged, flushRuntime, syncRuntimeToDocument,

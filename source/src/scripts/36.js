@@ -10,22 +10,24 @@
   const style = document.createElement('style');
   style.id = 'cp178-batch-style';
   style.textContent = `
-    #cp178-batch-dialog{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(610px,calc(100vw - 32px));height:fit-content;max-height:calc(100vh - 32px);overflow:auto;padding:26px 28px;border:.5px solid var(--mac-hairline,var(--border,#d4d7dd));border-radius:var(--mac-radius-window,14px);background:var(--mac-glass-strong,var(--bg,#fff));color:var(--text-strong,var(--text,#23262c));box-shadow:var(--mac-shadow-window,0 24px 80px #0003);backdrop-filter:var(--mac-blur-strong);-webkit-backdrop-filter:var(--mac-blur-strong);font:14px/1.65 var(--font-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif)}
-    #cp178-batch-dialog::backdrop{background:rgba(10,10,14,.26);backdrop-filter:blur(6px) saturate(120%);-webkit-backdrop-filter:blur(6px) saturate(120%)}
-    #cp178-batch-dialog h2{font-size:17px;font-weight:600;letter-spacing:-.015em;line-height:1.35;margin:0 0 12px}
-    #cp178-batch-dialog p{margin:8px 0}
-    #cp178-batch-dialog .cp178-note{font-size:12px;color:var(--text-muted,#656c76)}
-    #cp178-batch-dialog .cp178-fields{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0}
-    #cp178-batch-dialog label{display:flex;flex-direction:column;gap:5px;min-width:145px;flex:1}
-    #cp178-batch-dialog select{font:inherit;max-width:100%;padding:7px 10px;color:inherit;background:var(--bg-secondary,#f5f6f8);border:1px solid var(--border,#d4d7dd);border-radius:7px}
-    #cp178-batch-dialog .cp178-status{background:var(--bg-secondary,#f4f6fa);padding:12px;border-radius:9px;overflow-wrap:anywhere;margin:14px 0}
-    #cp178-batch-dialog .cp178-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:20px}
-    #cp178-batch-dialog button{min-height:36px;padding:7px 14px;border-radius:8px;border:1px solid var(--border,#d4d7dd);font:inherit;color:inherit;background:var(--bg-secondary,#f4f6fa);cursor:pointer}
-    #cp178-batch-dialog button.cp178-primary{background:var(--mac-accent,#3564d8);color:white;border-color:transparent}
+    /* 1.2.8（M36(c)）：改用主介面同一套對話框外觀（浮層底色、16px 標題、13／12px 字、28px 按鈕、下拉選單細箭頭）。 */
+    #cp178-batch-dialog{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(560px,calc(100vw - 32px));height:fit-content;max-height:calc(100vh - 32px);overflow:auto;padding:var(--space-6);border:0;border-radius:var(--r-lg);background:var(--ui-surface);color:var(--ui-text-strong);box-shadow:var(--ui-shadow-dialog);font:var(--fs-13)/1.6 var(--font-ui)}
+    #cp178-batch-dialog::backdrop{background:var(--ui-scrim)}
+    #cp178-batch-dialog h2{margin:0 0 var(--space-2);font-size:var(--fs-16);line-height:var(--lh-16);font-weight:var(--fw-semibold);letter-spacing:0}
+    #cp178-batch-dialog p{margin:var(--space-1h) 0;color:var(--ui-text)}
+    #cp178-batch-dialog .cp178-note{font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ui-text-muted)}
+    #cp178-batch-dialog .cp178-fields{display:flex;flex-wrap:wrap;gap:var(--space-3);margin:var(--space-4) 0}
+    #cp178-batch-dialog label{display:flex;flex-direction:column;gap:var(--space-1);min-width:145px;flex:1;font-size:var(--fs-12);color:var(--ui-text-muted)}
+    #cp178-batch-dialog select{box-sizing:border-box;height:var(--h-control);max-width:100%;padding:0 28px 0 var(--space-2);border:1px solid var(--ui-line-strong);border-radius:var(--r-sm);color:var(--ui-text-strong);font:var(--fs-13)/1 var(--font-ui);-webkit-appearance:none;appearance:none;background:var(--ui-canvas) var(--cp-chevron) no-repeat right 9px center/12px 12px}
+    #cp178-batch-dialog .cp178-status{margin:var(--space-3) 0;padding:var(--space-2) var(--space-3);border-radius:var(--r-sm);background:var(--ui-track);color:var(--ui-text);overflow-wrap:anywhere}
+    #cp178-batch-dialog .cp178-status:has(#cp178-message:empty){display:none}
+    #cp178-batch-dialog .cp178-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-5)}
+    #cp178-batch-dialog button{height:28px;margin:0;padding:0 var(--space-3);border:.5px solid var(--ui-line-strong);border-radius:var(--r-sm);background:var(--ui-surface);color:var(--ui-text-strong);font:var(--fs-12)/1 var(--font-ui);cursor:pointer}
+    #cp178-batch-dialog button.cp178-primary{border-color:transparent;background:var(--ui-accent);color:var(--ui-on-accent);font-weight:var(--fw-medium)}
     #cp178-batch-dialog button:disabled{opacity:.5;cursor:default}
-    #cp178-batch-dialog :focus-visible{outline:2px solid var(--mac-accent,#3564d8);outline-offset:3px}
-    #cp178-batch-dialog progress{display:block;width:100%;height:8px;margin:12px 0}
-    @media(hover:hover){#cp178-batch-dialog button:not(:disabled):hover{filter:brightness(.94)}}
+    #cp178-batch-dialog :focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    #cp178-batch-dialog progress{display:block;width:100%;height:6px;margin:var(--space-2) 0 0;accent-color:var(--ui-accent)}
+    @media(hover:hover) and (pointer:fine){#cp178-batch-dialog button:not(:disabled):not(.cp178-primary):hover{background:var(--ui-hover)}#cp178-batch-dialog button.cp178-primary:not(:disabled):hover{box-shadow:inset 0 0 0 99px var(--ui-on-accent-hover)}}
     @media print{#cp178-batch-dialog{display:none!important}}
   `;
   document.head.appendChild(style);
@@ -74,7 +76,7 @@
     }
     s.dialog.innerHTML=`<h2 id="cp178-title">${t('分批匯出 PDF','Export PDF in batches')}</h2>
       <p>${t('每次只將選定頁面送到列印畫面，儲存後再手動處理下一批。','Send only the selected pages to the print dialog, save the PDF, then choose the next batch.')}</p>
-      <p class="cp178-note">${t('頁次依整份文件順序計算，包含封面；內文原有頁碼與公式編號保留。跨批目錄連結保留文字，不提供跨檔跳轉。','Page ranges count from the start, including the cover. Printed page and equation numbers are preserved. Contents links across batches keep their text without cross-file navigation.')}</p>
+      <p class="cp178-note">${t('頁次從封面算起；印出來的頁碼與公式編號不變。','Page ranges count from the cover; printed page and equation numbers stay the same.')}</p>
       ${s.total?`<p><strong>${esc(s.fileName)}</strong> · ${t(`共 ${s.total} 頁；已確認儲存 ${s.saved.size} 頁`,`Total ${s.total} pages; ${s.saved.size} pages confirmed saved`)}</p>`:''}
       ${s.total?`<div class="cp178-fields"><label for="cp178-size">${t('每批頁數','Pages per batch')}<select id="cp178-size" ${!selecting||s.phase==='returned'?'disabled':''}><option value="100" ${s.size===100?'selected':''}>100</option><option value="50" ${s.size===50?'selected':''}>50</option><option value="25" ${s.size===25?'selected':''}>25</option><option value="10" ${s.size===10?'selected':''}>10</option></select></label><label for="cp178-range">${t('本次匯出範圍','Batch range')}<select id="cp178-range" ${!selecting||s.phase==='returned'?'disabled':''}>${options.join('')}</select></label></div>`:''}
       <div class="cp178-status" role="status" aria-live="polite"><span id="cp178-message">${esc(s.message)}</span>${s.pending?'<progress id="cp178-progress"></progress>':''}</div>
@@ -157,7 +159,7 @@
     render(s);dialog.showModal();
     try{
       const info=await engine().open({onProgress:p=>onProgress(s,p),isCancelled:()=>s.cancelled});
-      s.total=info.totalPages;s.fileName=info.fileName;s.phase='select';s.message=t('每批可選 10、25、50 或 100 頁，預設為 50 頁。','Choose 10, 25, 50 or 100 pages per batch; the default is 50.');
+      s.total=info.totalPages;s.fileName=info.fileName;s.phase='select';s.message='';
     }catch(err){s.phase='error';s.message=err.message||String(err);}
     finally{s.pending=false;if(s.cancelled)await dismiss(s);else{render(s);focus(s,s.total?'cp178-prepare':'cp178-exit');}}
   };

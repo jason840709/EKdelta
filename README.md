@@ -12,7 +12,7 @@
 
 <p align="center">
   A single-file academic writing environment for Markdown, Taiwan thesis workflows, and REVTeX 4.2.<br>
-  <strong>v1.2.5 · Browser + Electron desktop · Jason Chen</strong>
+  <strong>v1.2.8 · Browser + Electron desktop · Jason Chen</strong>
 </p>
 
 <table align="center">
@@ -20,7 +20,7 @@
     <td align="center">
       <strong>Where the name “EKdelta” comes from</strong><br><br>
       <em>EKdelta</em> combines <strong>ekd-</strong>, a Greek root associated with publishing and bringing written work to the public, with <strong>delta (δ)</strong>, the Greek letter science uses for change. Together, they describe the path from a Markdown manuscript to a polished thesis or journal paper.<br><br>
-      <sub>Versions 1.2.2–1.2.3 were named Ekdeta, and earlier versions Typora HTML; it is the same program.</sub>
+      <sub>Versions 1.2.2–1.2.3 were named Ekdeta, and earlier versions Typora HTML; it is the same program. The desktop app is called EKdelta Desktop from 1.2.8.</sub>
     </td>
   </tr>
 </table>
@@ -60,7 +60,7 @@ This is the part that matters for journal work. The right side is not an HTML im
 Download this file from the GitHub Release:
 
 ```text
-EKdelta-1.2.5.html
+EKdelta-1.2.8.html
 ```
 
 Open it in Chrome or Edge. That single file is the full Core, not a demo. You can immediately use Markdown, MathLive, images, tables, and the Taiwan thesis workflow without installing a desktop app.
@@ -75,7 +75,7 @@ The repository also includes an Electron shell around the same Core.
 - Windows x64 maintainers can build an NSIS installer.
 - Windows users can also use the no-Node portable builder, which downloads a pinned Electron runtime and verifies its official SHA-256 before packaging EKdelta.
 
-See [Desktop builds](docs/DESKTOP.md). The GitHub Release also includes `EKdelta-Electron-Desktop-1.2.5.zip` as a complete desktop build kit. The desktop app itself is still named Ekdeta in this release, because its name decides where its settings and engine are stored.
+See [Desktop builds](docs/DESKTOP.md). The GitHub Release also includes `EKdelta-Electron-Desktop-1.2.8.zip` as a complete desktop build kit. From 1.2.8 the desktop app is named EKdelta Desktop (EKdelta in 1.2.7, Ekdeta before that) and uses the ink-blue icon; it keeps using an existing EKdelta, Ekdeta or Typora HTML data folder, so documents and settings carry over.
 
 ## Taiwan thesis workflow: Markdown to PDF
 
@@ -115,7 +115,7 @@ That lets you keep the speed of Markdown while still leaving with normal LaTeX f
 
 Ordinary Markdown, MathLive, and the Taiwan thesis PDF workflow do **not** require the large TeX Engine Pack.
 
-You only need it when EKdelta must actually compile REVTeX / LaTeX. EKdelta 1.2.5 uses the BusyTeX 1.2.3 / TeX Live 2026 recommended assets and validates five files by size and SHA-256:
+You only need it when EKdelta must actually compile REVTeX / LaTeX. EKdelta 1.2.8 uses the BusyTeX 1.2.3 / TeX Live 2026 recommended assets and validates five files by size and SHA-256:
 
 ```text
 busytex.js
@@ -173,7 +173,7 @@ The much larger development handoff archive is intentionally not reproduced here
 python3 source/build.py --output EKdelta.html
 ```
 
-For 1.2.5, the public source has been checked to rebuild the release `EKdelta.html` byte-for-byte.
+For 1.2.8, the public source has been checked to rebuild the release `EKdelta.html` byte-for-byte.
 
 Core checks:
 
@@ -181,13 +181,13 @@ Core checks:
 node source/tests/behavior.mjs EKdelta.html
 node source/tests/semantic_checks.cjs source/src/scripts
 node source/tests/ui_content_checks.cjs EKdelta.html
-python3 source/tests/audit_product.py EKdelta.html --name EKdelta --version 1.2.5
+python3 source/tests/audit_product.py EKdelta.html --name EKdelta --version 1.2.8
 ```
 
 See [VALIDATION.md](VALIDATION.md) for the reproducibility notes.
 
 ## Author and license
 
-EKdelta 1.2.5 is developed by **Jason Chen**.
+EKdelta 1.2.8 is developed by **Jason Chen**.
 
 First-party source code and documentation are released under the MIT License. KaTeX, MathLive, PDF.js, REVTeX, Electron, fonts, and the external BusyTeX Engine Pack keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.

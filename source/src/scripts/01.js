@@ -33,7 +33,7 @@ const settings = { theme:'github', sidebar:true, sidebarTab:'files',
                    acRecent:{ math:[], fence:[], emoji:[] },  // CP56:補全最近使用(MRU,各型別上限 8 筆)
                    imgMode:'folder', imgSub:'image',   // 圖片貼上/拖放的儲存偏好(CP6)
                    imgPickedLink:'',                    // CP135:獨立圖片資料夾寫入 Markdown 的相對／絕對連結前綴
-                   prefsTab:'global',                  // CP167:偏好設定最後使用的主分頁(global / thesis / revtex)
+                   prefsTab:'general',                 // 偏好設定最後使用的分類（1.2.7：general / images / fonts / thesis；舊值 global、revtex 開啟時自動對應）
                    paperNum:true,                       // 論文模式自動章節編號(CP6)
                    paperFillPages:true,                  // CP106:分頁模式;0.9.96.1 起預設 true(填滿每頁,段落可在頁界拆開續排)。false=段落不可跨頁(整段推到次頁,0.9.95/0.9.96 舊預設);已儲存的使用者設定不受此預設變更影響
                    twthesisLogo:'',                          // TW_THESIS 封面自訂標誌 dataURL(CP26)
@@ -63,7 +63,7 @@ const settings = { theme:'github', sidebar:true, sidebarTab:'files',
                    // CP134:九槽位多語系字體；normalizeUserFonts() 自動承接 CP27 的 body/paper/twthesis/mono 舊資料
                    /* CP21:字體縮放級數(整數,0=預設)。兩類獨立、互不干擾:
                       fzPaper — 論文類(paper / twthesis),每級 0.5pt(疊加在各自基準 11.5pt / 12pt 上)
-                      fzMd    — 普通 Markdown(github / night / sepia),每級 1px(基準 16px) */
+                      fzMd    — 普通 Markdown(github / night / moss),每級 1px(基準 16px) */
                    fzPaper:0, fzMd:0,
                    viewZoom:100,                       // CP125:整個文件畫面的純顯示縮放百分比；不改排版／頁數／PDF
                    dark:false,                          // CP14:獨立的黑暗模式(右上按鈕),與 theme 正交
@@ -82,9 +82,10 @@ const twthesisThemeFlavor = theme => theme === 'twthesis-en' ? 'en' : ((theme ==
    瀏覽器的白底黑字。切換主題或恢復原廠會重新寫入合法值，所以症狀暫時消失。
    本層把設定正規化、保存前封印，並在啟動後驗證實際 CSS token；只修介面投影，
    不改 Markdown、Paper/TW_THESIS 分頁、特製表格、PDF 或主題本身的配色。 */
-const THEME_SETTING_VALUES = Object.freeze(['github','sepia','blackout','blackoutgame','paper','twthesis','twthesis-en','revtex']);
+/* 1.2.7：苔灰（moss）取代羊皮紙（sepia）；舊設定的 sepia 由下方別名轉成 moss。 */
+const THEME_SETTING_VALUES = Object.freeze(['github','moss','blackout','blackoutgame','paper','twthesis','twthesis-en','revtex']);
 const THEME_SETTING_ALIASES = Object.freeze({
-  'blackout-game':'blackoutgame','blackout_game':'blackoutgame','blackout game':'blackoutgame',
+  'blackout-game':'blackoutgame','blackout_game':'blackoutgame','blackout game':'blackoutgame','sepia':'moss',
   'twthesis_en':'twthesis-en','twthesisenglish':'twthesis-en','twthesis-english':'twthesis-en'
 });
 function normalizeThemeSettings(){
@@ -199,7 +200,7 @@ const I18N_TOAST = {
   '此瀏覽器不支援資料夾(需 Chrome / Edge)':'This browser does not support folders (Chrome / Edge required)',
   '已中斷資料夾連結(瀏覽器內資料保留)':'Folder unlinked (in-browser data kept)',
   '尚未連結資料夾,請先使用「連結儲存資料夾…」':'No folder linked. Use “Link Storage Folder…” first',
-  '介面語言:English':'Language: English', '介面語言:繁體中文':'Language: Traditional Chinese',
+  '介面語言：繁體中文':'Language: Traditional Chinese',
   '已是預設字體大小':'Already at default font size',
   '已達最大字級':'Maximum font size reached', '已達最小字級':'Minimum font size reached',
   '已取消首行縮排':'First-line indent disabled', '已恢復首行縮排':'First-line indent restored',
@@ -211,11 +212,11 @@ const LABEL_EN = {
   '格式':'Format', '段落':'Paragraph', '編輯':'Edit', '檔案':'File', '檢視':'View', '檔案與檢視':'File & View',
   '一般段落':'Paragraph', '上一個結果':'Previous match', '下一個結果':'Next match',
   '任務清單':'Task List', '側邊欄':'Sidebar', '儲存':'Save', '刪除線':'Strikethrough',
-  '原始碼模式':'Source Mode', '圖片':'Image', '增加縮排(清單)':'Indent (list)',
+  '原始碼模式':'Source Mode', '圖片':'Image', '增加縮排（清單）':'Indent (list)',
   '尋找':'Find', '尋找並取代':'Find & Replace', '底線':'Underline', '引言':'Blockquote',
   '復原':'Undo', '打字機模式':'Typewriter Mode', '提升標題級別':'Promote Heading',
   '數學區塊':'Math Block', '斜體':'Italic', '有序清單':'Numbered List', '標題 1–6':'Heading 1–6',
-  '清除格式':'Clear Format', '減少縮排(清單)':'Outdent (list)', '無序清單':'Bulleted List',
+  '清除格式':'Clear Format', '減少縮排（清單）':'Outdent (list)', '無序清單':'Bulleted List',
   '焦點模式':'Focus Mode', '程式碼區塊':'Code Block', '粗體':'Bold', '螢光標記':'Highlight',
   '行內公式 $…$':'Inline Math $…$', '行內程式碼':'Inline Code', '表格':'Table',
   '複製為 Markdown':'Copy as Markdown', '超連結':'Hyperlink', '重做':'Redo', '降低標題級別':'Demote Heading',
@@ -442,7 +443,8 @@ function llParseBlockNodes(raw,bomLength){
     if(/^\s*\$\$/.test(t)){
       let j=i+1;
       const rest=t.replace(/^\s*\$\$/,'');
-      if(!/\$\$\s*$/.test(rest)){while(j<lines.length&&!/\$\$\s*$/.test(lines[j].text))j++;if(j<lines.length)j++;}
+      /* 1.2.6：公式結尾的 $$ 後面可以接 {#eq:名稱} 或 {-}（國際論文的編號標籤），仍算公式結束。 */
+      if(!isMathClose(rest)){while(j<lines.length&&!isMathClose(lines[j].text))j++;if(j<lines.length)j++;}
       nodes.push(llBuildNode(raw,lines,start,j,'math'));i=j;continue;
     }
     if(/^\s*\\\[\s*$/.test(t)){
@@ -1172,6 +1174,11 @@ function mdMetaThemeEligible(theme){
 function mdMetaEnabledHere(){
   return settings.mdMetaPilot === true && mdMetaThemeEligible(settings.theme);
 }
+/* 1.2.6：強調規則（左邊畫面、樣式定位、格式工具列共用）。* 依舊；_ 加上
+   「開頭前、結尾後不能是字母數字」的條件，所以 snake_case 不會變斜體。 */
+const EMPH_RE_TRIPLE = /\*\*\*(?=\S)([\s\S]*?\S)\*\*\*|(?<![\p{L}\p{N}])___(?=\S)([\s\S]*?\S)___(?![\p{L}\p{N}])/gu;
+const EMPH_RE_DOUBLE = /\*\*(?=\S)([\s\S]*?\S)\*\*|(?<![\p{L}\p{N}])__(?=\S)([\s\S]*?\S)__(?![\p{L}\p{N}])/gu;
+const EMPH_RE_SINGLE = /\*(?=\S)([^*_\n]*?\S)\*|(?<![\p{L}\p{N}])_(?=\S)([^*_\n]*?\S)_(?![\p{L}\p{N}])/gu;
 function inlineMD(src){
   /* T8(CP101/102/114):flag on 且位於一般 Markdown 主題時,粗/斜/行內碼/刪除線/連結的語法字
      以 .md-meta 常駐 DOM、CSS 隱藏;md-il 容器 textContent === 該 token 原始碼全文。
@@ -1191,7 +1198,9 @@ function inlineMD(src){
   s = s.replace(/\\`/g, () => keep('`'));
   s = s.replace(/\\\$/g, () => keep('$'));
 
-  s = s.replace(/`([^`\n]+)`/g, (_, c) => ilWrap('`', keep(`<code class="md-code" data-si="${styleSeq++}">` + escapeHtml(c) + '</code>')));
+  /* 1.2.6：行內程式碼用 CommonMark 的反引號串規則（``a ` b`` 也是一段程式碼，B-40），
+     與國際論文解析器（17.js）同一條規則。單反引號的結果與舊版完全相同。 */
+  s = s.replace(/(?<!`)(`+)([^\n]+?)(?<!`)\1(?!`)/g, (_, run, c) => ilWrap(run, keep(`<code class="md-code" data-si="${styleSeq++}">` + escapeHtml(c) + '</code>')));
 
   /* CP20:行內若出現 $$…$$(使用者把區塊公式寫在句中)→ 視為「獨立一行的置中公式」
      (display,不再殘留多餘錢字號、也不再把前導文字兩端對齊拉開)。必須排在單一 $…$
@@ -1200,7 +1209,9 @@ function inlineMD(src){
     const math = mathSourceParts(token, 'auto');
     return keep(mathHTML(math.tex, math.display, mathSeq++, true));
   });
-  s = s.replace(/\$(?=\S)([^$\n]+?)(?<=\S)\$/g, token => {
+  /* 1.2.6：收尾的 $ 後面緊接數字就不是數學（Pandoc 規則：「$5,$10」是兩個價錢，B-31）。
+     國際論文解析器（17.js）用同一條規則；mathRangesOf、styleRangesOf 也同步。 */
+  s = s.replace(/\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g, token => {
     const math = mathSourceParts(token, 'auto');
     return keep(mathHTML(math.tex, math.display, mathSeq++));
   });
@@ -1209,7 +1220,8 @@ function inlineMD(src){
     return keep(mathHTML(math.tex, math.display, mathSeq++));
   });
 
-  s = s.replace(/\\([\\`*_{}\[\]#+\-.!~=<>|$])/g, (_, ch) => keep(escapeHtml(ch)));
+  /* 1.2.6：反斜線後接任何 ASCII 標點都是跳脫（CommonMark；50\% 顯示成 50%，B-32）。 */
+  s = s.replace(/\\([!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])/g, (_, ch) => keep(escapeHtml(ch)));
 
   s = s.replace(/<!--[\s\S]*?-->/g, () => keep(''));   // 註解:預覽中隱藏(原始碼保留)
   s = s.replace(/<\/?[a-zA-Z][^<>]*>/g, tag => {
@@ -1263,9 +1275,12 @@ function inlineMD(src){
       return keep(`<span class="md-il" data-il><span class="md-meta">[</span>` + a) + t
            + keep(`</a><span class="md-meta">](</span><span class="md-content">` + mid + `</span><span class="md-meta">)</span></span>`);
     });
-  s = s.replace(/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, (_, d, c) => ilWrap(d, `<strong data-si="${styleSeq++}"><em>${c}</em></strong>`));
-  s = s.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, (_, d, c) => ilWrap(d, `<strong data-si="${styleSeq++}">${c}</strong>`));
-  s = s.replace(/(\*|_)(?=\S)([^*_\n]*?\S)\1/g, (_, d, c) => ilWrap(d, `<em data-si="${styleSeq++}">${c}</em>`));
+  /* 1.2.6：單字中間的底線不是強調（snake_case、file_name、x_1；CommonMark，B-13）。
+     底線版本要求開頭前、結尾後不是字母數字；星號版本不變。三條規則與 styleRangesOf、
+     03.js inlineFormatRanges 同一組（EMPH_RE_*），國際論文解析器（17.js）也是同一規則。 */
+  s = s.replace(EMPH_RE_TRIPLE, (m, c1, c2) => ilWrap(m.slice(0, 3), `<strong data-si="${styleSeq++}"><em>${c1 !== undefined ? c1 : c2}</em></strong>`));
+  s = s.replace(EMPH_RE_DOUBLE, (m, c1, c2) => ilWrap(m.slice(0, 2), `<strong data-si="${styleSeq++}">${c1 !== undefined ? c1 : c2}</strong>`));
+  s = s.replace(EMPH_RE_SINGLE, (m, c1, c2) => ilWrap(m.slice(0, 1), `<em data-si="${styleSeq++}">${c1 !== undefined ? c1 : c2}</em>`));
   s = s.replace(/~~(?=\S)([\s\S]*?\S)~~/g, (_, c) => ilWrap('~~', `<del data-si="${styleSeq++}">${c}</del>`));   /* T8 v2(CP114):刪除線納入 md-il,與粗/斜/碼同構 */
   s = s.replace(/==(?=\S)([\s\S]*?\S)==/g, (_, c) => `<mark class="md-mark" data-si="${styleSeq++}">${c}</mark>`);
 
@@ -1439,6 +1454,8 @@ function mathHTML(tex, display, seq, blockInline){
    既有 mathRangesOf／inline regex／blockType 只負責辨識 token 或 block 邊界；
    一旦辨識為公式，inline/block renderer 與所有浮動預覽都只能取得這個
    結構化結果，不得再自行 trim／strip／rewrap。CP5 的第二套 parser 到此退場。 */
+/* 公式區塊的結尾：一行以 $$ 結束，後面可以接一個 {…} 屬性（{#eq:名稱} 或 {-}）。 */
+function isMathClose(line){ return /\$\$\s*(?:\{[^{}\n]*\}\s*)?$/.test(String(line)); }
 function mathSourceParts(source, context){
   const raw = String(source == null ? '' : source);
   const text = raw.trim();
@@ -1452,18 +1469,21 @@ function mathSourceParts(source, context){
     if (text.startsWith(p[0])){ open = p[0]; close = p[1]; display = p[2]; break; }
   }
   let tex = text, closed = false;
+  let attr = '';
   if (open){
     tex = text.slice(open.length);
+    /* 1.2.6：$$ … $$ {#eq:名稱}／{-}：屬性只給國際論文編號用，畫面上不排進公式。 */
+    if (open === '$$'){ const m = tex.match(/\$\$\s*(\{[^{}\n]*\})\s*$/); if (m){ attr = m[1]; tex = tex.slice(0, m.index + 2); } }
     if (tex.endsWith(close)){ tex = tex.slice(0, -close.length); closed = true; }
   }
-  return { raw, tex:tex.trim(), display:!!display, open, close, delimited:!!open, closed };
+  return { raw, tex:tex.trim(), display:!!display, open, close, delimited:!!open, closed, attr };
 }
 /* 找出原始字串中「行內公式」的位置區間;順序與渲染 data-mi 完全一致:
    先等長遮罩跳脫符(\$ \`)與行內碼(保住索引),再依管線相同的兩趟正則掃描。 */
 function mathRangesOf(raw){
   const MASK = '\u0001';
   let m = String(raw).replace(/\\[`$]/g, MASK + MASK);
-  m = m.replace(/`[^`\n]+`/g, s => MASK.repeat(s.length));
+  m = m.replace(/(?<!`)(`+)([^\n]+?)(?<!`)\1(?!`)/g, s => MASK.repeat(s.length));
   const out = [];
   const scan = re => {
     m = m.replace(re, (s, _tex, idx) => {
@@ -1472,7 +1492,7 @@ function mathRangesOf(raw){
     });
   };
   scan(/\$\$([\s\S]+?)\$\$/g);          // CP20:與 inlineMD 同序(行內 $$…$$ 先掃)
-  scan(/\$(?=\S)([^$\n]+?)(?<=\S)\$/g);
+  scan(/\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g);
   scan(/\\\((.+?)\\\)/g);
   return out;
 }
@@ -1486,12 +1506,12 @@ function styleRangesOf(raw){
   let m = String(raw).replace(/[\uE000\uE001]/g, '');
   const out = [];
   const maskAll = re => { m = m.replace(re, s => M.repeat(s.length)); };
-  maskAll(/\\[\\`*_{}\[\]#+\-.!~=<>|$]/g);                    // 跳脫字元
-  m = m.replace(/`[^`\n]+`/g, (s, idx) => {                    // 行內碼
-    out.push({ start: idx, end: idx + s.length, open: 1 });
+  maskAll(/\\[!"#$%&'*+,\-./:;<=>?@\[\\\]^_`{|}~]/g);           // 跳脫字元（\( \) 留給下面的數學）
+  m = m.replace(/(?<!`)(`+)([^\n]+?)(?<!`)\1(?!`)/g, (s, run, _c, idx) => {   // 行內碼
+    out.push({ start: idx, end: idx + s.length, open: run.length });
     return M.repeat(s.length);
   });
-  maskAll(/\$(?=\S)([^$\n]+?)(?<=\S)\$/g);                     // 行內數學(另有 data-mi 系統)
+  maskAll(/\$(?=\S)([^$\n]+?)(?<=\S)\$(?!\d)/g);                // 行內數學(另有 data-mi 系統)
   maskAll(/\\\((.+?)\\\)/g);
   maskAll(/<!--[\s\S]*?-->/g);
   /* CP173/1.1.9.1: scan all inline HTML in source order. data-si is assigned
@@ -1537,9 +1557,9 @@ function styleRangesOf(raw){
     m = cs.join('');
   }
   const emph = [
-    [/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, x => x[1].length],
-    [/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g,     x => x[1].length],
-    [/(\*|_)(?=\S)([^*_\n]*?\S)\1/g,        x => x[1].length],
+    [new RegExp(EMPH_RE_TRIPLE.source, 'gu'), () => 3],
+    [new RegExp(EMPH_RE_DOUBLE.source, 'gu'), () => 2],
+    [new RegExp(EMPH_RE_SINGLE.source, 'gu'), () => 1],
     [/~~(?=\S)([\s\S]*?\S)~~/g,              () => 2],
     [/==(?=\S)([\s\S]*?\S)==/g,              () => 2],
   ];
@@ -1867,9 +1887,9 @@ function splitToBlocks(md){
     const mm=lines[i].match(/^\s*\$\$(.*)$/);
     if(mm){
       const rest=mm[1].trim();
-      if(rest&&/\$\$\s*$/.test(rest)){out.push(lines[i]);continue;}
+      if(rest&&isMathClose(rest)){out.push(lines[i]);continue;}
       const buf=[lines[i]];let j=i+1;
-      while(j<lines.length&&!/\$\$\s*$/.test(lines[j])){buf.push(lines[j]);j++;}
+      while(j<lines.length&&!isMathClose(lines[j])){buf.push(lines[j]);j++;}
       if(j<lines.length)buf.push(lines[j]);
       out.push(buf.join('\n'));i=Math.min(j,lines.length-1);continue;
     }
@@ -2005,7 +2025,7 @@ function blockType(src){
     if(markdownIsHtmlBlock(raw))return 'html';
     return 'p';
   }
-  if(/^\s*\$\$.*\$\$\s*$/.test(raw)&&raw.trim().length>4)return 'math';
+  if(/^\s*\$\$.*\$\$\s*(?:\{[^{}\n]*\}\s*)?$/.test(raw)&&raw.trim().length>4)return 'math';
   if(raw.trim()==='')return 'empty';
   if(TOC_RE.test(raw))return 'toc';
   if(DEF_LINK_RE.test(raw))return 'def_link';
@@ -2470,7 +2490,6 @@ function renderTwThesisApprovalPage(body){
   return '<h1 class="md-h twthesis-fm twthesis2-toc-only">' + e(title) + '</h1>' +
          '<div class="twthesis2-approvalpage" contenteditable="false">' + page + dateLine + '</div>';
 }
-function renderTwThesis2ApprovalPage(body){ return renderTwThesisApprovalPage(body); }
 
 function renderMarkdownToc(){
   const entries=[];
@@ -2615,7 +2634,8 @@ function renderBlockHTML(src){
     }
     if (/^(math|katex)$/i.test(lang))         // fenced math block(規格 §9.1)
       return `<div class="md-math-block">${mathHTML(body.trim(), true)}</div>`;
-    return `<pre class="md-pre">${lang ? `<span class="lang-tag">${escapeHtml(lang)}</span>` : ''}` +
+    // 1.2.6：revtex-／twthesis- 論文資料區塊是文字不是程式碼，加 ekd-wrap-fence 讓它自動換行
+    return `<pre class="md-pre${/^(revtex|twthesis)-/i.test(lang) ? ' ekd-wrap-fence' : ''}">${lang ? `<span class="lang-tag">${escapeHtml(lang)}</span>` : ''}` +
            `<code>${highlight(body, lang) || '<br>'}</code></pre>`;
   }
   if (t === 'table'){

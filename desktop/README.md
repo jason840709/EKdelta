@@ -1,6 +1,8 @@
-# Ekdeta Desktop 1.2.5
+# EKdelta Desktop 1.2.8
 
-這個資料夾是 **Ekdeta** 的 Electron 桌面殼。網頁版自 1.2.4 起改名為 **EKdelta**；桌面 App 的名稱暫時仍是 Ekdeta，因為 App 名稱決定設定與引擎存放的資料夾，改名要搭配實機打包與安裝測試。它載入 repository 根目錄同一份 `EKdelta.html`；Browser 版與 Desktop 版共用一個 Core。
+這個資料夾是 **EKdelta Desktop** 的 Electron 桌面殼（1.2.7 叫 EKdelta，1.2.6 以前叫 Ekdeta，更早叫 Typora HTML）。它載入 repository 根目錄同一份 `EKdelta.html`；Browser 版與 Desktop 版共用一個 Core。
+
+1.2.8 起 App 名稱、選單、視窗標題與安裝器都叫 EKdelta Desktop（1.2.7 叫 EKdelta），圖示在 `resources/icons/`。升級時沿用既有的使用者資料夾：依序找「EKdelta」→「Ekdeta」→「Typora HTML」，找到哪個用哪個，文件、HTML 版本庫與引擎設定不必搬移（`src/profile.js`）。
 
 ## macOS
 
@@ -20,7 +22,7 @@ release-tools/製作 macOS 安裝包.command
 release-tools/製作 Windows x64 免安裝版_免Node.cmd
 ```
 
-它會下載固定 Electron 33.4.11 Windows x64 runtime，使用 Electron 官方 `SHASUMS256.txt` 驗證，再產生 portable ZIP。解壓後直接執行 `Ekdeta.exe`；需要固定安裝時，雙擊 portable 內的 `安裝 Portable 到本機.cmd`。
+它會下載固定 Electron 33.4.11 Windows x64 runtime，使用 Electron 官方 `SHASUMS256.txt` 驗證，再產生 portable ZIP。解壓後直接執行 `EKdelta Desktop.exe`；需要固定安裝時，雙擊 portable 內的 `安裝 Portable 到本機.cmd`。
 
 如果你是維護者，要產生正式 NSIS `.exe`，改用：
 

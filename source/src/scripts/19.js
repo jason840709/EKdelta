@@ -59,7 +59,7 @@ const busytex = {
     return {
       available: true, kind: 'busytex', initialized: init,
       detail: init ? '引擎已就緒（Worker 存在）'
-                   : '引擎存在但尚未初始化——需在「TeX 精確校樣」面板選取 Engine Pack 資料夾',
+                   : '引擎尚未載入：按右上角「載入 LaTeX 引擎」，選取 Engine Pack 資料夾',
       needsUserAction: !init,
       meta: proof.meta || null,
       state: st
@@ -67,10 +67,19 @@ const busytex = {
   },
 
   /** 引擎沒就緒時，把 CP169A 原本那個能用的面板打開，讓使用者完成選取。 */
+  /* 1.2.6：不再自動打開大面板（使用者回報：只是要載入引擎，卻跳出一整頁）。
+     改成通知國際論文右半邊顯示「載入 LaTeX 引擎」按鈕，由使用者按下後直接選資料夾。 */
   requestInit(){
     const proof = this.api();
     if (!proof) return false;
-    try { proof.open(); return true; } catch (e) { K.log.error('engine', '無法開啟 CP169A 面板：' + (e && e.message)); return false; }
+    /* 1.2.6：Mac 桌面殼已登記本機引擎位置時，直接開始載入（完成後 engine:ready 會自動編譯），
+       不顯示「載入 LaTeX 引擎」按鈕。 */
+    try {
+      const st = proof.getState && proof.getState();
+      if (st && st.directRoot && !st.initialized && typeof proof.startRegistered === 'function') { proof.startRegistered(); return true; }
+    } catch (_) {}
+    try { K.emit('engine:needed', {}); } catch (_) {}
+    return true;
   },
 
   async compile(job){
@@ -81,9 +90,9 @@ const busytex = {
       this.requestInit();
       const err = new Error('ENGINE_NOT_READY');
       err.needsUserAction = true;
-      err.hint = '引擎尚未初始化。已為你開啟「TeX 精確校樣」面板——請在那裡選取 Engine Pack 資料夾'
-               + '（需含 busytex.js、busytex.wasm、busytex_pipeline.js、texlive-recommended.js、'
-               + 'texlive-recommended.data 五個檔案），按「驗證並初始化」，然後回來重按編譯。';
+      err.hint = '尚未載入 LaTeX 引擎：按右半邊的「載入 LaTeX 引擎」，選取 Engine Pack 資料夾'
+               + '（含 busytex.js、busytex.wasm、busytex_pipeline.js、texlive-recommended.js、'
+               + 'texlive-recommended.data 五個檔案），載入完成後會自動編譯。';
       throw err;
     }
 
@@ -109,7 +118,7 @@ const busytex = {
       if (Date.now() - t0 > timeout) {
         const err = new Error('COMPILE_TIMEOUT');
         err.hint = '編譯超過 ' + Math.round(timeout / 1000) + ' 秒仍未回覆。'
-                 + '大型文件首次編譯較慢；若持續發生，到「TeX 精確校樣」面板看訊息。';
+                 + '大型文件第一次編譯比較慢，請稍候再按「編譯」。';
         throw err;
       }
     }
@@ -126,8 +135,7 @@ const busytex = {
       const norm = x => String(x).replace(/\r\n?/g, '\n').trim();
       texMatches = norm(usedTex) === norm(job.mainTex);
       if (!texMatches) {
-        K.log.warn('engine', '引擎實際編譯的 main.tex 與 CP171 發射器的產物不同。'
-                           + '多半是旗標 takeoverTex 關著——校樣顯示的不是 CP171 的排版結果。');
+        K.log.warn('engine', '引擎實際編譯的 main.tex 與這次發射的內容不同（可能有另一個編譯同時進行）。');
       }
     }
 
@@ -220,12 +228,16 @@ async function detect(force){
 
   const bp = busytex.probe();
   report.candidates.push(bp);
-  const cp = await companion.probe();
+  /* 1.2.7：只有旗標明確指定 companion 時才連本機備援服務。
+     以前 auto 每次都先連 127.0.0.1:8787/health：介面上沒有任何地方能開 companion，
+     這個連線在一般使用者那裡一律被拒，在網站上還會讓新版 Chrome 詢問「存取本機裝置」的權限。 */
+  const cp = want === 'companion' ? await companion.probe()
+    : { available: false, kind: 'companion', detail: '未啟用（旗標 engine 不是 companion）' };
   report.candidates.push(cp);
 
   if (want === 'busytex') current = bp.available ? busytex : null;
   else if (want === 'companion') current = cp.available ? companion : null;
-  else current = bp.available ? busytex : (cp.available ? companion : null);
+  else current = bp.available ? busytex : null;
 
   report.chosen = current ? current.kind : null;
   if (!current) report.reason = '兩種實作皆不可用：busytex（' + bp.detail + '）／companion（' + cp.detail + '）';
@@ -297,16 +309,54 @@ async function readAsset(rel){
   return null;
 }
 
-async function resolveAssets(paths){
+/* 1.2.6：發射器回傳 [{src, path}]——src 是 Markdown 裡寫的路徑（用來找檔案），
+   path 是 main.tex 實際引用的名稱（含空白、%、大寫副檔名的路徑會換成安全的別名）。
+   檔案依 src 讀進來、放在 path。舊的字串陣列也接受（src = path）。 */
+async function resolveAssets(list){
   const out = [], seen = new Set();
-  for (const p of (paths || [])) {
-    const rel = String(p || '').trim();
-    if (!rel || seen.has(rel) || /^(data:|https?:|blob:)/i.test(rel)) continue;
-    seen.add(rel);
-    const bytes = await readAsset(rel);
-    if (bytes) out.push({ path: rel, bytes });
+  for (const a of (list || [])) {
+    const src = String(typeof a === 'string' ? a : (a && a.src) || '').trim();
+    const path = String(typeof a === 'string' ? a : (a && a.path) || src).trim();
+    if (!src || seen.has(path) || /^(https?:|blob:)/i.test(src)) continue;
+    seen.add(path);
+    const bytes = /^data:/i.test(src) ? await inlineBytes(src, a && a.convert) : await readAsset(src);
+    if (bytes) out.push({ path, bytes });
   }
   return out;
+}
+
+/* 1.2.7：內嵌圖片（data: 網址）直接解碼；發射器標了 convert 的格式（GIF、WebP、SVG…）
+   畫成 PNG，做法與 .zip 匯出的 cp166Rasterize 相同（那支在 04.js 的區塊裡，這裡叫不到）。
+   失敗就回 null，\cptimg 會畫佔位框。 */
+async function inlineBytes(src, convert){
+  const m = /^data:([^;,]*)((?:;[^;,]*)*),([\s\S]*)$/.exec(src);
+  if (!m) return null;
+  let bytes;
+  try {
+    if (/;base64/i.test(m[2])) {
+      const bin = atob(m[3].replace(/\s+/g, ''));
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else bytes = new TextEncoder().encode(decodeURIComponent(m[3]));
+  } catch (_) { return null; }
+  if (!bytes.length) return null;
+  if (!convert) return bytes;
+  try { return await rasterToPng(bytes, convert); } catch (_) { return null; }
+}
+async function rasterToPng(bytes, mime){
+  if (typeof document === 'undefined') return null;
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime || 'application/octet-stream' }));
+  try {
+    const img = new Image();
+    img.decoding = 'async'; img.src = url;
+    await new Promise((ok, bad) => { img.onload = ok; img.onerror = () => bad(new Error('image decode failed')); });
+    const scale = Math.min(1, 2400 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    const w = Math.max(1, Math.round((img.naturalWidth || 1200) * scale)), h = Math.max(1, Math.round((img.naturalHeight || 700) * scale));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/png'));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  } finally { URL.revokeObjectURL(url); }
 }
 
 const api = {
@@ -350,8 +400,8 @@ const api = {
     opts = opts || {};
     const maxPasses = Math.max(1, Math.min(3, opts.maxPasses === undefined ? 3 : opts.maxPasses));
 
-    const ast = P.parse(md);
-    const out = E.emit(ast, { settings: (typeof settings !== 'undefined' ? settings : {}) });
+    /* 1.2.6：唯一入口。預覽、下載 .tex、匯出 LaTeX、.zip、TeX 校樣、投稿包都呼叫 mainTex。 */
+    const out = E.mainTex(md, { settings: (typeof settings !== 'undefined' ? settings : {}), purpose: 'preview' });
     /* 把 Markdown 引用到的圖檔讀進來一起送給 Worker（見 resolveAssets 說明）。
        解析失敗不影響編譯：\cptimg 會畫佔位框。 */
     let assetFiles = [];
@@ -383,12 +433,14 @@ const api = {
     }
 
     if (res) res.passes = passes;
-    return { emit: out, compile: res, passes };
+    /* 記下這次編譯量到的公式／表格寬度決定，投稿版 main.tex 用它寫出靜態結果（APS 不允許量測巨集）。 */
+    if (res && res.ok) { try { E.learn(res.log); } catch (_) {} }
+    return { emit: out, compile: res, passes, md };
   }),
 
   cancel: K.gated('engine.cancel', () => { if (current) current.cancel(); inflight = null; }),
 
-  /** 引擎沒就緒時，開啟 CP169A 面板讓使用者選 Engine Pack（唯一能初始化的途徑） */
+  /** 引擎沒就緒時通知畫面顯示「載入 LaTeX 引擎」按鈕（1.2.6 起不再自動開面板） */
   requestInit: K.gated('engine.requestInit', () => busytex.requestInit()),
 
   busy: () => !!inflight,

@@ -85,7 +85,7 @@ function versionFromHtml(text) {
 function inspectHtml(text) {
   const problems = [];
   if (!/<html[\s>]/i.test(text)) problems.push('看起來不是 HTML 檔（找不到 <html>）');
-  if (!/id="menubar"/.test(text)) problems.push('找不到 id="menubar"，這可能不是 Ekdeta 的產物');
+  if (!/id="menubar"/.test(text)) problems.push('找不到 id="menubar"，這可能不是 EKdelta 的產物');
   if (!/APP_VERSION/.test(text)) problems.push('找不到 APP_VERSION');
   if (text.length < 200 * 1024) problems.push('檔案異常地小（' + Math.round(text.length / 1024) + ' KB），可能不是完整產物');
   return { version: versionFromHtml(text), problems };

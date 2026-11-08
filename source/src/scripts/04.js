@@ -317,7 +317,7 @@ function unresolvedLocalImages(){
     try { path = decodeURIComponent(path); } catch(_){ }
     path = path.replace(/^file:\/\//i, '').replace(/\\/g, '/');
     const block = im.closest('.block');
-    return { im, path:path || TT('(路徑空白)','(empty path)'), alt:im.getAttribute('alt') || '',
+    return { im, path:path || TT('（路徑空白）','(empty path)'), alt:im.getAttribute('alt') || '',
              occurrence, block:Math.max(0, children.indexOf(block)) + 1,
              page:missingImagePage(im) };
   });
@@ -476,22 +476,13 @@ function askPdfImgDir(n){
       settled = true; mo.disconnect(); pdfImgPickResolve = null;
       hideModal(); res(v);
     };
-    showModal(isEN() ? `<h2>Embed images into PDF</h2>
-      <p style="font-size:13.5px;line-height:1.9"><b>${n}</b> local image(s) can't be read directly by the
-      engine due to browser security (they display fine, but embedding into PDF needs the raw bytes).<br>
-      Please choose the <b>folder that contains the images</b> — the whole document folder is fine, it searches inward automatically.</p>
-      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-        <button id="pim-pick" class="fb-btn txt" style="padding:7px 14px"><b>Choose image folder…</b></button>
-        <button id="pim-skip" class="fb-btn txt" style="padding:7px 14px">Export with placeholders</button>
-        <button id="pim-cancel" class="fb-btn txt" style="padding:7px 14px">Cancel</button>
-      </div>` : `<h2>嵌入圖片到 PDF</h2>
-      <p style="font-size:13.5px;line-height:1.9">有 <b>${n}</b> 張本機圖片因瀏覽器安全限制,
-      引擎無法直接讀取檔案本體(畫面顯示正常,但嵌入 PDF 需要原始位元組)。<br>
-      請選取<b>圖片所在的資料夾</b> — 選整個文件資料夾也可以,會自動往內尋找。</p>
-      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-        <button id="pim-pick" class="fb-btn txt" style="padding:7px 14px"><b>選擇圖片資料夾…</b></button>
-        <button id="pim-skip" class="fb-btn txt" style="padding:7px 14px">以佔位框匯出</button>
-        <button id="pim-cancel" class="fb-btn txt" style="padding:7px 14px">取消</button>
+    showModal(`<h2>${isEN() ? `${n} image${n > 1 ? 's' : ''} could not be read` : `有 ${n} 張圖片讀不到原檔`}</h2>
+      <p class="ekd-dlg-text">${TT('這幾張圖在畫面上看得到，但瀏覽器不讓網頁直接讀取檔案，放進 PDF 需要原檔。請選取圖片所在的資料夾（選上層的文件資料夾也可以，會往下找）。',
+        'They show on screen, but the browser does not let the page read the files, and the PDF needs them. Choose the folder that holds the images (a parent folder works too; it searches inside).')}</p>
+      <div class="ekd-dlg-actions">
+        <button id="pim-cancel" class="ekd-btn" type="button">${TT('取消','Cancel')}</button>
+        <button id="pim-skip" class="ekd-btn" type="button">${TT('用空白框代替','Use placeholders')}</button>
+        <button id="pim-pick" class="ekd-btn primary" type="button">${TT('選擇資料夾…','Choose folder…')}</button>
       </div>`);
     $('#modal-close').style.display = 'none';
     mo.observe(ov, { attributes: true, attributeFilter: ['class'] });
@@ -544,7 +535,6 @@ async function pickedImageMarkdownPath(name){
   }
   return name;
 }
-function storageFolderLabel(){ return dirHandle ? dirHandle.name : ''; }
 function storageImageLogicalPath(){ return './' + cleanImageSubfolder(settings.imgSub) + '/'; }
 
 async function pickImgDir(){
@@ -818,12 +808,12 @@ function applyTwThesisLogo(){
   applyTwThesisLogoScale();                    /* 標誌來源與視覺比例共用同一刷新入口 */
 }
 function importTwThesisLogo(file, done){
-  if (!file || !/^image\//.test(file.type)){ toast(TT('請選擇圖片檔(JPG / PNG)','Please choose an image file (JPG / PNG)')); return; }
+  if (!file || !/^image\//.test(file.type)){ toast(TT('請選擇圖片檔（JPG / PNG）','Please choose an image file (JPG / PNG)')); return; }
   const reader = new FileReader();
   reader.onload = () => {
     const url = String(reader.result);
     const finish = (dataUrl) => {
-      if (dataUrl.length > 4 * 1024 * 1024){ toast(TT('圖片過大,無法儲存(請先縮小圖片)','Image too large to store — please shrink it first')); return; }
+      if (dataUrl.length > 4 * 1024 * 1024){ toast(TT('圖片過大，無法儲存（請先縮小圖片）','Image too large to store — please shrink it first')); return; }
       settings.twthesisLogo = dataUrl;
       settings.twthesisLogoChoice = 'custom';
       applyTwThesisLogo(); persist();
@@ -850,238 +840,234 @@ function importTwThesisLogo(file, done){
   reader.readAsDataURL(file);
 }
 
+function texGlobal(k){
+  try { const D = window.__CP171__.registry.revtexDocumentSettings; if (D && D.persistentGlobalValues) { const v = D.persistentGlobalValues(); if (k in v) return v[k]; } } catch(_){}
+  return settings[k];
+}
 function showPrefs(){
+  /* 1.2.7 重新設計（M32，Jason 11-08：設定介面像另一套軟體、項目多到不知道該設定什麼）。
+     原則：只放「設定一次、之後很少再動」的偏好；隨手切換的檢視狀態（焦點模式、打字機模式、
+     頁面縮放、顯示工具列）留在「顯示」選單，國際期刊的版面留在國際論文左半邊右上角的「版面設定」
+     （改了立刻重新編譯，看得到真的 PDF）。外觀與主介面同一套：左邊是外框色的分類，右邊是紙面，
+     一列一個設定、細線分段，不用卡片、圖示方框與徽章；說明只在需要時寫一行。 */
   normalizeUserFonts();
   normalizeThesisIndentSettings();
+  /* 1.2.8（M37，Jason 11-08：國際論文的設定在偏好設定裡保留和導流很重要）：論文拆成「臺灣論文」「國際論文」兩頁。 */
+  const PAGES = ['general', 'images', 'fonts', 'thesis', 'intl'];
+  const LEGACY_TAB = { global: 'general', revtex: 'intl' };
+  const activeTab = PAGES.includes(settings.prefsTab) ? settings.prefsTab : (LEGACY_TAB[settings.prefsTab] || 'general');
   const m = settings.imgMode || 'folder';
-  const activeTab = settings.prefsTab === 'thesis' ? 'thesis' : 'global';
   const uf = settings.userFonts;
-  const I = Object.freeze({
-    prefs:'<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6"/></svg>',
-    global:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
-    thesis:'<svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 12h8M8 16h8"/></svg>',
-    display:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
-    image:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg>',
-    fonts:'<svg viewBox="0 0 24 24"><path d="M5 19 11 5h2l6 14M7 15h10M3 19h4M17 19h4"/></svg>',
-    folder:'<svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/></svg>',
-    embed:'<svg viewBox="0 0 24 24"><path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/></svg>',
-    upload:'<svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>',
-    paper:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v5h5M9 12h6M9 16h6"/></svg>',
-    crest:'<svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.2 8 9 4.6-.8 8-4 8-9V7z"/><path d="m9 12 2 2 4-5"/></svg>',
-    indent:'<svg viewBox="0 0 24 24"><path d="M4 6h16M9 11h11M4 16h16M9 21h11"/><path d="m4 9 3 2-3 2"/></svg>',
-    reset:'<svg viewBox="0 0 24 24"><path d="M4 7v5h5M5.5 16a8 8 0 1 0 .5-9L4 12"/></svg>',
-  });
-  const fontField = (key, label, note, sample) => `<div class="font-field">
-    <div class="font-field-head"><label class="font-field-label" for="pf-font-${key}">${label}</label><span class="font-field-note">${note}</span></div>
-    <div class="font-input-wrap">
-      <input class="font-input" id="pf-font-${key}" type="text" list="pf-fontlist" data-fslot="${key}" value="${escapeHtml(uf[key] || '')}" placeholder="${TT('使用內嵌預設字體','Use embedded default')}">
-      <button class="font-reset" type="button" data-freset="${key}" title="${TT('重設此槽位','Reset this slot')}" aria-label="${TT('重設此字體槽位','Reset this font slot')}">↺</button>
-    </div>
-    <div class="font-preview" data-fprev="${key}">${sample}</div>
-  </div>`;
-  const fontGroup = (title, desc, tag, fields) => `<section class="font-group">
-    <div class="font-group-head"><div><div class="font-group-title">${title}</div><div class="font-group-desc">${desc}</div></div><span class="font-group-tag">${tag}</span></div>${fields}
-  </section>`;
-  showModal(`<div class="prefs-shell">
-    <header class="prefs-head">
-      <div class="prefs-heading"><span class="prefs-heading-icon">${I.prefs}</span><div><h2 id="prefs-title">${TT('偏好設定','Preferences')}</h2><p class="prefs-subtitle">${TT('設定會自動儲存在瀏覽器，並包含在完整備份與資料夾同步中。','Settings are saved automatically in the browser and included in full backups and folder sync.')}</p></div></div>
-      <nav class="prefs-tabs" role="tablist" aria-label="${TT('偏好設定分類','Preference categories')}">
-        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="global" aria-controls="prefs-page-global">${I.global}<span>${TT('全局設定','Global')}</span></button>
-        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="thesis" aria-controls="prefs-page-thesis">${I.thesis}<span>${TT('論文輸出設定','Thesis Output')}</span></button>
-      </nav>
-    </header>
-    <div class="prefs-scroll">
-      <section class="prefs-page" id="prefs-page-global" role="tabpanel" data-prefs-page="global">
-        <div class="prefs-page-intro"><div><h3>${TT('全局設定','Global settings')}</h3><p>${TT('控制整個編輯器的工作環境、圖片寫入方式，以及各文件模式的字體。這些選項不會改動 Markdown 原文。','Control the editor workspace, image storage, and typography for every document mode. These options never rewrite your Markdown source.')}</p></div><span class="pref-scope-badge">${TT('所有文件','All documents')}</span></div>
-        <div class="prefs-grid">
-          <section class="pref-card">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.display}</span><div><h4 class="pref-card-title">${TT('介面與顯示','Interface & display')}</h4><p class="pref-card-desc">${TT('把常用的全局工作環境選項集中在同一處。','Keep common workspace options together.')}</p></div></div>
-            <div class="pref-control-row"><div class="pref-control-label">${TT('介面語言','Interface language')}<span class="pref-control-note">${TT('切換後立即重建選單與內建說明。','Rebuilds menus and built-in help immediately.')}</span></div><select class="pref-select" id="pf-lang"><option value="zh" ${settings.lang !== 'en' ? 'selected' : ''}>繁體中文</option><option value="en" ${settings.lang === 'en' ? 'selected' : ''}>English</option></select></div>
-            <div class="pref-control-row"><div class="pref-control-label">${TT('文件顯示倍率','Document zoom')}<span class="pref-control-note">${TT('只影響畫面，不改頁數與 PDF。','Screen only; page count and PDF stay unchanged.')}</span></div><div class="pref-range-wrap"><input class="pref-range" id="pf-viewzoom" type="range" min="50" max="200" step="10" value="${vzNorm(settings.viewZoom)}"><output class="pref-range-value" id="pf-viewzoom-out">${vzNorm(settings.viewZoom)}%</output></div></div>
-            <label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('顯示格式工具列','Show format toolbar')}</span><span class="pref-switch-desc">${TT('在側邊欄右側、文字頁面的頂部顯示完整格式工具；空間不足時才收進「⋯」。','Show the full formatting row at the top of the text area, to the right of the sidebar; only overflow moves into “⋯”.')}</span></span><input id="pf-toolbar" type="checkbox" ${settings.showToolbar ? 'checked' : ''}></label>
-            <div class="pref-toolbar-actions"><button id="pf-toolbar-custom" class="pref-action" type="button">${TT('自訂工具列…','Customize toolbar…')}</button></div>
-            <label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('焦點模式','Focus mode')}</span><span class="pref-switch-desc">${TT('淡化目前段落以外的內容，降低視覺干擾。','Dim content outside the current paragraph to reduce distraction.')}</span></span><input id="pf-focus" type="checkbox" ${settings.focus ? 'checked' : ''}></label>
-            <label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('打字機模式','Typewriter mode')}</span><span class="pref-switch-desc">${TT('輸入時讓目前位置維持在畫面中央附近。','Keep the current typing position near the center of the viewport.')}</span></span><input id="pf-typewriter" type="checkbox" ${settings.typewriter ? 'checked' : ''}></label>
-          </section>
-          <section class="pref-card">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.image}</span><div><h4 class="pref-card-title">${TT('圖片貼上與拖放','Paste & drop images')}</h4><p class="pref-card-desc">${TT('先辨識「專案儲存資料夾」與 Markdown 實際連結，再選擇圖片寫入策略。','Identify the project storage root and the actual Markdown link before choosing where images are written.')}</p></div></div>
-            <div class="pref-storage-root">
-              <div class="pref-storage-root-head"><div><div class="pref-storage-root-title">${TT('專案儲存資料夾（相對路徑基準）','Project storage folder (relative-path root)')}</div><div class="pref-storage-root-desc">${TT('這是你手動授權給 EKdelta 的同步根目錄，不會因為開啟一個 .md 檔就自動取得其上層資料夾。','This is a sync root you explicitly grant to EKdelta. Opening a .md file cannot automatically grant access to its parent folder.')}</div></div></div>
-              <div class="pref-storage-state ${dirHandle ? 'linked' : ''}" id="pf-base-state">${dirHandle ? TT('已連結：','Linked: ') + escapeHtml(dirHandle.name) : TT('尚未連結專案資料夾','No project folder linked')}</div>
-              <div class="pref-storage-actions"><button id="pf-base-link" class="pref-action primary" type="button">${I.folder}<span>${dirHandle ? TT('更換專案資料夾…','Change project folder…') : TT('連結專案資料夾…','Link project folder…')}</span></button><button id="pf-base-unlink" class="pref-action danger" type="button" ${dirHandle ? '' : 'disabled'}>${TT('中斷連結','Unlink')}</button></div>
-              <dl class="pref-path-details"><dt>${TT('目前可見名稱','Visible folder name')}</dt><dd id="pf-base-name">${dirHandle ? escapeHtml(dirHandle.name) : '—'}</dd><dt>${TT('子資料夾模式會寫入','Subfolder mode writes to')}</dt><dd id="pf-base-target">${dirHandle ? escapeHtml(dirHandle.name + '/' + cleanImageSubfolder(settings.imgSub) + '/') : TT('連結後才可寫入','Available after linking')}</dd><dt>${TT('Markdown 內寫入','Markdown receives')}</dt><dd id="pf-base-md">${escapeHtml(storageImageLogicalPath())}${TT('檔名','filename')}</dd></dl>
-              <span class="pref-link-help">${TT('瀏覽器基於安全性不提供完整的 Windows／macOS 絕對路徑，所以畫面只能顯示你授權的資料夾名稱。若要相對連結可攜，請把 Markdown 專案也存放／匯出在這個根目錄。','For security, browsers do not expose the full Windows/macOS absolute path, so only the granted folder name can be shown. For portable relative links, keep or export the Markdown project in this root.')}</span>
-            </div>
-            <div class="pref-choice-list">
-              <label class="pref-choice"><input type="radio" name="pf-img" value="folder" ${m === 'folder' ? 'checked' : ''}><span class="pref-choice-icon">${I.folder}</span><span><span class="pref-choice-title">${TT('專案儲存資料夾內的子資料夾','Subfolder inside the project storage folder')}</span><span class="pref-choice-desc">${TT('最適合一般專案：實體檔案寫入上方根目錄，Markdown 使用相對路徑。','Best for normal projects: files go under the root above and Markdown uses a relative path.')}</span><span class="pref-choice-extra pref-inline"><input class="pref-text" id="pf-sub" type="text" value="${escapeHtml(settings.imgSub || 'image')}" aria-label="${TT('圖片子資料夾名稱','Image subfolder name')}"><span class="pref-path">${escapeHtml(storageImageLogicalPath())}</span></span></span></label>
-              <label class="pref-choice"><input type="radio" name="pf-img" value="picked" ${m === 'picked' ? 'checked' : ''}><span class="pref-choice-icon">${I.folder}</span><span><span class="pref-choice-title">${TT('另外指定圖片資料夾','Use a separate image folder')}</span><span class="pref-choice-desc">${TT('圖片可放在專案內或其他磁碟位置；實體寫入位置與 Markdown 連結前綴分開設定。','The physical folder may be inside or outside the project; configure its write target and Markdown link prefix separately.')}</span><span class="pref-choice-extra"><span class="pref-inline"><button id="pf-pick" class="pref-action primary" type="button">${I.folder}<span>${imgDirHandle ? TT('更換圖片資料夾…','Change image folder…') : TT('選擇圖片資料夾…','Choose image folder…')}</span></button><span class="pref-path" id="pf-pickname">${imgDirHandle ? TT('已選擇：','Selected: ') + escapeHtml(imgDirHandle.name) : TT('尚未選擇資料夾','No folder selected')}</span></span><span class="pref-inline-stack" style="margin-top:8px"><input class="pref-text" id="pf-picked-link" type="text" value="${escapeHtml(settings.imgPickedLink || '')}" placeholder="${TT('../images 或 file:///D:/project/images','../images or file:///D:/project/images')}" aria-label="${TT('獨立圖片資料夾的 Markdown 連結前綴','Markdown link prefix for the separate image folder')}"><span class="pref-path" id="pf-picked-preview">${escapeHtml(imageLinkJoin(settings.imgPickedLink, TT('檔名.png','filename.png')))}</span></span><span class="pref-link-help">${TT('留空時：若圖片資料夾位於已連結專案根目錄內，程式會自動推導相對路徑；無法推導時只寫檔名。也可自行填入 ../images、D:/… 或 file:///… 等前綴。絕對路徑能寫入 Markdown，但是否可在瀏覽器直接預覽仍受本機安全規則限制。','When blank, a relative path is derived if the image folder is inside the linked project root; otherwise only the filename is written. You may enter ../images, D:/…, or file:///… explicitly. Absolute paths can be written to Markdown, but browser preview remains subject to local-file security rules.')}</span></span></span></label>
-              <label class="pref-choice"><input type="radio" name="pf-img" value="embed" ${m === 'embed' ? 'checked' : ''}><span class="pref-choice-icon">${I.embed}</span><span><span class="pref-choice-title">${TT('一律內嵌到 Markdown','Always embed in Markdown')}</span><span class="pref-choice-desc">${TT('使用 base64，不產生外部圖片檔；文件與瀏覽器儲存空間會明顯變大。','Use base64 with no external files; document and browser storage size will grow significantly.')}</span></span></label>
-            </div>
-            <div class="pref-fallback"><strong>${TT('自動遞補','Fallback')}</strong><span class="pref-fallback-chip">${TT('指定資料夾','Chosen folder')}</span><span class="pref-fallback-arrow">→</span><span class="pref-fallback-chip">${TT('專案子資料夾','Project subfolder')}</span><span class="pref-fallback-arrow">→</span><span class="pref-fallback-chip">base64</span></div>
-          </section>
-          <section class="pref-card pref-card-wide">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.fonts}</span><div><h4 class="pref-card-title">${TT('字體與語系路由','Fonts & language routing')}</h4><p class="pref-card-desc">${TT('每個文件模式都可分別指定中文字體與英文字體；空白即使用目前內嵌預設。','Assign Chinese and Latin fonts independently for every document mode; leave blank to use the embedded defaults.')}</p></div></div>
-            <div class="font-toolbar"><div class="font-toolbar-copy">${TT('新版使用字集路由：英文字母、數字與西文標點走 Latin 槽，中文、注音與全形標點走中文字體槽。右側預覽即時更新，設定同樣進入所見即所得 PDF。','The new script router sends Latin letters, numerals, and Western punctuation to the Latin slot, while Chinese, Bopomofo, and full-width punctuation use the CJK slot. Previews update live and the same routing enters WYSIWYG PDFs.')}</div><div class="font-toolbar-actions"><button id="pf-f-sys" class="pref-action" type="button">${I.fonts}<span>${TT('載入完整系統字體','Load system fonts')}</span></button><button id="pf-f-rst" class="pref-action danger" type="button">${I.reset}<span>${TT('全部恢復預設','Reset all')}</span></button></div></div>
-            <div class="font-groups">
-              ${fontGroup(TT('一般 Markdown','General Markdown'), TT('一般編輯、閱讀與程式碼區塊。','Regular editing, reading, and code blocks.'), TT('全局','Global'),
-                fontField('bodyCjk', TT('中文字體','Chinese font'), TT('中文／全形標點','CJK / full-width'), '中文預覽：排版與閱讀 123') +
-                fontField('bodyLatin', TT('英文字體','Latin font'), 'Latin / 0–9', 'The quick brown fox — Aa 123') +
-                fontField('mono', TT('等寬字體','Monospace font'), TT('程式碼／Source Mode','Code / Source Mode'), 'const value = 123; // 程式碼'))}
-              ${fontGroup(TT('論文模式（A4）','Paper mode (A4)'), TT('一般 Paper Mode，不含臺灣論文專屬主題。','Standard Paper Mode, excluding Taiwan Thesis themes.'), 'A4',
-                fontField('paperCjk', TT('中文字體','Chinese font'), TT('正文中文','CJK body'), '論文正文：研究方法與結果') +
-                fontField('paperLatin', TT('英文字體','Latin font'), TT('英文／數字','Latin / numerals'), 'Research Methods — 2026'))}
-              ${fontGroup(TT('臺灣論文中文版正文','Taiwan Thesis (Chinese) body'), TT('套用至電子版 1、電子版 2 與紙本版。','Applies to Digital 1, Digital 2, and Print.'), 'TW_THESIS ZH',
-                fontField('twthesisZhCjk', TT('中文字體','Chinese font'), TT('中文正文／封面','CJK body / cover'), '國立中山大學　中文論文正文') +
-                fontField('twthesisZhLatin', TT('英文字體','Latin font'), TT('英文片段／數字','Latin spans / numerals'), 'Taiwan Thesis — Fig. 2.1'))}
-              ${fontGroup(TT('臺灣論文英文正文','Taiwan Thesis (English) body'), TT('英文主題獨立設定，中文摘要可另設 fallback。','Independent English-theme settings with a separate Chinese fallback.'), 'TW_THESIS EN',
-                fontField('twthesisEnLatin', TT('英文字體','Latin font'), TT('英文正文／數字','English body / numerals'), 'Palatino-style Thesis — 123') +
-                fontField('twthesisEnCjk', TT('中文字體','Chinese fallback'), TT('中文摘要／姓名','Chinese abstract / names'), '中文摘要與中文姓名'))}
-            </div>
-            <datalist id="pf-fontlist"></datalist>
-            <div class="pref-note-box">${TT('臺灣論文英文的 small caps 與 Euler 數學字體仍保留論文安全的內嵌字型；這裡控制正文與一般字元，不會破壞既有 small-caps／數學排版契約。','Taiwan Thesis (English) keeps its thesis-safe embedded small-caps and Euler math fonts. These controls affect body text and ordinary characters without changing the existing small-caps or math contracts.')}</div>
-          </section>
-        </div>
+  const note = t => t ? `<span class="ekp-note">${t}</span>` : '';
+  const row = (label, hint, ctl, forId) => `<div class="ekp-row"><div class="ekp-label">${forId ? `<label for="${forId}">${label}</label>` : `<span>${label}</span>`}${note(hint)}</div><div class="ekp-ctl">${ctl}</div></div>`;
+  const sw = (id, label, hint, on) => `<label class="ekp-row ekp-switch" for="${id}"><span class="ekp-label"><span>${label}</span>${note(hint)}</span><span class="ekp-ctl"><input type="checkbox" role="switch" id="${id}" ${on ? 'checked' : ''}></span></label>`;
+  const seg = (name, opts, val, label) => `<div class="ekp-seg" role="radiogroup" aria-label="${label}">${opts.map(([v, t]) => `<button class="ekp-seg-btn" type="button" role="radio" data-seg="${name}" data-value="${v}" aria-checked="${v === val ? 'true' : 'false'}">${t}</button>`).join('')}</div>`;
+  const font = (key, label, sample) => `<div class="ekp-row ekp-font"><div class="ekp-label"><label for="pf-font-${key}">${label}</label><span class="ekp-sample" data-fprev="${key}">${sample}</span></div><div class="ekp-ctl"><input class="ekp-input" id="pf-font-${key}" type="text" list="pf-fontlist" data-fslot="${key}" value="${escapeHtml(uf[key] || '')}" placeholder="${TT('內建字體','Built-in font')}" spellcheck="false" autocomplete="off"><button class="ekp-link" type="button" data-freset="${key}" ${uf[key] ? '' : 'hidden'}>${TT('清除','Clear')}</button></div></div>`;
+  const logoOpt = (choice, thumb, name) => `<button class="ekp-logo" type="button" role="radio" data-logo-choice="${choice}" aria-checked="${settings.twthesisLogoChoice === choice ? 'true' : 'false'}"><span class="ekp-logo-thumb"${choice === 'custom' ? ' id="pf-logo-custom-thumb"' : ''}>${thumb}</span><span class="ekp-logo-name">${name}</span></button>`;
+  const customThumb = () => hasCustomTwThesisLogo() ? `<img src="${escapeHtml(settings.twthesisLogo)}" alt="">` : `<span class="ekp-logo-add" aria-hidden="true">＋</span>`;
+
+  showModal(`<div class="ekp">
+    <nav class="ekp-nav" aria-label="${TT('偏好設定分類','Preference categories')}">
+      <h2 id="prefs-title" class="ekp-title">${TT('偏好設定','Preferences')}</h2>
+      <div class="ekp-tabs" role="tablist" aria-orientation="vertical">
+        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="general">${TT('一般','General')}</button>
+        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="images">${TT('圖片','Images')}</button>
+        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="fonts">${TT('字體','Fonts')}</button>
+        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="thesis">${TT('臺灣論文','Taiwan thesis')}</button>
+        <button class="prefs-tab" type="button" role="tab" data-prefs-tab="intl">${TT('國際論文','International papers')}</button>
+      </div>
+    </nav>
+    <div class="ekp-body">
+      <section class="ekp-page" role="tabpanel" data-prefs-page="general">
+        <h3 class="ekp-h">${TT('一般','General')}</h3>
+        ${row(TT('介面語言','Language'), '', seg('lang', [['zh', '繁體中文'], ['en', 'English']], settings.lang === 'en' ? 'en' : 'zh', TT('介面語言','Language')))}
+        ${row(TT('格式工具列','Format toolbar'), TT('選擇格式工具列上要放哪些按鈕。','Choose which buttons the format toolbar shows.'), `<button class="ekp-btn" id="pf-toolbar-custom" type="button">${TT('自訂…','Customize…')}</button>`)}
+        <div class="ekp-group-h">${TT('匯出 LaTeX（.tex）','LaTeX export (.tex)')}</div>
+        ${sw('pf-booktabs', TT('表格用 booktabs 三線表','booktabs rules in tables'), TT('也用於「複製為 LaTeX」；國際論文在「版面設定」另外設定。','Also used by Copy as LaTeX; international papers set this in Layout settings.'), !!texGlobal('texBooktabs'))}
+        ${sw('pf-listings', TT('程式碼用 listings','listings for code'), '', !!texGlobal('texListings'))}
+        <details class="ekp-adv" id="ekp-md-compat"><summary>${TT('進階：Markdown 語法','Advanced: Markdown syntax')}</summary><div class="ekp-adv-body"></div></details>
+        <p class="ekp-foot">${TT('焦點模式、打字機模式、頁面縮放與顯示或隱藏工具列，在「顯示」選單。','Focus mode, typewriter mode, page zoom and showing the toolbar are in the View menu.')}</p>
       </section>
-      <section class="prefs-page" id="prefs-page-thesis" role="tabpanel" data-prefs-page="thesis">
-        <div class="prefs-page-intro"><div><h3>${TT('論文輸出設定','Thesis output settings')}</h3><p>${TT('依序管理臺灣論文封面標誌、Paper／臺灣論文分頁與編號，以及臺灣論文中英文正文縮排。輸出版型只由上方「主題」選單決定。','Manage the Taiwan Thesis cover mark, Paper/Taiwan Thesis pagination and numbering, and Chinese/English Taiwan Thesis paragraph indentation. Output variants are selected only from the Theme menu.')}</p></div><span class="pref-scope-badge">Paper / 臺灣論文</span></div>
-        <div class="prefs-grid">
-          <section class="pref-card pref-card-wide">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.crest}</span><div><h4 class="pref-card-title">${TT('臺灣論文封面標誌','Taiwan Thesis cover mark')}</h4><p class="pref-card-desc">${TT('把原本分散在中英文模板的兩個內建標誌集中到這裡；選擇結果會同時套用中文版與英文版臺灣論文。','The two built-in marks formerly split across the Chinese and English templates are now selected here; one choice applies to both.')}</p></div></div>
-            <div class="pref-logo-options" role="radiogroup" aria-label="${TT('臺灣論文封面標誌','Taiwan Thesis cover mark')}">
-              <button class="pref-logo-option ${settings.twthesisLogoChoice === 'seal' ? 'selected' : ''}" type="button" role="radio" aria-checked="${settings.twthesisLogoChoice === 'seal' ? 'true' : 'false'}" data-logo-choice="seal"><span class="pref-logo-thumb"><img src="${escapeHtml(NSYSU_LOGO_TW_THESIS2)}" alt="${TT('黑白圓形中山校徽','Black-and-white circular NSYSU crest')}"></span><span class="pref-logo-option-title">${TT('校徽一｜黑白圓形校徽','Mark 1 | Black-and-white seal')}</span><span class="pref-logo-option-desc">${TT('原中文版制式封面使用的圓形校徽。','The circular crest previously used by the Chinese official cover.')}</span></button>
-              <button class="pref-logo-option ${settings.twthesisLogoChoice === 'brand' ? 'selected' : ''}" type="button" role="radio" aria-checked="${settings.twthesisLogoChoice === 'brand' ? 'true' : 'false'}" data-logo-choice="brand"><span class="pref-logo-thumb"><img src="${escapeHtml(NSYSU_LOGO_ENGLISH)}" alt="${TT('藍綠山海識別標誌','Blue-green mountain-and-sea identity mark')}"></span><span class="pref-logo-option-title">${TT('校徽二｜藍綠山海識別','Mark 2 | Blue-green identity')}</span><span class="pref-logo-option-desc">${TT('原 英文版臺灣論文封面使用的藍綠色山海標誌。','The blue-green mountain-and-sea mark previously used by English Taiwan Thesis.')}</span></button>
-              <button class="pref-logo-option ${settings.twthesisLogoChoice === 'custom' ? 'selected' : ''}" id="pf-logo-drop" type="button" role="radio" aria-checked="${settings.twthesisLogoChoice === 'custom' ? 'true' : 'false'}" data-logo-choice="custom"><span class="pref-logo-thumb" id="pf-logo-custom-thumb">${hasCustomTwThesisLogo() ? `<img src="${escapeHtml(settings.twthesisLogo)}" alt="${TT('自訂封面標誌','Custom cover mark')}">` : `<span class="pref-logo-placeholder">${TT('點擊或拖放圖片以新增','Click or drop an image to add one')}</span>`}</span><span class="pref-logo-option-title">${TT('自訂標誌','Custom mark')}</span><span class="pref-logo-option-desc">${TT('可上傳 JPG、PNG、WebP、GIF 或 SVG；透明背景會保留。','Upload JPG, PNG, WebP, GIF, or SVG; transparency is preserved.')}</span></button>
-            </div>
-            <div class="pref-logo-scale">
-              <div class="pref-logo-scale-head"><div><div class="pref-logo-scale-title">${TT('校徽大小','Cover mark size')}</div><p class="pref-logo-scale-desc">${TT('調整 60%–140% 的視覺比例；中英文模板共用同一數值，位置與封面資訊區塊不會被重新排開。','Adjust the visual size from 60% to 140%. Chinese and English templates share the same value, while the fixed cover layout stays in place.')}</p></div><output class="pref-logo-scale-out" id="pf-logo-scale-out" for="pf-logo-scale">${settings.twthesisLogoScale}%</output></div>
-              <div class="pref-logo-scale-controls"><button class="pref-logo-scale-step" id="pf-logo-scale-dec" type="button" aria-label="${TT('縮小校徽','Decrease cover mark size')}">−</button><input id="pf-logo-scale" type="range" min="60" max="140" step="5" value="${settings.twthesisLogoScale}" aria-label="${TT('校徽大小','Cover mark size')}"><button class="pref-logo-scale-step" id="pf-logo-scale-inc" type="button" aria-label="${TT('放大校徽','Increase cover mark size')}">＋</button><button class="pref-action" id="pf-logo-scale-rst" type="button">${TT('恢復 100%','Reset to 100%')}</button></div>
-            </div>
-            <div class="pref-logo-footer"><div class="pref-logo-footer-copy"><span class="pref-logo-state" id="pf-logo-state"></span><p>${TT('兩種內建標誌與自訂標誌都會使用固定的封面容器與等比縮放，避免切換後推動標題或日期。','Both built-in marks and custom marks use fixed cover boxes with proportional fitting, so switching does not push the title or date.')}</p></div><div class="pref-logo-actions"><button id="pf-logo-up" class="pref-action primary" type="button">${I.upload}<span>${hasCustomTwThesisLogo() ? TT('更換自訂圖片…','Replace custom image…') : TT('上傳自訂圖片…','Upload custom image…')}</span></button><button id="pf-logo-rst" class="pref-action danger" type="button" ${hasCustomTwThesisLogo() ? '' : 'disabled'}>${I.reset}<span>${TT('移除自訂圖片','Remove custom image')}</span></button></div></div>
-            <div class="pref-note-box">${TT('此處只控制封面標誌；中文版「電子版 1／電子版 2／紙本版」與 English「Digital／Print」仍由上方「主題」選單決定，不再在偏好設定重複提供。','This setting controls only the cover mark. Chinese Digital 1/Digital 2/Print and English Digital/Print remain in the Theme menu and are no longer duplicated in Preferences.')}</div>
-          </section>
-          <section class="pref-card pref-card-wide">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.paper}</span><div><h4 class="pref-card-title">${TT('分頁與自動編號','Pagination & numbering')}</h4><p class="pref-card-desc">${TT('同時套用至一般 Paper Mode 與臺灣論文模式。','Shared by standard Paper Mode and Taiwan Thesis modes.')}</p></div></div>
-            <label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('自動章節與圖片編號','Auto-number sections and figures')}</span><span class="pref-switch-desc">${TT('這是既有且預設開啟的 Paper／臺灣論文顯示與輸出功能：替章節、圖片與表格產生編號，並同步大綱與 PDF；不會把編號寫回 Markdown 原始內容。原稿已自行編號時再關閉。','This existing Paper/Taiwan Thesis display and export feature is on by default. It numbers sections, figures, and tables in the view, outline, and PDF without rewriting the Markdown source. Turn it off only when the source already contains numbering.')}</span></span><input id="pf-pnum" type="checkbox" ${settings.paperNum !== false ? 'checked' : ''}></label>
-            <label class="pref-switch-row"><span class="pref-switch-copy"><span class="pref-switch-title">${TT('填滿每一頁','Fill each page')}</span><span class="pref-switch-desc">${TT('允許普通段落在頁界續排；關閉後整段推到次頁。圖片、獨立公式與指定整表同頁仍保持完整。','Allow ordinary paragraphs to continue across page breaks. When off, whole paragraphs move to the next page. Images, display math, and keep-whole tables remain atomic.')}</span></span><input id="pf-fillpage" type="checkbox" ${settings.paperFillPages ? 'checked' : ''}></label>
-            <div class="pref-note-box">${TT('行內公式會跟著所在文字行一起移動，不會從公式內部切開；長表格仍可依列跨頁。','Inline formulas move atomically with their text line and are never split internally; long tables may still continue by rows.')}</div>
-          </section>
-          <section class="pref-card pref-card-wide">
-            <div class="pref-card-head"><span class="pref-card-icon">${I.indent}</span><div><h4 class="pref-card-title">${TT('縮排設定','Indentation')}</h4><p class="pref-card-desc">${TT('中文版與英文版臺灣論文分開設定；只改顯示與輸出版型，不改 Markdown 原文。','Configure Chinese and English Taiwan Thesis independently. This changes presentation and export only, never the Markdown source.')}</p></div></div>
-            <div class="pref-indent-grid">
-              <section class="pref-indent-group" aria-labelledby="pf-indent-zh-title">
-                <div class="pref-segment-title" id="pf-indent-zh-title">${TT('中文縮排','Chinese indentation')}</div>
-                <p class="pref-segment-note">${TT('統一控制臺灣論文中文版的一般正文段落。','Controls ordinary body paragraphs in Chinese Taiwan Thesis.')}</p>
-                <div class="pref-choice-list">
-                  <label class="pref-choice"><input type="radio" name="pf-indent-zh" value="two-em" ${settings.thesisIndentZh === 'two-em' ? 'checked' : ''}><span class="pref-choice-icon">${I.indent}</span><span><span class="pref-choice-title">${TT('首行縮排兩字（預設）','Two-character first-line indent (default)')}</span><span class="pref-choice-desc">${TT('每個一般正文段落縮排 2em，符合中文論文常見版式。','Indent each ordinary body paragraph by 2em, a common Chinese thesis convention.')}</span></span></label>
-                  <label class="pref-choice"><input type="radio" name="pf-indent-zh" value="none" ${settings.thesisIndentZh === 'none' ? 'checked' : ''}><span class="pref-choice-icon">${I.indent}</span><span><span class="pref-choice-title">${TT('全部不縮排','No indentation')}</span><span class="pref-choice-desc">${TT('所有一般正文段落與版心左緣對齊。','Align all ordinary body paragraphs with the left text edge.')}</span></span></label>
-                </div>
-              </section>
-              <section class="pref-indent-group" aria-labelledby="pf-indent-en-title">
-                <div class="pref-segment-title" id="pf-indent-en-title">${TT('英文縮排','English indentation')}</div>
-                <p class="pref-segment-note">${TT('依系所規範或採用常見英文學術排版。','Follow your institution or choose a common academic convention.')}</p>
-                <div class="pref-choice-list">
-                  <label class="pref-choice"><input type="radio" name="pf-indent-en" value="none" ${settings.thesisIndentEn === 'none' ? 'checked' : ''}><span class="pref-choice-icon">${I.indent}</span><span><span class="pref-choice-title">${TT('全部不縮排（臺灣論文預設）','No indentation (Taiwan Thesis default)')}</span><span class="pref-choice-desc">${TT('所有一般正文段落的首行從版心左緣開始；原有兩端對齊不變。適合教授或系所明確要求不縮排時使用。','Start every ordinary body paragraph at the left text edge; existing justified alignment stays unchanged. Use this when your supervisor or institution explicitly requires no indentation.')}</span></span></label>
-                  <label class="pref-choice"><input type="radio" name="pf-indent-en" value="standard" ${settings.thesisIndentEn === 'standard' ? 'checked' : ''}><span class="pref-choice-icon">${I.indent}</span><span><span class="pref-choice-title">${TT('每段首行 0.5 in','First line 0.5 in for every paragraph')}</span><span class="pref-choice-desc">${TT('APA／MLA／Turabian 常見規範；包含標題後第一段。0.5 in = 1.27 cm。','Common in APA, MLA, and Turabian; includes the first paragraph after a heading. 0.5 in = 1.27 cm.')}</span></span></label>
-                  <label class="pref-choice"><input type="radio" name="pf-indent-en" value="section-first-flush" ${settings.thesisIndentEn === 'section-first-flush' ? 'checked' : ''}><span class="pref-choice-icon">${I.indent}</span><span><span class="pref-choice-title">${TT('標題後首段不縮排，其餘 0.5 in','First paragraph after a heading flush; others 0.5 in')}</span><span class="pref-choice-desc">${TT('Chicago／書籍排版常見做法；只依章節結構判斷，不會因段落落在新頁而取消縮排。','A Chicago/book-style convention based only on section structure; a page break never cancels indentation.')}</span></span></label>
-                </div>
-              </section>
-            </div>
-            <div class="pref-note-box">${TT('圖說、參考文獻、關鍵字與 <code>&lt;!-- noindent --&gt;</code> 明示段落仍保留各自的零縮排語意；同一段跨頁續排時也不會在下一頁中途再次縮排。','Captions, references, keywords, and explicitly marked <code>&lt;!-- noindent --&gt;</code> paragraphs keep their own zero-indent semantics. A paragraph continuing across a page break is not indented again mid-paragraph.')}</div>
-          </section>
+
+      <section class="ekp-page" role="tabpanel" data-prefs-page="images" hidden>
+        <h3 class="ekp-h">${TT('圖片','Images')}</h3>
+        <p class="ekp-lead">${TT('貼上或拖進文件的圖片要存在哪裡。','Where pasted or dropped images are stored.')}</p>
+        <div class="ekp-choices" role="radiogroup" aria-label="${TT('圖片存放位置','Image storage')}">
+          <label class="ekp-choice"><input type="radio" name="pf-img" value="folder" ${m === 'folder' ? 'checked' : ''}>
+            <span class="ekp-choice-body"><span class="ekp-choice-title">${TT('專案資料夾裡的子資料夾','A subfolder of the project folder')}</span>
+              <span class="ekp-note">${TT('圖片存成檔案，文件裡寫相對路徑。要交出原始檔時選這個。','Images are saved as files and linked with relative paths. Best when you hand in source files.')}</span>
+              <span class="ekp-choice-more">
+                <span class="ekp-inline"><button class="ekp-btn" id="pf-base-link" type="button"></button><span class="ekp-status" id="pf-base-state"></span><button class="ekp-link" id="pf-base-unlink" type="button">${TT('中斷連結','Unlink')}</button></span>
+                <span class="ekp-inline"><span class="ekp-mini">${TT('子資料夾','Subfolder')}</span><input class="ekp-input ekp-input-s" id="pf-sub" aria-label="${TT('圖片子資料夾','Image subfolder')}" type="text" value="${escapeHtml(settings.imgSub || 'image')}" spellcheck="false"><span class="ekp-note" id="pf-base-md"></span></span>
+              </span></span></label>
+          <label class="ekp-choice"><input type="radio" name="pf-img" value="picked" ${m === 'picked' ? 'checked' : ''}>
+            <span class="ekp-choice-body"><span class="ekp-choice-title">${TT('另外指定的資料夾','A folder you choose')}</span>
+              <span class="ekp-note">${TT('圖片存到你選的資料夾，可以在專案外面。','Images go to a folder you pick, which may be outside the project.')}</span>
+              <span class="ekp-choice-more">
+                <span class="ekp-inline"><button class="ekp-btn" id="pf-pick" type="button"></button><span class="ekp-status" id="pf-pickname"></span></span>
+                <span class="ekp-inline"><span class="ekp-mini">${TT('文件裡的路徑前綴','Link prefix')}</span><input class="ekp-input" id="pf-picked-link" aria-label="${TT('文件裡的路徑前綴','Link prefix')}" type="text" value="${escapeHtml(settings.imgPickedLink || '')}" placeholder="${TT('留空自動推算，例如 ../images','Blank = automatic, e.g. ../images')}" spellcheck="false"><span class="ekp-note" id="pf-picked-preview"></span></span>
+              </span></span></label>
+          <label class="ekp-choice"><input type="radio" name="pf-img" value="embed" ${m === 'embed' ? 'checked' : ''}>
+            <span class="ekp-choice-body"><span class="ekp-choice-title">${TT('直接存在文件裡','Inside the document')}</span>
+              <span class="ekp-note">${TT('不產生圖片檔，最省事；文件會變大。','No image files, nothing to set up; the document gets larger.')}</span></span></label>
         </div>
+        <p class="ekp-foot">${TT('還沒選好資料夾時，圖片先存在文件裡。','Until a folder is chosen, images are stored inside the document.')}</p>
+      </section>
+
+      <section class="ekp-page" role="tabpanel" data-prefs-page="fonts" hidden>
+        <h3 class="ekp-h">${TT('字體','Fonts')}</h3>
+        <p class="ekp-lead">${TT('留空就用內建字體。中文字與英文字母、數字分開套用。','Leave blank to use the built-in fonts. Chinese and Latin characters are set separately.')}</p>
+        <div class="ekp-group-h">${TT('一般文件','Documents')}</div>
+        ${font('bodyCjk', TT('中文','Chinese'), '中文排版與閱讀 123')}
+        ${font('bodyLatin', TT('英文與數字','Latin and digits'), 'The quick brown fox 123')}
+        ${font('mono', TT('程式碼','Code'), 'const value = 123;')}
+        <details class="ekp-adv"><summary>${TT('論文模式、臺灣論文的字體','Fonts for paper mode and Taiwan thesis')}</summary><div class="ekp-adv-body">
+          <div class="ekp-group-h">${TT('論文模式（A4）','Paper mode (A4)')}</div>
+          ${font('paperCjk', TT('中文','Chinese'), '研究方法與結果')}
+          ${font('paperLatin', TT('英文與數字','Latin and digits'), 'Research Methods 2026')}
+          <div class="ekp-group-h">${TT('臺灣論文中文版','Taiwan thesis, Chinese')}</div>
+          ${font('twthesisZhCjk', TT('中文','Chinese'), '國立中山大學 碩士論文')}
+          ${font('twthesisZhLatin', TT('英文與數字','Latin and digits'), 'Fig. 2.1 Results')}
+          <div class="ekp-group-h">${TT('臺灣論文英文版','Taiwan thesis, English')}</div>
+          ${font('twthesisEnLatin', TT('英文與數字','Latin and digits'), 'Master’s Thesis 2026')}
+          ${font('twthesisEnCjk', TT('中文（摘要、姓名）','Chinese (abstract, names)'), '中文摘要 王小明')}
+        </div></details>
+        <datalist id="pf-fontlist"></datalist>
+        <div class="ekp-inline ekp-actions"><button class="ekp-link" id="pf-f-sys" type="button">${TT('列出這台電腦的字體','List this computer’s fonts')}</button><button class="ekp-link" id="pf-f-rst" type="button">${TT('全部恢復內建字體','Reset all to built-in')}</button></div>
+      </section>
+
+      <section class="ekp-page" role="tabpanel" data-prefs-page="thesis" hidden>
+        <h3 class="ekp-h">${TT('臺灣論文','Taiwan thesis')}</h3>
+        <div class="ekp-group-h">${TT('輸出版本','Output')}</div>
+        ${row(TT('中文版','Chinese'), TT('精簡沒有頁首，書冊有章節頁首；紙本是鏡像邊距、頁碼在外側。','Compact has no running head, book has chapter heads; print mirrors the margins with outer page numbers.'), seg('twzh', [['compact', TT('電子版・精簡','Digital, compact')], ['book', TT('電子版・書冊','Digital, book')], ['print', TT('紙本雙面','Print')]], settings.twthesisPrint ? 'print' : (settings.twthesisDigitalStyle === 'compact' ? 'compact' : 'book'), TT('中文版輸出版本','Chinese output')))}
+        ${row(TT('英文版','English'), '', seg('twen', [['digital', TT('電子版','Digital')], ['print', TT('紙本雙面','Print')]], settings.twthesisEnPrint ? 'print' : 'digital', TT('英文版輸出版本','English output')))}
+        <div class="ekp-group-h">${TT('版面（也用於論文模式）','Layout (also used in paper mode)')}</div>
+        ${sw('pf-pnum', TT('自動編號章節、圖、表','Number sections, figures and tables'), TT('編號只出現在畫面與 PDF，不寫進原文。原文已經自己編號時才關掉。','Numbers appear on screen and in the PDF only. Turn off if your text already has numbers.'), settings.paperNum !== false)}
+        ${sw('pf-fillpage', TT('段落可以跨頁','Let paragraphs continue across pages'), TT('關掉時，放不下的段落整段移到下一頁。','When off, a paragraph that does not fit moves to the next page.'), !!settings.paperFillPages)}
+        <div class="ekp-group-h">${TT('封面校徽','Cover logo')}</div>
+        <div class="ekp-logos" role="radiogroup" aria-label="${TT('封面校徽','Cover logo')}">
+          ${logoOpt('seal', `<img src="${escapeHtml(NSYSU_LOGO_TW_THESIS2)}" alt="">`, TT('黑白圓形校徽','Black-and-white seal'))}
+          ${logoOpt('brand', `<img src="${escapeHtml(NSYSU_LOGO_ENGLISH)}" alt="">`, TT('藍綠山海標誌','Blue-green emblem'))}
+          ${logoOpt('custom', customThumb(), TT('自訂圖片','Your own image'))}
+        </div>
+        <div class="ekp-inline ekp-custom-actions" id="pf-logo-custom-actions"><button class="ekp-link" id="pf-logo-up" type="button">${TT('更換圖片…','Replace image…')}</button><button class="ekp-link" id="pf-logo-rst" type="button">${TT('移除自訂圖片','Remove image')}</button></div>
+        ${row(TT('校徽大小','Logo size'), '', `<input class="ekp-range" id="pf-logo-scale" type="range" min="60" max="140" step="5" value="${settings.twthesisLogoScale}" aria-label="${TT('校徽大小','Logo size')}"><output class="ekp-value" id="pf-logo-scale-out" for="pf-logo-scale">${settings.twthesisLogoScale}%</output><button class="ekp-link" id="pf-logo-scale-rst" type="button">${TT('恢復','Reset')}</button>`)}
+        <div class="ekp-group-h">${TT('正文縮排','Paragraph indent')}</div>
+        ${row(TT('中文版','Chinese'), '', `<select class="ekp-select" id="pf-indent-zh"><option value="two-em" ${settings.thesisIndentZh !== 'none' ? 'selected' : ''}>${TT('首行縮排兩字','Indent two characters')}</option><option value="none" ${settings.thesisIndentZh === 'none' ? 'selected' : ''}>${TT('不縮排','No indent')}</option></select>`, 'pf-indent-zh')}
+        ${row(TT('英文版','English'), '', `<select class="ekp-select" id="pf-indent-en"><option value="none" ${settings.thesisIndentEn === 'none' ? 'selected' : ''}>${TT('不縮排','No indent')}</option><option value="standard" ${settings.thesisIndentEn === 'standard' ? 'selected' : ''}>${TT('每段首行縮 0.5 in','Every paragraph 0.5 in')}</option><option value="section-first-flush" ${settings.thesisIndentEn === 'section-first-flush' ? 'selected' : ''}>${TT('標題後第一段不縮，其餘 0.5 in','0.5 in except after a heading')}</option></select>`, 'pf-indent-en')}
+        <p class="ekp-foot">${TT('封面、審定書、關鍵字與目錄，用格式列右側的「TW」填寫。','Fill in the cover, approval page, keywords and contents with “TW” at the right of the format bar.')}</p>
+      </section>
+
+      <section class="ekp-page" role="tabpanel" data-prefs-page="intl" hidden>
+        <h3 class="ekp-h">${TT('國際論文','International papers')}</h3>
+        <div class="ekp-group-h">${TT('這份文件','This document')}</div>
+        <div class="ekp-row"><div class="ekp-label"><span id="pf-intl-doc"></span><span class="ekp-note" id="pf-intl-doc-note"></span></div><div class="ekp-ctl"><button class="ekp-btn" id="pf-intl-open" type="button"></button></div></div>
+        <div class="ekp-group-h">${TT('新論文的預設版面','Default layout for new papers')}</div>
+        ${row(TT('學會','Society'), '', '<select class="ekp-select" id="pf-intl-soc"></select>', 'pf-intl-soc')}
+        ${row(TT('期刊','Journal'), '', '<select class="ekp-select" id="pf-intl-jnl"></select>', 'pf-intl-jnl')}
+        ${row(TT('排版模式','Layout'), TT('reprint 接近見刊樣貌；preprint 是單欄寬行距的審稿稿件。','reprint looks like the published paper; preprint is a one-column referee copy.'), seg('intlMode', [['reprint', 'reprint'], ['preprint', 'preprint']], '', TT('排版模式','Layout')))}
+        ${row(TT('紙張','Paper'), '', seg('intlPaper', [['letterpaper', 'Letter'], ['a4paper', 'A4']], '', TT('紙張','Paper')))}
+        <div class="ekp-group-h">${TT('編譯','Compiling')}</div>
+        ${sw('pf-intl-auto', TT('停筆自動編譯','Compile when you pause'), TT('停止打字約一秒後，右邊的 PDF 自動重新編譯。','About a second after you stop typing, the PDF on the right recompiles.'), !!(window.__CP171__ && window.__CP171__.flags && window.__CP171__.flags().autoCompile))}
+        <p class="ekp-foot">${TT('預設版面只用在還沒有版面設定的新論文；欄數、字級、作者單位排法等其他選項在「版面設定」。','Defaults apply only to new papers without layout settings; columns, type size, affiliations and the rest are in Layout settings.')}</p>
       </section>
     </div>
   </div>`);
   const box = $('#modal');
-  box.classList.add('preferences-modal');
+  box.classList.add('ekp-modal');
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');
   box.setAttribute('aria-labelledby', 'prefs-title');
   const close = $('#modal-close');
   if (close){ close.textContent = TT('完成','Done'); close.setAttribute('aria-label', TT('關閉偏好設定','Close Preferences')); }
 
+  /* 分類切換：上下方向鍵在分類之間移動 */
   const activateTab = (name, save) => {
-    const next = name === 'thesis' ? 'thesis' : 'global';
+    const next = PAGES.includes(name) ? name : 'general';
     box.querySelectorAll('[data-prefs-tab]').forEach(btn => {
       const on = btn.dataset.prefsTab === next;
       btn.setAttribute('aria-selected', on ? 'true' : 'false');
       btn.tabIndex = on ? 0 : -1;
     });
     box.querySelectorAll('[data-prefs-page]').forEach(page => { page.hidden = page.dataset.prefsPage !== next; });
+    const body = box.querySelector('.ekp-body'); if (body) body.scrollTop = 0;
     if (save){ settings.prefsTab = next; persist(); }
-    const scroll = box.querySelector('.prefs-scroll'); if (scroll) scroll.scrollTop = 0;
   };
   box.querySelectorAll('[data-prefs-tab]').forEach(btn => {
     btn.addEventListener('click', () => activateTab(btn.dataset.prefsTab, true));
     btn.addEventListener('keydown', e => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
       e.preventDefault();
-      const next = btn.dataset.prefsTab === 'global' ? 'thesis' : 'global';
-      activateTab(next, true);
-      box.querySelector(`[data-prefs-tab="${next}"]`).focus();
+      const i = PAGES.indexOf(btn.dataset.prefsTab), d = (e.key === 'ArrowUp' || e.key === 'ArrowLeft') ? -1 : 1;
+      const next = PAGES[(i + d + PAGES.length) % PAGES.length];
+      activateTab(next, true); box.querySelector(`[data-prefs-tab="${next}"]`).focus();
     });
   });
   activateTab(activeTab, false);
 
-  /* 全局：介面與顯示 */
-  const lang = $('#pf-lang');
-  if (lang) lang.addEventListener('change', () => { settings.prefsTab = 'global'; setLang(lang.value); showPrefs(); });
-  const vz = $('#pf-viewzoom'), vzOut = $('#pf-viewzoom-out');
-  if (vz) vz.addEventListener('input', () => { const val = vzNorm(vz.value); if (vzOut) vzOut.textContent = val + '%'; setViewZoom(val); });
-  const toolbar = $('#pf-toolbar');
-  if (toolbar) toolbar.addEventListener('change', () => { settings.showToolbar = toolbar.checked; tbSync(); buildMenubar(); persist(); });
+  /* 分段切換（語言、中文縮排） */
+  const segSet = (name, value) => box.querySelectorAll(`[data-seg="${name}"]`).forEach(b => b.setAttribute('aria-checked', b.dataset.value === value ? 'true' : 'false'));
+  box.querySelectorAll('[data-seg]').forEach(b => b.addEventListener('click', () => {
+    const name = b.dataset.seg, v = b.dataset.value;
+    segSet(name, v);
+    if (name === 'lang' && v !== (settings.lang === 'en' ? 'en' : 'zh')){ settings.prefsTab = 'general'; setLang(v); showPrefs(); }
+    if (name === 'twzh' || name === 'twen') setTwVariant(name, v);
+    if (name === 'intlMode') saveIntlDefaults({ revtexMode: v });
+    if (name === 'intlPaper') saveIntlDefaults({ revtexPaper: v });
+  }));
+
+  /* 一般：LaTeX 匯出的兩個套件選項（1.2.8 從「檔案」選單移過來）。國際論文工作階段中這兩個值被文件暫借，寫進真正的全域值。 */
+  [['pf-booktabs','texBooktabs'],['pf-listings','texListings']].forEach(([id,k]) => {
+    const el = $('#' + id); if (!el) return;
+    el.addEventListener('change', () => {
+      let D = null; try { D = window.__CP171__.registry.revtexDocumentSettings; } catch(_){}
+      const intl = !!(window.__CP171__ && window.__CP171__.isIntlMode && window.__CP171__.isIntlMode());
+      if (intl && D && D.acceptPersistentGlobalValues) D.acceptPersistentGlobalValues({ [k]: el.checked });
+      else settings[k] = el.checked;
+      persist();
+    });
+  });
+
+  /* 一般 */
   const toolbarCustom = $('#pf-toolbar-custom');
   if (toolbarCustom) toolbarCustom.addEventListener('click', showToolbarCustomizer);
-  const focus = $('#pf-focus');
-  if (focus) focus.addEventListener('change', () => { settings.focus = focus.checked; document.body.classList.toggle('focusmode', settings.focus); persist(); });
-  const typewriter = $('#pf-typewriter');
-  if (typewriter) typewriter.addEventListener('change', () => { settings.typewriter = typewriter.checked; persist(); });
 
-  /* 全局：圖片儲存與相對路徑基準 */
-  const refreshStorageRoot = () => {
-    const state = $('#pf-base-state'), name = $('#pf-base-name'), target = $('#pf-base-target'), unlink = $('#pf-base-unlink'), link = $('#pf-base-link');
-    if (state){ state.classList.toggle('linked', !!dirHandle); state.textContent = dirHandle ? TT('已連結：','Linked: ') + dirHandle.name : TT('尚未連結專案資料夾','No project folder linked'); }
-    if (name) name.textContent = dirHandle ? dirHandle.name : '—';
-    if (target) target.textContent = dirHandle ? dirHandle.name + '/' + cleanImageSubfolder(settings.imgSub) + '/' : TT('連結後才可寫入','Available after linking');
-    if (unlink) unlink.disabled = !dirHandle;
-    if (link) link.querySelector('span').textContent = dirHandle ? TT('更換專案資料夾…','Change project folder…') : TT('連結專案資料夾…','Link project folder…');
+  /* 圖片 */
+  const refreshImages = () => {
+    const link = $('#pf-base-link'), state = $('#pf-base-state'), unlink = $('#pf-base-unlink'), md = $('#pf-base-md');
+    if (link) link.textContent = dirHandle ? TT('更換資料夾…','Change folder…') : TT('連結專案資料夾…','Link project folder…');
+    if (state){ state.textContent = dirHandle ? TT('已連結「','Linked: “') + dirHandle.name + TT('」','”') : TT('尚未連結','Not linked'); state.classList.toggle('on', !!dirHandle); }
+    if (unlink) unlink.hidden = !dirHandle;
+    if (md) md.textContent = TT('文件裡寫成 ','Written as ') + storageImageLogicalPath() + TT('檔名.png','name.png');
+    const pick = $('#pf-pick'), pickName = $('#pf-pickname');
+    if (pick) pick.textContent = imgDirHandle ? TT('更換資料夾…','Change folder…') : TT('選擇資料夾…','Choose folder…');
+    if (pickName){ pickName.textContent = imgDirHandle ? TT('已選擇「','Selected: “') + imgDirHandle.name + TT('」','”') : TT('尚未選擇','None selected'); pickName.classList.toggle('on', !!imgDirHandle); }
+    const pl = $('#pf-picked-link'), pp = $('#pf-picked-preview');
+    if (pp) pp.textContent = TT('文件裡寫成 ','Written as ') + imageLinkJoin(pl ? pl.value : settings.imgPickedLink, TT('檔名.png','name.png'));
+    box.querySelectorAll('.ekp-choice').forEach(c => c.classList.toggle('on', !!c.querySelector('input:checked')));
   };
-  box.querySelectorAll('input[name="pf-img"]').forEach(r => r.addEventListener('change', () => { settings.imgMode = r.value; persist(); }));
+  const setImgMode = v => { settings.imgMode = v; box.querySelectorAll('input[name="pf-img"]').forEach(r => { r.checked = r.value === v; }); persist(); refreshImages(); };
+  box.querySelectorAll('input[name="pf-img"]').forEach(r => r.addEventListener('change', () => { if (r.checked) setImgMode(r.value); }));
   const baseLink = $('#pf-base-link');
-  if (baseLink) baseLink.addEventListener('click', async () => {
-    if (await linkFolder()){
-      settings.imgMode = 'folder';
-      box.querySelectorAll('input[name="pf-img"]').forEach(r => { r.checked = r.value === 'folder'; });
-      persist(); refreshStorageRoot();
-    }
-  });
+  if (baseLink) baseLink.addEventListener('click', async e => { e.preventDefault(); if (await linkFolder()) setImgMode('folder'); refreshImages(); });
   const baseUnlink = $('#pf-base-unlink');
-  if (baseUnlink) baseUnlink.addEventListener('click', async () => { await unlinkFolder(); refreshStorageRoot(); });
+  if (baseUnlink) baseUnlink.addEventListener('click', async e => { e.preventDefault(); await unlinkFolder(); refreshImages(); });
   const sub = $('#pf-sub');
-  if (sub) sub.addEventListener('change', () => {
-    settings.imgSub = cleanImageSubfolder(sub.value);
-    sub.value = settings.imgSub; persist();
-    const path = sub.closest('.pref-inline')?.querySelector('.pref-path'); if (path) path.textContent = storageImageLogicalPath();
-    const md = $('#pf-base-md'); if (md) md.textContent = storageImageLogicalPath() + TT('檔名','filename');
-    refreshStorageRoot();
-    toast(TT('圖片子資料夾：','Image subfolder: ') + settings.imgSub);
-  });
-  const pickedLink = $('#pf-picked-link'), pickedPreview = $('#pf-picked-preview');
-  const refreshPickedPreview = () => { if (pickedPreview) pickedPreview.textContent = imageLinkJoin(pickedLink ? pickedLink.value : settings.imgPickedLink, TT('檔名.png','filename.png')); };
-  if (pickedLink){
-    pickedLink.addEventListener('input', refreshPickedPreview);
-    pickedLink.addEventListener('change', () => { settings.imgPickedLink = cleanImageLinkPrefix(pickedLink.value); pickedLink.value = settings.imgPickedLink; refreshPickedPreview(); persist(); });
+  if (sub){
+    sub.addEventListener('click', e => e.preventDefault());
+    sub.addEventListener('change', () => { settings.imgSub = cleanImageSubfolder(sub.value); sub.value = settings.imgSub; persist(); refreshImages(); });
   }
   const pick = $('#pf-pick');
-  if (pick) pick.addEventListener('click', async () => {
-    if (await pickImgDir()){
-      const lb = $('#pf-pickname'); if (lb) lb.textContent = TT('已選擇：','Selected: ') + imgDirHandle.name;
-      const txt = pick.querySelector('span'); if (txt) txt.textContent = TT('更換圖片資料夾…','Change image folder…');
-      box.querySelectorAll('input[name="pf-img"]').forEach(r => { r.checked = r.value === 'picked'; });
-    }
-  });
+  if (pick) pick.addEventListener('click', async e => { e.preventDefault(); if (await pickImgDir()) setImgMode('picked'); refreshImages(); });
+  const pickedLink = $('#pf-picked-link');
+  if (pickedLink){
+    pickedLink.addEventListener('click', e => e.preventDefault());
+    pickedLink.addEventListener('input', refreshImages);
+    pickedLink.addEventListener('change', () => { settings.imgPickedLink = cleanImageLinkPrefix(pickedLink.value); pickedLink.value = settings.imgPickedLink; persist(); refreshImages(); });
+  }
+  refreshImages();
 
-  /* 論文：編號、分頁與中英文縮排（版型只由主題選單控制） */
+  /* 論文：編號、跨頁、縮排 */
   const pnum = $('#pf-pnum');
   if (pnum) pnum.addEventListener('change', () => {
     settings.paperNum = pnum.checked;
@@ -1091,89 +1077,115 @@ function showPrefs(){
   });
   const fillpage = $('#pf-fillpage');
   if (fillpage) fillpage.addEventListener('change', () => { settings.paperFillPages = fillpage.checked; schedulePaginate(); persist(); });
-  box.querySelectorAll('input[name="pf-indent-zh"]').forEach(r => r.addEventListener('change', () => {
-    if (!r.checked) return;
-    settings.thesisIndentZh = r.value;
-    applyThesisIndentSettings(); schedulePaginate(); persist();
-    toast(r.value === 'none' ? TT('臺灣論文中文正文：不縮排','Chinese Taiwan Thesis body: no indentation')
-                             : TT('臺灣論文中文正文：首行縮排兩字','Chinese Taiwan Thesis body: two-character first-line indent'));
-  }));
-  box.querySelectorAll('input[name="pf-indent-en"]').forEach(r => r.addEventListener('change', () => {
-    if (!r.checked) return;
-    settings.thesisIndentEn = r.value;
-    applyThesisIndentSettings(); schedulePaginate(); persist();
-    const label = r.value === 'standard'
-      ? TT('臺灣論文英文正文：每段首行 0.5 in','English Taiwan Thesis body: every first line 0.5 in')
-      : r.value === 'section-first-flush'
-        ? TT('臺灣論文英文正文：標題後首段齊左，其餘 0.5 in','English Taiwan Thesis body: first after heading flush, others 0.5 in')
-        : TT('臺灣論文英文正文：不縮排','English Taiwan Thesis body: no indentation');
-    toast(label);
-  }));
-  /* 論文：兩個內建標誌 + 自訂標誌；同一選擇同步套用中英文封面。 */
-  const logoDrop = $('#pf-logo-drop'), logoState = $('#pf-logo-state'), logoReset = $('#pf-logo-rst');
-  const logoScale = $('#pf-logo-scale'), logoScaleOut = $('#pf-logo-scale-out');
-  const logoChoiceLabel = () => settings.twthesisLogoChoice === 'brand'
-    ? TT('目前選擇：校徽二（藍綠山海識別）','Selected: Mark 2 (blue-green identity)')
-    : settings.twthesisLogoChoice === 'custom'
-      ? TT('目前選擇：自訂標誌','Selected: Custom mark')
-      : TT('目前選擇：校徽一（黑白圓形校徽）','Selected: Mark 1 (black-and-white seal)');
+  const indentZh = $('#pf-indent-zh');
+  if (indentZh) indentZh.addEventListener('change', () => { settings.thesisIndentZh = indentZh.value; applyThesisIndentSettings(); schedulePaginate(); persist(); });
+  const indentEn = $('#pf-indent-en');
+  if (indentEn) indentEn.addEventListener('change', () => { settings.thesisIndentEn = indentEn.value; applyThesisIndentSettings(); schedulePaginate(); persist(); });
+
+  /* 論文：封面校徽（兩個內建＋自訂，中英文封面共用） */
   const refreshLogo = () => {
     normalizeTwThesisLogoChoice();
-    box.querySelectorAll('[data-logo-choice]').forEach(btn => {
-      const on = btn.dataset.logoChoice === settings.twthesisLogoChoice;
-      btn.classList.toggle('selected', on); btn.setAttribute('aria-checked', on ? 'true' : 'false');
-    });
-    const thumb = $('#pf-logo-custom-thumb');
-    if (thumb) thumb.innerHTML = hasCustomTwThesisLogo() ? `<img src="${escapeHtml(settings.twthesisLogo)}" alt="${TT('自訂封面標誌','Custom cover mark')}">` : `<span class="pref-logo-placeholder">${TT('點擊或拖放圖片以新增','Click or drop an image to add one')}</span>`;
-    if (logoState) logoState.textContent = logoChoiceLabel();
-    if (logoReset) logoReset.disabled = !hasCustomTwThesisLogo();
-    const up = $('#pf-logo-up span'); if (up) up.textContent = hasCustomTwThesisLogo() ? TT('更換自訂圖片…','Replace custom image…') : TT('上傳自訂圖片…','Upload custom image…');
+    box.querySelectorAll('[data-logo-choice]').forEach(btn => btn.setAttribute('aria-checked', btn.dataset.logoChoice === settings.twthesisLogoChoice ? 'true' : 'false'));
+    const thumb = $('#pf-logo-custom-thumb'); if (thumb) thumb.innerHTML = customThumb();
+    const acts = $('#pf-logo-custom-actions'); if (acts) acts.hidden = !hasCustomTwThesisLogo();
     normalizeTwThesisLogoScale();
-    if (logoScale) logoScale.value = String(settings.twthesisLogoScale);
-    if (logoScaleOut) logoScaleOut.textContent = settings.twthesisLogoScale + '%';
-  };
-  const setLogoScale = (value, save, announce) => {
-    settings.twthesisLogoScale = Number(value); normalizeTwThesisLogoScale();
-    if (logoScale) logoScale.value = String(settings.twthesisLogoScale);
-    if (logoScaleOut) logoScaleOut.textContent = settings.twthesisLogoScale + '%';
-    applyTwThesisLogoScale();
-    if (save) persist();
-    if (announce) toast(TT('校徽大小：','Cover mark size: ') + settings.twthesisLogoScale + '%');
+    const sc = $('#pf-logo-scale'), out = $('#pf-logo-scale-out'), rst = $('#pf-logo-scale-rst');
+    if (sc) sc.value = String(settings.twthesisLogoScale);
+    if (out) out.textContent = settings.twthesisLogoScale + '%';
+    if (rst) rst.hidden = settings.twthesisLogoScale === 100;
   };
   const chooseLogo = () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,.svg';
-    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) importTwThesisLogo(f, refreshLogo); };
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) importTwThesisLogo(f, () => { settings.twthesisLogoChoice = 'custom'; applyTwThesisLogo(); persist(); refreshLogo(); }); };
     inp.click();
   };
   box.querySelectorAll('[data-logo-choice]').forEach(btn => btn.addEventListener('click', () => {
     const choice = btn.dataset.logoChoice;
     if (choice === 'custom' && !hasCustomTwThesisLogo()){ chooseLogo(); return; }
     settings.twthesisLogoChoice = choice; applyTwThesisLogo(); persist(); refreshLogo();
-    toast(logoChoiceLabel());
   }));
+  const customBtn = box.querySelector('[data-logo-choice="custom"]');
+  if (customBtn){
+    ['dragenter','dragover'].forEach(type => customBtn.addEventListener(type, e => { e.preventDefault(); customBtn.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(type => customBtn.addEventListener(type, e => { e.preventDefault(); customBtn.classList.remove('drag'); }));
+    customBtn.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])].find(x => /^image\//.test(x.type) || /\.svg$/i.test(x.name)); if (f) importTwThesisLogo(f, () => { settings.twthesisLogoChoice = 'custom'; applyTwThesisLogo(); persist(); refreshLogo(); }); });
+  }
   const logoUp = $('#pf-logo-up'); if (logoUp) logoUp.addEventListener('click', chooseLogo);
-  if (logoScale){
-    logoScale.addEventListener('input', () => setLogoScale(logoScale.value, false, false));
-    logoScale.addEventListener('change', () => setLogoScale(logoScale.value, true, true));
-  }
-  const logoScaleDec = $('#pf-logo-scale-dec'); if (logoScaleDec) logoScaleDec.addEventListener('click', () => setLogoScale(settings.twthesisLogoScale - 5, true, true));
-  const logoScaleInc = $('#pf-logo-scale-inc'); if (logoScaleInc) logoScaleInc.addEventListener('click', () => setLogoScale(settings.twthesisLogoScale + 5, true, true));
-  const logoScaleRst = $('#pf-logo-scale-rst'); if (logoScaleRst) logoScaleRst.addEventListener('click', () => setLogoScale(100, true, true));
-  if (logoDrop){
-    ['dragenter','dragover'].forEach(type => logoDrop.addEventListener(type, e => { e.preventDefault(); logoDrop.classList.add('dragover'); }));
-    ['dragleave','drop'].forEach(type => logoDrop.addEventListener(type, e => { e.preventDefault(); logoDrop.classList.remove('dragover'); }));
-    logoDrop.addEventListener('drop', e => { const f = [...(e.dataTransfer?.files || [])].find(x => /^image\//.test(x.type) || /\.svg$/i.test(x.name)); if (f) importTwThesisLogo(f, refreshLogo); });
-  }
-  if (logoReset) logoReset.addEventListener('click', () => {
+  const logoRst = $('#pf-logo-rst');
+  if (logoRst) logoRst.addEventListener('click', () => {
     if (!hasCustomTwThesisLogo()) return;
     settings.twthesisLogo = '';
     if (settings.twthesisLogoChoice === 'custom') settings.twthesisLogoChoice = 'seal';
     applyTwThesisLogo(); persist(); refreshLogo();
-    toast(TT('已移除自訂標誌','Custom mark removed'));
   });
+  const setLogoScale = (value, save) => {
+    settings.twthesisLogoScale = Number(value); normalizeTwThesisLogoScale();
+    applyTwThesisLogoScale(); if (save) persist(); refreshLogo();
+  };
+  const logoScale = $('#pf-logo-scale');
+  if (logoScale){
+    logoScale.addEventListener('input', () => setLogoScale(logoScale.value, false));
+    logoScale.addEventListener('change', () => setLogoScale(logoScale.value, true));
+  }
+  const logoScaleRst = $('#pf-logo-scale-rst'); if (logoScaleRst) logoScaleRst.addEventListener('click', () => setLogoScale(100, true));
   refreshLogo();
 
-  /* 全局：九槽位字體 */
+  /* 臺灣論文：輸出版本（與「模式」選單同一組設定；這裡只改設定，不切換目前的模式） */
+  const setTwVariant = (name, v) => {
+    if (name === 'twzh'){ settings.twthesisPrint = v === 'print'; if (v !== 'print') settings.twthesisDigitalStyle = v; }
+    else settings.twthesisEnPrint = v === 'print';
+    const cur = settings.theme;
+    if ((name === 'twzh' && cur === 'twthesis') || (name === 'twen' && cur === 'twthesis-en')) applyTheme();
+    persist();
+  };
+
+  /* 國際論文：這份文件的版面（導向左半邊的「版面設定」）與新論文的預設版面 */
+  const K171 = window.__CP171__;
+  const regOf = id => { try { return K171 && K171.registry ? K171.registry[id] : null; } catch(_){ return null; } };
+  const RS = regOf('revtexSettings'), RD = regOf('revtexDocumentSettings');
+  const journalTable = (RS && RS.journals) ? RS.journals() : { aps: [['prl','PRL']] };
+  const socOpts = (() => { try { const it = RS.groups()[0].items.find(x => x.k === 'revtexSociety'); return it.opts.map(o => [o[0], Array.isArray(o[1]) ? TT(o[1][0], o[1][1]) : o[1]]); } catch(_){ return [['aps','APS'],['aip','AIP'],['aapm','AAPM'],['sor','SOR']]; } })();
+  const intlDefaults = () => {
+    const d = RD && RD.newDocDefaults ? RD.newDocDefaults() : { revtexSociety:'aps', revtexJournal:'prl', revtexMode:'reprint', revtexPaper:'letterpaper' };
+    return { revtexSociety:d.revtexSociety, revtexJournal:d.revtexJournal, revtexMode:d.revtexMode, revtexPaper:d.revtexPaper };
+  };
+  const journalName = (soc, j) => { const hit = (journalTable[soc] || []).find(x => x[0] === j); return hit ? hit[1].replace(/（.*）$/, '') : String(j || '').toUpperCase(); };
+  const refreshIntl = () => {
+    const d = intlDefaults();
+    const soc = $('#pf-intl-soc'), jnl = $('#pf-intl-jnl');
+    if (soc){ soc.innerHTML = socOpts.map(o => `<option value="${escapeHtml(o[0])}">${escapeHtml(o[1])}</option>`).join(''); soc.value = d.revtexSociety; }
+    if (jnl){ jnl.innerHTML = (journalTable[d.revtexSociety] || []).map(o => `<option value="${escapeHtml(o[0])}">${escapeHtml(o[1])}</option>`).join(''); jnl.value = d.revtexJournal; }
+    segSet('intlMode', d.revtexMode); segSet('intlPaper', d.revtexPaper);
+    const intl = !!(K171 && K171.isIntlMode && K171.isIntlMode());
+    const doc = $('#pf-intl-doc'), note = $('#pf-intl-doc-note'), open = $('#pf-intl-open');
+    if (doc) doc.textContent = intl
+      ? journalName(settings.revtexSociety, settings.revtexJournal) + TT('，',', ') + settings.revtexMode + TT('，',', ') + (settings.revtexPaper === 'a4paper' ? 'A4' : 'Letter')
+      : TT('目前不是國際論文模式','Not in international paper mode');
+    if (note) note.textContent = intl ? TT('期刊、排版模式、紙張','Journal, layout, paper') : '';
+    if (open) open.textContent = intl ? TT('開啟版面設定','Open Layout settings') : TT('切換到國際論文模式','Switch to international papers');
+  };
+  const saveIntlDefaults = patch => {
+    const next = Object.assign(intlDefaults(), patch);
+    const list = journalTable[next.revtexSociety] || [];
+    if (!list.some(x => x[0] === next.revtexJournal)) next.revtexJournal = list.length ? list[0][0] : next.revtexJournal;
+    settings.intlNewDocDefaults = next; persist(); refreshIntl();
+  };
+  const intlSoc = $('#pf-intl-soc'); if (intlSoc) intlSoc.addEventListener('change', () => saveIntlDefaults({ revtexSociety: intlSoc.value }));
+  const intlJnl = $('#pf-intl-jnl'); if (intlJnl) intlJnl.addEventListener('change', () => saveIntlDefaults({ revtexJournal: intlJnl.value }));
+  const intlOpen = $('#pf-intl-open');
+  if (intlOpen) intlOpen.addEventListener('click', () => {
+    const intl = !!(K171 && K171.isIntlMode && K171.isIntlMode());
+    hideModal();
+    try {
+      if (!intl && K171 && K171.enterIntlMode) K171.enterIntlMode();
+      else if (RS && RS.show) RS.show();
+    } catch(_){}
+  });
+  const intlAuto = $('#pf-intl-auto');
+  if (intlAuto) intlAuto.addEventListener('change', () => { try { K171.setFlag('autoCompile', intlAuto.checked); } catch(_){} });
+  refreshIntl();
+
+  /* 字體：九個欄位，留空＝內建 */
   const fList = $('#pf-fontlist');
   const fillFonts = names => { if (fList) fList.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join(''); };
   fillFonts(availableFontList());
@@ -1182,32 +1194,28 @@ function showPrefs(){
     if (!el || !slot) return;
     const def = USER_FONT_TARGETS[slot.target].def;
     el.style.fontFamily = value ? cssFontName(value) + ', ' + def : def;
+    const clr = box.querySelector(`[data-freset="${key}"]`); if (clr) clr.hidden = !value;
   };
-  const commitFont = (key, value, quiet) => {
-    settings.userFonts[key] = cleanFontSetting(value);
-    applyUserFonts(); schedulePaginate(); persist();
-    if (!quiet) toast(settings.userFonts[key] ? TT('字體已套用：','Font applied: ') + settings.userFonts[key] : TT('已恢復此槽位的預設字體','Slot restored to its embedded default'));
-  };
+  const commitFont = (key, value) => { settings.userFonts[key] = cleanFontSetting(value); applyUserFonts(); schedulePaginate(); persist(); };
   box.querySelectorAll('input[data-fslot]').forEach(inp => {
     const key = inp.dataset.fslot;
     fPrev(key, inp.value.trim());
     inp.addEventListener('input', () => fPrev(key, inp.value.trim()));
-    inp.addEventListener('change', () => commitFont(key, inp.value, false));
+    inp.addEventListener('change', () => commitFont(key, inp.value));
   });
   box.querySelectorAll('[data-freset]').forEach(btn => btn.addEventListener('click', () => {
     const key = btn.dataset.freset, inp = box.querySelector(`input[data-fslot="${key}"]`);
     if (inp) inp.value = '';
-    fPrev(key, ''); commitFont(key, '', true);
-    toast(TT('已重設此字體槽位','Font slot reset'));
+    fPrev(key, ''); commitFont(key, '');
   }));
   const fSys = $('#pf-f-sys');
   if (fSys){
-    if (!('queryLocalFonts' in window)) fSys.style.display = 'none';
+    if (!('queryLocalFonts' in window)) fSys.hidden = true;
     else fSys.addEventListener('click', async () => {
       try {
         const fam = [...new Set((await window.queryLocalFonts()).map(f => f.family))].sort();
-        if (fam.length){ fillFonts([...new Set(availableFontList().concat(fam))]); toast(TT('已載入 ','Loaded ') + fam.length + TT(' 個系統字體',' system fonts')); }
-      } catch(_){ toast(TT('無法取得系統字體（未授權）','Could not read system fonts (permission denied)')); }
+        if (fam.length){ fillFonts([...new Set(availableFontList().concat(fam))]); toast(TT('已列出 ','Listed ') + fam.length + TT(' 個字體，在欄位裡輸入即可挑選',' fonts; type in a field to pick one')); }
+      } catch(_){ toast(TT('瀏覽器沒有允許讀取這台電腦的字體','The browser did not allow reading local fonts')); }
     });
   }
   const fRst = $('#pf-f-rst');
@@ -1215,7 +1223,7 @@ function showPrefs(){
     settings.userFonts = emptyUserFonts();
     box.querySelectorAll('input[data-fslot]').forEach(inp => { inp.value = ''; fPrev(inp.dataset.fslot, ''); });
     applyUserFonts(); schedulePaginate(); persist();
-    toast(TT('已恢復全部內嵌預設字體','All embedded default fonts restored'));
+    toast(TT('已恢復全部內建字體','All fonts reset to built-in'));
   });
 }
 
@@ -1255,7 +1263,7 @@ function importBackup(){
 
 /* ----- 恢復原廠 ----- */
 async function factoryReset(){
-  if (!confirm(TT('確定恢復原廠設定?\n將清除所有使用者文件、設定與快取，並重新載入六份內建文件。\n(已連結資料夾中的 .md 檔不會被刪除,但會中斷連結)','Reset to factory settings?\nAll user documents, settings, and caches will be cleared, then the six built-in documents will be reloaded.\n(.md files in a linked folder will not be deleted, but the link will be removed)'))) return;
+  if (!confirm(TT('確定恢復原廠設定？\n將清除所有使用者文件、設定與快取，並重新載入六份內建文件。\n（已連結資料夾中的 .md 檔不會被刪除，但會中斷連結）','Reset to factory settings?\nAll user documents, settings, and caches will be cleared, then the six built-in documents will be reloaded.\n(.md files in a linked folder will not be deleted, but the link will be removed)'))) return;
   try {
     localStorage.removeItem(LS_KEY);
     /* R8.3:「恢復原廠」也必須清除 CP169 校正／介面快取，不能讓舊 profile 污染新基線。 */
@@ -1317,7 +1325,7 @@ function renameFile(id){
   const f = files.find(x => x.id === (typeof id === 'string' ? id : activeId));
   if (!f) return;
   if (isBuiltinFile(f)){ toast(TT('內建文件名稱固定','Built-in document names are fixed')); return; }
-  let name = prompt(TT('重新命名檔案:','Rename file:'), f.name);
+  let name = prompt(TT('重新命名檔案：','Rename file:'), f.name);
   if (!name) return;
   if (!/\.(md|markdown|txt)$/i.test(name)) name += '.md';
   f.name = name;
@@ -1334,33 +1342,26 @@ function closeFile(id){
   if (isBuiltinFile(f)){ toast(TT('六份內建文件固定保留','The six built-in documents always remain available')); return; }
   if (target === activeId) commitCurrent();
   const content = target === activeId ? losslessContentForActive('close') : (f.content || '');
-  if (!content.trim()){ doCloseFile(target); toast(TT('已關閉(空白檔案)','Closed (empty file)')); return; }
+  if (!content.trim()){ doCloseFile(target); toast(TT('已關閉（空白檔案）','Closed (empty file)')); return; }
   if (dirHandle){                                   // 已同步到資料夾:關閉不影響磁碟檔
     doCloseFile(target);
     toast(isEN() ? `Closed “${f.name}” — the file in the folder is kept` : `已關閉「${f.name}」— 資料夾中的檔案仍保留`);
     return;
   }
-  showModal(isEN() ? `<h2>Close “${escapeHtml(f.name)}”</h2>
-    <p style="font-size:13.5px;line-height:1.9">No storage folder is linked — after closing, this file is removed from browser storage.<br>
-    <b>Close this file without saving?</b></p>
-    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-      <button id="cf-save" class="fb-btn txt" style="padding:7px 14px">Save (.md) & close</button>
-      <button id="cf-discard" class="fb-btn txt" style="padding:7px 14px;color:#c0392b">Close without saving</button>
-      <button id="cf-cancel" class="fb-btn txt" style="padding:7px 14px">Cancel</button>
-    </div>` : `<h2>關閉「${escapeHtml(f.name)}」</h2>
-    <p style="font-size:13.5px;line-height:1.9">尚未連結儲存資料夾 — 關閉後,這份檔案會從瀏覽器儲存中移除。<br>
-    <b>要在不儲存的情況下關閉這個檔案嗎?</b></p>
-    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-      <button id="cf-save" class="fb-btn txt" style="padding:7px 14px">儲存(.md)並關閉</button>
-      <button id="cf-discard" class="fb-btn txt" style="padding:7px 14px;color:#c0392b">不儲存,直接關閉</button>
-      <button id="cf-cancel" class="fb-btn txt" style="padding:7px 14px">取消</button>
+  /* 1.2.8（M36(c)）：改成主介面同一套對話框（一句說明、按鈕靠右、主要動作在最右），標點全形。 */
+  showModal(`<h2>${isEN() ? `Close “${escapeHtml(f.name)}”?` : `關閉「${escapeHtml(f.name)}」？`}</h2>
+    <p class="ekd-dlg-text">${TT('這份檔案只存在瀏覽器裡（沒有連結儲存資料夾），關閉後會從瀏覽器移除。','This file lives only in the browser (no storage folder is linked); closing removes it.')}</p>
+    <div class="ekd-dlg-actions">
+      <button id="cf-cancel" class="ekd-btn" type="button">${TT('取消','Cancel')}</button>
+      <button id="cf-discard" class="ekd-btn danger" type="button">${TT('不儲存，直接關閉','Close without saving')}</button>
+      <button id="cf-save" class="ekd-btn primary" type="button">${TT('下載 .md 再關閉','Download .md and close')}</button>
     </div>`);
   $('#modal-close').style.display = 'none';         // 以三鈕取代預設「好」
   $('#cf-save').onclick = () => {
     download(f.name.endsWith('.md') ? f.name : f.name + '.md', 'text/markdown', content);
     doCloseFile(target); hideModal(); toast(TT('已下載並關閉','Downloaded & closed'));
   };
-  $('#cf-discard').onclick = () => { doCloseFile(target); hideModal(); toast(TT('已關閉(未儲存)','Closed (unsaved)')); };
+  $('#cf-discard').onclick = () => { doCloseFile(target); hideModal(); toast(TT('已關閉（未儲存）','Closed (unsaved)')); };
   $('#cf-cancel').onclick = hideModal;
 }
 function doCloseFile(target){
@@ -1452,7 +1453,7 @@ function exportTex(){
   commitCurrent();
   const f = activeFile();
   const doc = caTexDoc(caMdToTex(losslessActiveNormalized(), { booktabs: !!settings.texBooktabs, listings: !!settings.texListings }));
-  download(f.name.replace(/\.md$/i, '') + '.tex', 'application/x-tex', doc);
+  download(f.name.replace(/\.(md|markdown|txt)$/i, '') + '.tex', 'application/x-tex', doc);
   toast(TT('已匯出 LaTeX(.tex)','Exported LaTeX (.tex)'));
 }
 function exportMD(){
@@ -1604,7 +1605,6 @@ document.addEventListener('drop', e => {
    本專案不複製其程式碼；以下以原生 textarea + clean-room mirror 實作相同行為原則，
    保留瀏覽器原生 IME、Undo 與既有 srcWrap 快捷鍵。 */
 let srcLineMeta = [], srcDecorRaf = 0, srcMeasureRaf = 0;
-function srcEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 /* 1.1.7.5：parser 只產生 range metadata；可見 DOM 不再為 token 切 span。
    每個邏輯行維持單一 Text node，才能與原生 textarea 共用斷行點。 */
 const SRC_SYNTAX_KINDS=Object.freeze([
@@ -1915,16 +1915,6 @@ function srcResolveRenderedAnchor(anchor){
   const i=Math.max(0,Math.min(Math.max(0,blocks.length-1),Number(anchor.i)||0)),local=Math.max(0,Math.min(String(blocks[i]||'').length,Number(anchor.local)||0));
   return {...anchor,i,local,ratio:srcAnchorRatio(anchor.ratio,.5),offset:srcBlockGlobalOffset(i,local)};
 }
-function srcRenderedViewportOffset(){return srcRenderedViewportAnchor(.5).offset;}
-function srcRenderedCaretOffset(fallback){
-  const view=srcRenderedViewportAnchor(.5),focus=srcRenderedFocusAnchor(view);
-  return focus&&focus.kind==='caret'?focus.offset:(fallback==null?view.offset:fallback);
-}
-function srcViewportCenterOffset(){
-  const y=srcview.scrollTop+srcview.clientHeight/2, els=[...srcHighlight.children];
-  for(let i=0;i<els.length;i++){ if(y < els[i].offsetTop+els[i].offsetHeight) return srcLineMeta[i]?.start||0; }
-  return srcview.value.length;
-}
 function srcSourceViewportAnchor(ratio){
   const want=srcAnchorRatio(ratio,.5),y=srcview.scrollTop+srcview.clientHeight*want,els=[...srcHighlight.children];let i=Math.max(0,els.length-1);
   for(let k=0;k<els.length;k++){if(y<els[k].offsetTop+els[k].offsetHeight){i=k;break;}}
@@ -1970,11 +1960,6 @@ function srcRestoreRenderedAnchor(anchor){
     if(a.kind!=='caret'||isPaper)srcview.blur();
   }));
   if(isPaper)setTimeout(()=>{if(seq===srcRestoreSeq&&!settings.srcmode)srcScrollRenderedAnchor(a);},500);
-}
-function srcRestoreRenderedPosition(cursorOff,viewOff,meta){
-  if(meta&&meta.anchor)return srcRestoreRenderedAnchor(meta.anchor);
-  const cp=srcOffsetToBlock(cursorOff,blocks),vp=srcOffsetToBlock(viewOff,blocks);
-  return srcRestoreRenderedAnchor({kind:'caret',i:cp.i,local:cp.local,ratio:.5,offset:cursorOff,viewI:vp.i});
 }
 scroller.addEventListener('wheel',()=>{srcRestoreSeq++;},{passive:true});
 scroller.addEventListener('pointerdown',()=>{srcRestoreSeq++;},{passive:true});
@@ -2112,7 +2097,27 @@ function cmdJumpToSelection(){
   if (!el) el = editor.firstElementChild;
   if (el) el.scrollIntoView({ block:'center', behavior:'smooth' });
 }
+/* 1.2.7：窄於 700 像素（手機）時，一般模式的檔案欄平常收起；按側邊欄按鈕時從左邊滑出、
+   蓋在編輯區上，選了檔案或點回編輯區就收回。不改使用者存的「側邊欄」設定。
+   國際論文的左右／上下排列另由 22.js 處理（ekd-split-narrow）。 */
+function ekdNarrowSync(){
+  const body = document.body; if (!body) return;
+  const narrow = window.innerWidth < 700;
+  if (body.classList.contains('ekd-narrow') !== narrow){ body.classList.toggle('ekd-narrow', narrow); body.classList.remove('ekd-sb-peek'); }
+  if (narrow){ const tb = document.getElementById('titlebar'); if (tb) document.documentElement.style.setProperty('--ekd-sb-top', Math.round(tb.getBoundingClientRect().bottom) + 'px'); }
+}
+window.addEventListener('resize', ekdNarrowSync);
+document.addEventListener('DOMContentLoaded', ekdNarrowSync);
+document.addEventListener('click', e => {
+  const body = document.body;
+  if (!body.classList.contains('ekd-sb-peek')) return;
+  const t = e.target;
+  if (t.closest && (t.closest('.file-item, .outline-item') || (!t.closest('#sidebar') && !t.closest('#btn-sidebar')))) body.classList.remove('ekd-sb-peek');
+}, true);
 function cmdSidebar(){
+  if (document.body.classList.contains('ekd-narrow') && !document.body.classList.contains('cp171-split')){
+    ekdNarrowSync(); document.body.classList.toggle('ekd-sb-peek'); return;
+  }
   settings.sidebar = !settings.sidebar;
   document.body.classList.toggle('no-sidebar', !settings.sidebar);
   $('#btn-sidebar').classList.toggle('on', settings.sidebar);
@@ -2156,8 +2161,8 @@ function cmdMdMetaPilot(){
   const on = window.__T8_MDMETA__
     ? window.__T8_MDMETA__.setEnabled(settings.mdMetaPilot !== true)
     : false;
-  toast(on ? TT('md-meta 語法顯隱:開(實驗)','md-meta reveal: on (experimental)')
-           : TT('md-meta 語法顯隱:關','md-meta reveal: off'));
+  toast(on ? TT('md-meta 語法顯隱：開（實驗）','md-meta reveal: on (experimental)')
+           : TT('md-meta 語法顯隱：關','md-meta reveal: off'));
   buildMenubar();
 }
 /* ---------- §8b 論文輸出模式:A4 分頁引擎(Checkpoint 6) ----------
@@ -3236,25 +3241,6 @@ function pgthRender(STRIDE, USABLE, edTop, padTop){
     });
   }
 }
-function pgthExportHTML(){
-  const layer = $('#pgth-bg');
-  if (!layer || layer.style.display === 'none' || !layer.children.length) return '';
-  const mmv = mmPx();
-  const G = paperGeom();
-  const H = paperPageHeightMM() * mmv, padTop = G.top * mmv;     /* printLayout 分頁 STRIDE=整頁高,與 -n*H 位移同格 */
-  let out = '';
-  for (const el of layer.children){
-    const p = +el.dataset.pg, x = +el.dataset.xed;
-    if (!(p >= 0) || !el.firstChild) continue;
-    const inner = new XMLSerializer().serializeToString(el.firstChild)
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');     /* CP16 同式:C0 剝除保 SVG 可解析 */
-    const fz = (el.style.getPropertyValue('--fz-pd') ? '--fz-pd:' + el.style.getPropertyValue('--fz-pd') + ';' : '') +
-               (el.style.getPropertyValue('--fz-mdd') ? '--fz-mdd:' + el.style.getPropertyValue('--fz-mdd') + ';' : '');
-    out += '<div style="position:absolute;left:' + x + 'px;top:' + (p * H + padTop) + 'px;width:' +
-           el.style.width + ';overflow:hidden;' + fz + '">' + inner + '</div>';
-  }
-  return out;
-}
 function paginateTableRows(blockEl, yOf, USABLE, STRIDE){
   const firstTr = blockEl.querySelector('tr');
   const headH = firstTr ? firstTr.offsetHeight : 0;   /* CP77:推移前量測=乾淨表頭高(續頁頂預留槽) */
@@ -3758,7 +3744,7 @@ function collectPdfNavLinks(metas, wPt, hPt){
 }
 /* CP126-DIAG1:PDF 診斷層。這一版刻意不帶入 CP127/CP128/CP129 的分頁／clone 改寫；
    視覺輸出仍是原始 CP126。內部目錄連結屬於附加功能，失敗時只警告，不得讓正文 PDF 完全無法輸出。 */
-const PDF_DIAG_BUILD = 'CP185-LIVE-COMPILE-1.2.5';
+const PDF_DIAG_BUILD = 'CP188-INTERFACE-PAPERTOOLS-DESKTOP-1.2.8';
 let lastPdfDiagnostic = null, pdfDiagnosticSequence = 0;
 function pdfDiagTry(fn, fallback=null){ try { return fn(); } catch(_){ return fallback; } }
 function pdfDiagRect(el){
@@ -3891,13 +3877,15 @@ function showPdfDiagnosticDialog(message=''){
          `The PDF body continued to print, but ${warnEvent.checked.navIssues.length} navigation issue(s) were recorded. Download the JSON for analysis.`)
     : TT('目前沒有 PDF 失敗紀錄；可下載當前版面快照。','No PDF failure recorded; you can download the current layout snapshot.'));
   document.body.classList.add('pdf-diag-open');
+  /* 1.2.8：給使用者看的是一句結論與兩個按鈕；建置代號與原始 JSON 收進「詳細內容」，回報問題時才需要。 */
   showModal(`<h2>${TT('PDF 匯出診斷','PDF Export Diagnostics')}</h2>` +
-    `<p style="line-height:1.7;margin:0 0 10px">${escapeHtml(err)}</p>` +
-    `<div class="m-note" style="margin:0 0 12px">${escapeHtml(`Build ${d.build} · ${d.mode} · ${d.phase} · ${d.layout?.pageCount ?? 0} pages`)}</div>` +
-    `<div style="display:flex;gap:8px;flex-wrap:wrap">` +
-    `<button id="pdf-diag-download">${TT('下載完整診斷 JSON','Download Full Diagnostic JSON')}</button>` +
-    `<button id="pdf-diag-copy">${TT('複製摘要','Copy Summary')}</button></div>` +
-    `<pre style="white-space:pre-wrap;max-height:260px;overflow:auto;background:var(--bg2);padding:10px;border-radius:6px;margin-top:12px;font-size:11px">${escapeHtml(JSON.stringify({error:d.error || null,counts:d.counts,layout:d.layout,printDocument:d.printDocument ? {sections:d.printDocument.sections,nav:d.printDocument.nav} : null},null,2))}</pre>`);
+    `<p class="ekd-dlg-text">${escapeHtml(err)}</p>` +
+    `<div class="ekd-dlg-actions start">` +
+    `<button id="pdf-diag-download" class="ekd-btn" type="button">${TT('下載診斷報告（.json）','Download report (.json)')}</button>` +
+    `<button id="pdf-diag-copy" class="ekd-btn" type="button">${TT('複製摘要','Copy summary')}</button></div>` +
+    `<details class="ekd-dlg-more"><summary>${TT('詳細內容','Details')}</summary>` +
+    `<p class="ekd-dlg-meta">${escapeHtml(`Build ${d.build} · ${d.mode} · ${d.phase} · ${d.layout?.pageCount ?? 0} pages`)}</p>` +
+    `<pre class="ekd-dlg-pre">${escapeHtml(JSON.stringify({error:d.error || null,counts:d.counts,layout:d.layout,printDocument:d.printDocument ? {sections:d.printDocument.sections,nav:d.printDocument.nav} : null},null,2))}</pre></details>`);
   $('#pdf-diag-download').onclick = downloadPdfDiagnosticReport;
   $('#pdf-diag-copy').onclick = copyPdfDiagnosticSummary;
 }
@@ -4392,7 +4380,7 @@ function buildPdfCSS(vectorMode){
   css = css
     .replace(/html\[data-theme="github"\]/g, '.PRT')
     .replace(/html\[data-theme="night"\]/g, '.PRT-unused-n')
-    .replace(/html\[data-theme="sepia"\]/g, '.PRT-unused-s')
+    .replace(/html\[data-theme="moss"\]/g, '.PRT-unused-s')
     .replace(/html\[data-theme="blackout"\]/g, '.PRT-unused-b')
     .replace(/html\[data-theme="blackoutgame"\]/g, '.PRT-unused-bg')
     /* 所有 body.<class> 主題選擇器 → .PRT.<class>(涵蓋 papermode / papernum / twthesis-thesis;
@@ -5100,7 +5088,7 @@ async function renderPageJpeg(cloneHTML, css, n, jobs, meta, extraHTML, guard){
           ctx.textAlign = 'center';
           ctx.font = Math.min(14, jb.h / 6) + 'px sans-serif';
           const cy = sl.dy + Math.min(jb.h / 2, sl.dh / 2);
-          ctx.fillText('(圖片無法嵌入 PDF)', jx + jb.w / 2, cy);
+          ctx.fillText('（圖片無法嵌入 PDF）', jx + jb.w / 2, cy);
           if (jb.alt) ctx.fillText(jb.alt.slice(0, 40), jx + jb.w / 2, cy + 16);
         }
         ctx.restore();
@@ -6010,8 +5998,8 @@ editor.addEventListener('click', e => {
    (右上按鈕)。黑暗模式對 GitHub 與論文模式皆有效;night = github + dark(相容舊值)。
    論文模式暗色僅影響螢幕 —— 匯出 PDF 仍為白紙:buildPdfCSS 以 github 亮色調改寫,
    且 body.paper-dark 規則錨在 <body>、不會進入匯出複本(複本包在 .PRT div)。 */
-const THEME_SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.6" y1="4.6" x2="6.8" y2="6.8"/><line x1="17.2" y1="17.2" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.8" y2="17.2"/><line x1="17.2" y1="6.8" x2="19.4" y2="4.6"/></svg>';
-const THEME_MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>';
+const THEME_SUN = ekdIcon('sun');   /* 1.2.7：與工具列同一套圖示（M33） */
+const THEME_MOON = ekdIcon('moon');
 function applyTheme(){
   const themeNormalized = normalizeThemeSettings();
   if (settings.twthesisDigitalStyle !== 'compact' && settings.twthesisDigitalStyle !== 'book') settings.twthesisDigitalStyle = 'book';
@@ -6060,7 +6048,7 @@ function setTheme(name){
   const prevTwThesisFlavor = twthesisThemeFlavor(prev);
   if (name === 'night'){ settings.theme = 'github'; settings.dark = true; }
   else if (name === 'github'){ settings.theme = 'github'; settings.dark = false; }
-  else if (name === 'sepia'){ settings.theme = 'sepia'; settings.dark = false; }
+  else if (name === 'moss' || name === 'sepia'){ settings.theme = 'moss'; settings.dark = false; }   // 1.2.7：苔灰取代羊皮紙
   else if (name === 'blackout'){ settings.theme = 'blackout'; }
   else if (name === 'blackoutgame'){ settings.theme = 'blackoutgame'; }
   else if (name === 'paper'){ settings.theme = 'paper'; }
@@ -6108,12 +6096,8 @@ function setTwThesisEnglishVariant(printed){
   settings.twthesisEnPrint = !!printed;
   if (settings.theme !== 'twthesis-en'){ setTheme('twthesis-en'); }
   else { applyTheme(); persist(); }
-  toast(printed ? TT('臺灣論文英文版紙本版:雙面書冊(鏡像邊距/外側頁碼/openright 空白插頁)','Taiwan Thesis (English) Print: two-sided book (mirrored margins / outer folios / openright blanks)')
-                : TT('臺灣論文英文版電子版:對稱版面(置中頁碼)','Taiwan Thesis (English) Digital: symmetric layout (centered folios)'));
-}
-function setTwThesis2Variant(printed){
-  settings.twthesis2Print = !!printed;                 // 保留舊腳本／備份相容欄位
-  return setTwThesisVariant(printed);
+  toast(printed ? TT('臺灣論文英文版紙本版：雙面書冊（鏡像邊距/外側頁碼/openright 空白插頁）','Taiwan Thesis (English) Print: two-sided book (mirrored margins / outer folios / openright blanks)')
+                : TT('臺灣論文英文版電子版：對稱版面（置中頁碼）','Taiwan Thesis (English) Digital: symmetric layout (centered folios)'));
 }
 /* 右上按鈕:純粹的黑暗模式開關,不改變目前是 GitHub 還是論文模式 */
 function toggleDark(){
@@ -6245,11 +6229,6 @@ function restoreViewZoomAfterLayout(token){
   viewZoomSuspendDepth--;
   if (viewZoomSuspendDepth === 0) syncViewZoomGeometry();
 }
-function withViewZoomSuspended(fn){
-  const token = suspendViewZoomForLayout();
-  try { return fn(); }
-  finally { restoreViewZoomAfterLayout(token); }
-}
 function viewZoomLabel(){ return TT('頁面縮放 ','Page zoom ') + vzNorm(settings.viewZoom) + '%'; }
 function setViewZoom(next, anchor){
   const surface = $('#view-scale');
@@ -6357,10 +6336,10 @@ function fzLabel(){
     const base = isTwThesisTheme() ? 12 : 11.5;
     const pt = base + settings.fzPaper * 0.5;
     return TT('字級 ','Font size ') + (+pt.toFixed(1)) + ' pt' +
-           (settings.fzPaper === 0 ? TT('(預設)',' (default)') : '');
+           (settings.fzPaper === 0 ? TT('（預設）',' (default)') : '');
   }
   return TT('字級 ','Font size ') + (16 + settings.fzMd) + ' px' +
-         (settings.fzMd === 0 ? TT('(預設)',' (default)') : '');
+         (settings.fzMd === 0 ? TT('（預設）',' (default)') : '');
 }
 /* 把目前設定轉成 #editor 的 inline 變數(冪等;applyTheme / 啟動 / 還原備份都會呼叫) */
 function applyFontZoom(){
@@ -6399,25 +6378,29 @@ $('#btn-theme').addEventListener('click', toggleDark);   // 純黑暗模式開�
 $('#btn-sidebar').addEventListener('click', cmdSidebar);
 $('#btn-src').addEventListener('click', cmdSrcMode);
 
-/* 紅綠燈 */
-$('.tl.red').addEventListener('click', () => toast('這是 EKdelta,關不掉的 😉'));
-$('.tl.yellow').addEventListener('click', () => toast('已假裝縮到 Dock'));
-$('.tl.green').addEventListener('click', () => {
+/* 1.2.7：寬版頁面原本只能按標題列左上角的綠色假圓鈕切換，改成「顯示」選單的項目。
+   紅、黃兩顆假圓鈕沒有功能（只跳玩笑提示），已拿掉。#traffic 只在 Mac 桌面殼保留位置，
+   讓真正的視窗圓鈕疊在上面（見 html.ekd-desktop）。 */
+function cmdWidePage(){
   settings.maximized = !settings.maximized;
   document.body.classList.toggle('maximized', settings.maximized);
-});
+  persist(); buildMenubar();
+}
+/* 只有 Mac 桌面殼用 typora:／ekdeta: 網址開頁面；以 User-Agent 判斷會把 Claude 等 Electron 瀏覽器也誤判成桌面殼（1.2.7 審查 S13） */
+if (/^(ekdeta|typora):$/.test(location.protocol)) document.documentElement.classList.add('ekd-desktop');
 
 /* ---------- 彈窗 ---------- */
 function showModal(html){
+  try { const sp = document.getElementById('cp171-s-pop'); if (sp) sp.hidden = true; } catch(_){}
   const modal = $('#modal');
-  modal.classList.remove('preferences-modal', 'shortcut-modal');
+  modal.classList.remove('preferences-modal', 'shortcut-modal', 'ekp-modal');
   modal.removeAttribute('role'); modal.removeAttribute('aria-modal'); modal.removeAttribute('aria-labelledby');
   modal.innerHTML = html + `<button id="modal-close">${TT('好','OK')}</button>`;
   modal.scrollTop = 0;
   $('#modal-overlay').classList.add('show');
   $('#modal-close').onclick = hideModal;
 }
-function hideModal(){ $('#modal-overlay').classList.remove('show'); $('#modal').classList.remove('preferences-modal', 'shortcut-modal'); document.body.classList.remove('pdf-diag-open'); }
+function hideModal(){ $('#modal-overlay').classList.remove('show'); $('#modal').classList.remove('preferences-modal', 'shortcut-modal', 'ekp-modal'); document.body.classList.remove('pdf-diag-open'); }
 $('#modal-overlay').addEventListener('click', e => { if (e.target.id === 'modal-overlay') hideModal(); });
 document.addEventListener('keydown', e => {
   if (imeKey(e)) return;   // CP42:組字中的 Esc 屬於輸入法,不關 modal/選單
@@ -6488,9 +6471,9 @@ window.__CP160_THESIS_INDENT_PREFERENCES__ = Object.freeze({
   defaultChinese:'two-em',defaultEnglish:'none',markdownChanged:false,
   screen:true,vector:true,raster:true
 });
-const APP_VERSION = '1.2.5';
-const APP_CHECKPOINT = 'CP185';
-const APP_BUILD = 'CP185-LIVE-COMPILE-1.2.5';
+const APP_VERSION = '1.2.8';
+const APP_CHECKPOINT = 'CP188';
+const APP_BUILD = 'CP188-INTERFACE-PAPERTOOLS-DESKTOP-1.2.8';
 window.__CP171_MATH_SOURCE_AUTHORITY_RELEASE__ = Object.freeze({
   checkpoint:'CP171', version:'1.1.7.9', origin:'Checkpoint-5-floating-preview',
   authority:'mathSourceParts',
@@ -6542,12 +6525,14 @@ window.__CP171_REVTEX_IMAGE_SCALE_BRIDGE__ = Object.freeze({
 });
 const VERSION_HISTORY = /*@json:docs/version-history.json@*/;
 function showVersionInfo(){
+  /* 1.2.8：每一版可以另帶 v_en／items_en，英文介面優先顯示英文；沒有英文的舊版本照原文。 */
+  const en = isEN();
   const rows = VERSION_HISTORY.map(h =>
-    `<div style="margin-bottom:14px"><b>v${h.v}</b> <span class="m-note">${h.d}</span>
+    `<div style="margin-bottom:14px"><b>v${en && h.v_en ? h.v_en : h.v}</b> <span class="m-note">${h.d}</span>
      <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.75">
-     ${h.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+     ${(en && Array.isArray(h.items_en) ? h.items_en : h.items).map(i=>`<li>${escapeHtml(i)}</li>`).join('')}</ul></div>`).join('');
   showModal(`<h2>${TT('版本資訊','Version Info')}</h2>
-  <p class="m-note" style="margin-bottom:14px">${TT('EKdelta — 目前版本 v'+APP_VERSION+'。歷次更新內容:','EKdelta — current version v'+APP_VERSION+'. Changelog:')}</p>
+  <p class="m-note" style="margin-bottom:14px">${TT('EKdelta — 目前版本 v'+APP_VERSION+'。歷次更新內容：','EKdelta — current version v'+APP_VERSION+'. Changelog:')}</p>
   <div style="max-height:52vh;overflow-y:auto;padding-right:6px">${rows}</div>`);
 }
 $('#app-ver').textContent = 'v' + APP_VERSION;
@@ -6708,7 +6693,7 @@ function renderShortcutReference(){
 function showShortcuts(){
   const tabs=Object.entries(SHORTCUT_PLATFORM_LABELS).map(([id,label])=>`<button class="shortcut-platform-btn" type="button" role="tab" data-platform="${id}" aria-selected="false">${label}</button>`).join('');
   showModal(`<div class="shortcut-shell">
-    <header class="shortcut-head"><div class="shortcut-title-wrap"><h2>${TT('Markdown 與快捷鍵速查','Markdown & Shortcut Reference')}</h2><p class="shortcut-subtitle">${TT('主指令取自目前程式 Registry；下方另列只在特定編輯情境生效的按鍵。','Main commands come from the live registry; context-only keys are listed separately below.')}</p></div><div class="shortcut-platform-switch" role="tablist" aria-label="${TT('快捷鍵作業系統','Shortcut operating system')}">${tabs}</div></header>
+    <header class="shortcut-head"><div class="shortcut-title-wrap"><h2>${TT('Markdown 與快捷鍵速查','Markdown & Shortcut Reference')}</h2></div><div class="shortcut-platform-switch" role="tablist" aria-label="${TT('快捷鍵作業系統','Shortcut operating system')}">${tabs}</div></header>
     <div id="shortcut-content" class="shortcut-content"></div>
   </div>`);
   $('#modal').classList.add('shortcut-modal');
@@ -6731,20 +6716,8 @@ window.__CP141_SHORTCUT_REFERENCE__ = Object.freeze({
   contextCount:shortcutContextRows('mac').length, sigLabel:shortcutSigLabel, commandKeys:shortcutKeysForCommand
 });
 
-/* ---------- 時鐘 ---------- */
-function tickClock(){
-  const d = new Date();
-  const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  if (isEN()){
-    const wd = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
-    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
-    $('#mb-clock').textContent = `${wd} ${mo} ${d.getDate()}  ${hm}`;
-  } else {
-    const wd = ['日','一','二','三','四','五','六'][d.getDay()];
-    $('#mb-clock').textContent = `${d.getMonth()+1}月${d.getDate()}日 週${wd} ${hm}`;
-  }
-}
-setInterval(tickClock, 15000);
+/* 1.2.7：選單列右端的時鐘已拿掉（純裝飾，與系統時鐘重複，還每 15 秒重畫一次）。
+   #mb-right 保留，嵌入 EKdelta 的網頁會在這裡放自己的狀態。 */
 
 /* ---------- §13 初始化 ---------- */
 const SEED_WELCOME = /*@text:docs/welcome.zh.md@*/;
@@ -6959,6 +6932,12 @@ function normalizeRevtexSettings(){
 }
 function revtexClassOptions(){
   normalizeRevtexSettings();
+  /* 1.2.6：畫面上顯示的 \documentclass 選項與 main.tex 實際寫的是同一份（18.js classOptions），
+     不再兩套各算各的（C 報告 X-01、X-E）。發射器還沒載入的極早期才用下面的舊算法。 */
+  try{const K=window.__CP171__,E=K&&typeof K.need==='function'?K.need('emit'):null;if(E&&typeof E.classOptions==='function')return E.classOptions(settings);}catch(_){}
+  return revtexClassOptionsLegacy();
+}
+function revtexClassOptionsLegacy(){
   const o=[settings.revtexSociety,settings.revtexJournal,settings.revtexMode,settings.revtexAddress,settings.revtexPaper];
   const fontSize=String(settings.revtexFontSize||'auto');
   if(fontSize!=='auto'&&!revtexLegacyUnsafeLargeTypeGrid())o.push(fontSize);
@@ -7314,35 +7293,11 @@ function revtexRefreshPreferences(box,remount){
   persist();
 }
 const cp164ShowPrefsBase=showPrefs;
-showPrefs=function(){
-  normalizeRevtexSettings();cp164ShowPrefsBase();
-  const box=$('#modal'),tabs=box&&box.querySelector('.prefs-tabs'),scroll=box&&box.querySelector('.prefs-scroll');if(!box||!tabs||!scroll)return;
-  tabs.insertAdjacentHTML('beforeend','<button class="prefs-tab" type="button" role="tab" data-prefs-tab="revtex" aria-controls="prefs-page-revtex"><svg viewBox="0 0 24 24"><path d="M4 5h16M6 9h12M8 13h8M10 17h4"/><path d="M5 3v18M19 3v18"/></svg><span>'+TT('國際論文模板','International Paper')+'</span></button>');
-  scroll.insertAdjacentHTML('beforeend',revtexPrefsPage());
-  const activate=name=>{
-    const next=['global','thesis','revtex'].includes(name)?name:'global';
-    box.querySelectorAll('[data-prefs-tab]').forEach(btn=>{const on=btn.dataset.prefsTab===next;btn.setAttribute('aria-selected',on?'true':'false');btn.tabIndex=on?0:-1;});
-    box.querySelectorAll('[data-prefs-page]').forEach(page=>page.hidden=page.dataset.prefsPage!==next);
-    box.classList.toggle('revtex-preferences-modal',next==='revtex');settings.prefsTab=next;persist();const s=box.querySelector('.prefs-scroll');if(s)s.scrollTop=0;
-    if(next==='revtex')revtexUpdatePreferencesUI(box);
-  };
-  box.querySelectorAll('[data-prefs-tab]').forEach(btn=>btn.addEventListener('click',()=>activate(btn.dataset.prefsTab)));
-  tabs.addEventListener('keydown',ev=>{if(!['ArrowLeft','ArrowRight'].includes(ev.key))return;ev.preventDefault();ev.stopImmediatePropagation();const order=['global','thesis','revtex'],cur=order.indexOf(document.activeElement?.dataset?.prefsTab||'global'),d=ev.key==='ArrowRight'?1:-1,next=order[(cur+d+order.length)%order.length];activate(next);box.querySelector('[data-prefs-tab="'+next+'"]').focus();},true);
-  const bindSelect=(id,key)=>{const el=box.querySelector('#'+id);if(el)el.addEventListener('change',()=>{settings[key]=el.value;if(key==='revtexMode')settings.revtexFontSize='auto';if(key==='revtexSociety'){const js=REVTEX_JOURNALS[el.value]||REVTEX_JOURNALS.aps,journal=box.querySelector('#pf-rvx-journal');settings.revtexJournal=js[0][0];if(journal){journal.innerHTML=revtexOptionHTML(js,settings.revtexJournal);journal.value=settings.revtexJournal;}}revtexRefreshPreferences(box,true);});};
-  [['pf-rvx-society','revtexSociety'],['pf-rvx-journal','revtexJournal'],['pf-rvx-mode','revtexMode'],['pf-rvx-address','revtexAddress'],['pf-rvx-paper','revtexPaper'],['pf-rvx-fontsize','revtexFontSize'],['pf-rvx-columns','revtexColumns'],['pf-rvx-citation','revtexCitation'],['pf-rvx-sides','revtexSides'],['pf-rvx-bottom','revtexBottom'],['pf-rvx-floats','revtexFloats'],['pf-rvx-font','revtexFont']].forEach(x=>bindSelect(x[0],x[1]));
-  box.querySelectorAll('[data-revtex-bool]').forEach(el=>el.addEventListener('change',()=>{const k=el.dataset.revtexBool;settings['revtex'+k[0].toUpperCase()+k.slice(1)]=el.checked;revtexRefreshPreferences(box,true);}));
-  const extra=box.querySelector('#pf-rvx-extra');if(extra)extra.addEventListener('change',()=>{settings.revtexExtraOptions=extra.value;normalizeRevtexSettings();extra.value=settings.revtexExtraOptions;revtexRefreshPreferences(box,true);});
-  box.querySelectorAll('[data-rvx-preset]').forEach(btn=>btn.addEventListener('click',()=>{
-    const p=btn.dataset.rvxPreset;if(p==='publication'){settings.revtexMode='reprint';settings.revtexFontSize='auto';settings.revtexColumns='twocolumn';settings.revtexSides='twoside';settings.revtexLineNumbers=false;settings.revtexTitlePage=false;}
-    if(p==='review'){settings.revtexMode='preprint';settings.revtexFontSize='auto';settings.revtexColumns='onecolumn';settings.revtexSides='oneside';settings.revtexLineNumbers=false;settings.revtexTitlePage=false;}
-    if(p==='manuscript'){settings.revtexMode='manuscript';settings.revtexFontSize='auto';settings.revtexColumns='onecolumn';settings.revtexSides='oneside';settings.revtexLineNumbers=true;settings.revtexTitlePage=false;}
-    revtexSyncPreferenceControls(box);revtexRefreshPreferences(box,true);
-  }));
-  const help=box.querySelector('#pf-rvx-help'),panel=box.querySelector('#pf-rvx-help-panel');if(help&&panel)help.addEventListener('click',()=>{const open=panel.hidden;panel.hidden=!open;help.setAttribute('aria-expanded',open?'true':'false');});
-  const apply=box.querySelector('#pf-rvx-apply');if(apply)apply.addEventListener('click',()=>{setTheme('revtex');revtexRefreshPreferences(box,true);});
-  const reset=box.querySelector('#pf-rvx-reset');if(reset)reset.addEventListener('click',()=>{Object.keys(REVTEX_DEFAULTS).forEach(k=>settings['revtex'+k[0].toUpperCase()+k.slice(1)]=REVTEX_DEFAULTS[k]);settings.revtexJournal='prl';revtexSyncPreferenceControls(box);revtexRefreshPreferences(box,true);});
-  activate(settings.prefsTab==='revtex'?'revtex':(settings.prefsTab==='thesis'?'thesis':'global'));
-};
+/* 1.2.7（M32）：偏好設定不再插入「國際論文模板」頁。期刊、欄數、紙張等在國際論文右半邊的
+   「版面設定」（23.js）調整，改了立刻重新編譯；那一頁是同一組設定的重複，另附一個不準確的
+   HTML 三頁仿真預覽，以及唯一一顆進入舊「REVTeX 頁面所見即所得」主題的按鈕（M29 盤點 H2）。
+   revtexPrefsPage 等函式暫時保留未用，舊主題退役時一起處理。 */
+showPrefs=function(){ normalizeRevtexSettings(); cp164ShowPrefsBase(); };
 const cp164HideModalBase=hideModal;
 hideModal=function(){
   const remount=revtexPreferencesNeedsRemount&&isRevtexTheme();revtexPreferencesNeedsRemount=false;
@@ -7350,113 +7305,31 @@ hideModal=function(){
   if(remount)setTimeout(()=>{try{mountDoc(serialize());schedulePaginate();}catch(e){console.warn('CP164 REVTeX final refresh',e);}},0);
 };
 
-function revtexTexEscapeText(s){return caInlineToTex(String(s||''),{});}
-function revtexTexDate(s){const v=String(s||'').trim();return /^(?:\\today|today)$/i.test(v)?'\\today':revtexTexEscapeText(v);}
-function revtexCitationTex(md){
-  const stash=[];let masked=String(md||'').replace(/\[((?:-?@[A-Za-z0-9_.:+-]+)(?:\s*[;,]\s*-?@[A-Za-z0-9_.:+-]+)*)\]/g,(m,inner)=>'CPRVXCITE'+(stash.push(inner)-1)+'END');
-  let tex=caMdToTex(masked,{booktabs:!!settings.texBooktabs,listings:!!settings.texListings});
-  return tex.replace(/CPRVXCITE(\d+)END/g,(_,i)=>'\\cite{'+revtexCitationKeys(stash[+i]||'').join(',')+'}');
+/* 1.2.6：舊發射器退役。
+   以前這裡是第二套 Markdown → REVTeX 轉換（以 caMdToTex 為底），與國際論文發射器
+   （18.js）規則不同；「匯出 LaTeX」「.zip 專案的底稿」「TeX 校樣面板」走這裡，
+   右側預覽走 18.js，同一份稿子因此有好幾種不同的 main.tex（1.2.6 徹查 C 報告 1.1）。
+   現在所有流程都呼叫唯一入口 __CP171__.need('emit').mainTex()。這兩個名稱保留，
+   因為 __CP163_REVTEX__.exportTex、__CP164_REVTEX__.exportTex 等外部 API 還在用。 */
+function cp171MainTexOut(md,opts){
+  const K=window.__CP171__,E=K&&typeof K.need==='function'?K.need('emit'):null;
+  if(!E||typeof E.mainTex!=='function')throw new Error(TT('國際論文發射器未載入，無法產生 main.tex。','The international-paper emitter is not loaded; main.tex cannot be produced.'));
+  return E.mainTex(String(md||''),Object.assign({settings},opts||{}));
 }
-function revtexBibitemAuthorYearLabel(entry){
-  const text=String(entry?.text||''),head=(text.split(',')[0]||entry?.key||'Reference').trim(),first=(head.split(/\s+and\s+/i)[0]||head).trim();
-  const toks=first.replace(/[^A-Za-zÀ-ž'’.-]+/g,' ').trim().split(/\s+/).filter(Boolean),author=(toks[toks.length-1]||'Reference').replace(/^[.-]+|[.-]+$/g,'')||'Reference';
-  const years=[...text.matchAll(/\b(?:18|19|20)\d{2}\b/g)],year=years.length?years[years.length-1][0]:'n.d.';
-  return revtexTexEscapeText(author)+'('+year+')';
-}
-function revtexBibitemTex(entry){const opt=String(settings.revtexCitation||'numerical')==='author-year'?'['+revtexBibitemAuthorYearLabel(entry)+']':'';return '\\bibitem'+opt+'{'+entry.key+'} '+revtexTexEscapeText(entry.text);}
-function revtexTexDocument(md){
-  normalizeRevtexSettings();revtexPrimeDocument(md);
-  const segments=splitToBlocks(String(md||'')),front=[],abstracts=[],ack=[],body=[],wide=[],appendix=[],bib=[];let appendixMode=false;
-  segments.forEach(raw=>{
-    const f=revtexFence(raw);
-    if(f){
-      if(f.lang==='revtex-frontmatter'){front.push(revtexParseFrontmatter(f.body));return;}
-      if(f.lang==='revtex-abstract'){abstracts.push(f.body);return;}
-      if(f.lang==='revtex-acknowledgments'){ack.push(f.body);return;}
-      if(f.lang==='revtex-bibliography'){
-        const target=appendixMode?appendix:body;
-        while(target.length&&!String(target[target.length-1]).trim())target.pop();
-        if(target.length&&/^\s*#{1,6}\s*(?:References?|Bibliography|參考文獻|參考書目)\s*$/i.test(String(target[target.length-1])))target.pop();
-        while(target.length&&!String(target[target.length-1]).trim())target.pop();
-        bib.push(...revtexBibEntries(f.body));return;
-      }
-      if(f.lang==='revtex-appendix'){appendixMode=true;return;}
-      if(f.lang==='revtex-wide'){
-        const index=wide.push({text:f.body,appendix:appendixMode})-1;
-        (appendixMode?appendix:body).push('CPRVXWIDE'+index+'END');return;
-      }
-    }
-    (appendixMode?appendix:body).push(raw);
-  });
-  const m=front[0]||revtexParseFrontmatter('');
-  const allMd=[...body,...appendix,...abstracts,...ack,...wide.map(x=>x.text)].join('\n');
-  const probe=revtexCitationTex(allMd),pk=caUsedPkgs(probe),L=[];
-  L.push('% Exported by EKdelta '+APP_VERSION+' — REVTeX 4.2 international paper mode');
-  if(pk.includes('xeCJK'))L.push('% Contains CJK text; compile with XeLaTeX or LuaLaTeX.');
-  L.push('\\documentclass['+revtexClassOptions().join(',')+']{revtex4-2}');
-  L.push('\\ifdefined\\pdfpagewidth\\pdfpagewidth=\\paperwidth\\pdfpageheight=\\paperheight\\fi');
-  const classOwned=new Set(['amsmath','amssymb','hyperref']);
-  if(settings.revtexHyperref||pk.includes('hyperref'))L.push('\\usepackage[hidelinks]{hyperref}');
-  pk.filter(p=>!classOwned.has(p)).forEach(p=>L.push(p==='ulem'?'\\usepackage[normalem]{ulem}':'\\usepackage{'+p+'}'));
-  if(pk.includes('soul'))L.push('\\sethlcolor{yellow}');
-  if(String(settings.revtexTitlePage||'auto')==='off'){
-    L.push('% CP171-REVTEX-CONTINUOUS-FRONTMATTER-BEGIN');
-    L.push('\\makeatletter');
-    L.push('\\@booleanfalse\\titlepage@sw');
-    L.push('\\let\\cpseventeenone@frontmatter@abstract@produce\\frontmatter@abstract@produce');
-    L.push('\\def\\frontmatter@abstract@produce{%');
-    L.push('  \\begingroup');
-    L.push('    \\let\\preprintsty@sw\\@secondoftwo');
-    L.push('    \\cpseventeenone@frontmatter@abstract@produce');
-    L.push('  \\endgroup');
-    L.push('}%');
-    L.push('\\makeatother');
-    L.push('% CP171-REVTEX-CONTINUOUS-FRONTMATTER-END');
-  }
-  L.push('', '\\begin{document}', '');
-  m.preprints.forEach(x=>{if(x)L.push('\\preprint{'+revtexTexEscapeText(x)+'}');});
-  if(m.title)L.push('\\title'+(m.shortTitle?'['+revtexTexEscapeText(m.shortTitle)+']':'')+'{'+revtexTexEscapeText(m.title)+'}');
-  m.authors.forEach(a=>{
-    if(a.name)L.push('\\author{'+revtexTexEscapeText(a.name)+'}');
-    if(a.email)L.push('\\email{'+revtexTexEscapeText(a.email)+'}');
-    if(a.orcid)L.push('\\thanks{ORCID: '+revtexTexEscapeText(a.orcid)+'}');
-    if(a.homepage)L.push('\\homepage{'+revtexTexEscapeText(a.homepage)+'}');
-    if(a.thanks)L.push('\\thanks{'+revtexTexEscapeText(a.thanks)+'}');
-    if(a.altaffiliation)L.push('\\altaffiliation{'+revtexTexEscapeText(a.altaffiliation)+'}');
-    a.affiliations.forEach(x=>{if(x)L.push('\\affiliation{'+revtexTexEscapeText(x)+'}');});
-  });
-  m.affiliations.forEach(x=>{if(x)L.push('\\affiliation{'+revtexTexEscapeText(x)+'}');});
-  m.collaborations.forEach(x=>{if(x){L.push('\\collaboration{'+revtexTexEscapeText(x)+'}');L.push('\\noaffiliation');}});
-  if(m.date)L.push('\\date{'+revtexTexDate(m.date)+'}');
-  if(abstracts.length)L.push('', '\\begin{abstract}',revtexCitationTex(abstracts.join('\n\n')),'\\end{abstract}');
-  if(m.pacs)L.push('\\pacs{'+revtexTexEscapeText(m.pacs)+'}');
-  if(m.keywords)L.push('\\keywords{'+revtexTexEscapeText(m.keywords)+'}');
-  L.push('', '\\maketitle', '');
-  const expandWide=tex=>String(tex||'').replace(/CPRVXWIDE(\d+)END/g,(_,i)=>{
-    const x=wide[+i];return x?'\\begin{widetext}\n'+revtexCitationTex(x.text)+'\n\\end{widetext}':'';
-  });
-  let bodyTex=expandWide(revtexCitationTex(body.join('\n')));
-  if(bodyTex.trim())L.push(bodyTex.trim(),'');
-  if(ack.length)L.push('\\begin{acknowledgments}',revtexCitationTex(ack.join('\n\n')),'\\end{acknowledgments}','');
-  if(appendix.length||wide.some(x=>x.appendix)){
-    L.push('\\appendix');
-    if(appendix.length)L.push(expandWide(revtexCitationTex(appendix.join('\n'))));
-    L.push('');
-  }
-  if(m.bibliography){
-    if(m.bibliographyStyle)L.push('\\bibliographystyle{'+String(m.bibliographyStyle).replace(/[^A-Za-z0-9_.-]/g,'')+'}');
-    L.push('\\bibliography{'+String(m.bibliography).split(',').map(x=>x.trim().replace(/[^A-Za-z0-9_./-]/g,'')).filter(Boolean).join(',')+'}');
-  }else if(bib.length){
-    L.push('\\begin{thebibliography}{'+Math.max(9,bib.length)+'}');bib.forEach(x=>L.push(revtexBibitemTex(x)));L.push('\\end{thebibliography}');
-  }
-  L.push('', '\\end{document}');return L.join('\n');
+function revtexTexDocument(md,purpose){
+  normalizeRevtexSettings();
+  return cp171MainTexOut(md,{purpose:purpose==='preview'?'preview':'submission'}).tex;
 }
 const cp163ExportTexBase=exportTex;
 exportTex=function(){
-  if(!isRevtexTheme())return cp163ExportTexBase();
-  commitCurrent();const f=activeFile(),doc=revtexTexDocument(losslessActiveNormalized());
-  download(f.name.replace(/\.md$/i,'')+'.tex','application/x-tex',doc);
-  toast(TT('已匯出 REVTeX 4.2 LaTeX (.tex)','Exported REVTeX 4.2 LaTeX (.tex)'));
+  /* 1.2.6：國際論文模式（右側 PDF 面板開著，主題是一般 Markdown）以前會走一般 article 的
+     LaTeX 匯出，拿到的根本不是 REVTeX。現在 REVTeX 主題或國際論文模式都用唯一入口。 */
+  const intl=!!(window.__CP171__&&typeof window.__CP171__.isIntlMode==='function'&&window.__CP171__.isIntlMode());
+  if(!isRevtexTheme()&&!intl)return cp163ExportTexBase();
+  commitCurrent();normalizeRevtexSettings();
+  const f=activeFile(),out=cp171MainTexOut(losslessActiveNormalized(),{purpose:'submission'});
+  download(f.name.replace(/\.(md|markdown|txt)$/i,'')+'.tex','application/x-tex',out.tex);
+  toast(TT('已匯出 REVTeX 4.2 LaTeX (.tex)','Exported REVTeX 4.2 LaTeX (.tex)')+(out.warnings&&out.warnings.length?TT('（有 '+out.warnings.length+' 則提醒，見右側狀態列）',' ('+out.warnings.length+' note(s); see the right-hand status line)'):''));
 };
 
 /* Sixth built-in document: the exact Markdown seed is immutable at runtime. */
@@ -7779,52 +7652,48 @@ async function cp166Placeholder(src,index){
   const c=document.createElement('canvas');c.width=1400;c.height=760;const x=c.getContext('2d');x.fillStyle='#ffffff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#9c2b2b';x.lineWidth=12;x.strokeRect(26,26,c.width-52,c.height-52);x.fillStyle='#9c2b2b';x.font='bold 64px sans-serif';x.textAlign='center';x.fillText('MISSING FIGURE '+index,c.width/2,250);x.fillStyle='#222';x.font='32px monospace';const text=String(src||'unknown source');for(let i=0;i<Math.min(4,Math.ceil(text.length/62));i++)x.fillText(text.slice(i*62,(i+1)*62),c.width/2,360+i*48);x.font='28px sans-serif';x.fillText('Reconnect the image folder, then export the project again.',c.width/2,650);
   const b=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(new Error('placeholder encode failed')),'image/png'));return new Uint8Array(await b.arrayBuffer());
 }
-function cp166HtmlImagesToMarkdown(md){
-  return String(md||'').replace(/^[ \t]*<img\b([^>]*)\/?>(?:[ \t]*)$/gmi,(all,attrs)=>{
-    const sm=attrs.match(/\bsrc\s*=\s*(["'])(.*?)\1/i);if(!sm)return all;const am=attrs.match(/\balt\s*=\s*(["'])(.*?)\1/i);return '!['+(am?am[2]:'')+']('+sm[2]+')';
-  });
-}
-async function cp166PackageMarkdownAssets(md){
-  let text=cp166HtmlImagesToMarkdown(md),files=[],warnings=[],mapping=new Map(),usedNames=new Set(),index=0;
-  const rx=/!\[([^\]]*)\]\(([^)\n]+?)(?:\s+["']([^"']*)["'])?\)/g,matches=[...text.matchAll(rx)];
-  for(const m of matches){
-    const src=String(m[2]||'').trim().replace(/^<|>$/g,'');if(mapping.has(src))continue;index++;
+/* 1.2.6：專案打包不再用正則掃 Markdown 找圖、也不再事後改寫 main.tex。
+   圖檔清單由發射器提供（它看到的就是 main.tex 會引用的圖，含 HTML <img>、表格內的圖），
+   這裡把圖讀進來、改名放進 figures/，回傳「原路徑 → 專案路徑」對照表，再交回發射器
+   直接寫出新路徑（C 報告 根因 1(e)）。讀不到的圖放明確的佔位圖並寫進 README。 */
+async function cp166PackageAssets(sources){
+  const files=[],warnings=[],map={},usedNames=new Set();let index=0;
+  for(const raw of sources||[]){
+    const src=String(raw||'').trim();if(!src||Object.prototype.hasOwnProperty.call(map,src))continue;index++;
+    /* 1.2.7：內嵌圖片的 data: 網址可能有幾 MB，警告與 README 只寫「第幾張、什麼格式」。 */
+    const label=/^data:/i.test(src)?('embedded image '+index+' ('+((src.match(/^data:([^;,]*)/i)||[])[1]||'unknown type')+')'):src;
     let asset=await cp166ReadAsset(src),ext=asset?cp166ExtFrom(asset.name||src,asset.mime):'png',bytes=null,missing=false;
     if(asset){
       if(ext==='pdf')bytes=asset.bytes;
       else if(CP166_DIRECT_IMAGE_EXT.has(ext)){
-        try{if(!(await cp166CanDecodeRaster(asset.bytes,asset.mime)))throw new Error('empty image');bytes=asset.bytes;}catch(_){missing=true;warnings.push('Unreadable image replaced by an explicit placeholder: '+src);}
-      }else{try{bytes=await cp166Rasterize(asset.bytes,asset.mime);ext='png';warnings.push('Converted unsupported image format to PNG: '+src);}catch(_){missing=true;warnings.push('Unreadable image replaced by an explicit placeholder: '+src);}}
+        try{if(!(await cp166CanDecodeRaster(asset.bytes,asset.mime)))throw new Error('empty image');bytes=asset.bytes;}catch(_){missing=true;warnings.push('Unreadable image replaced by an explicit placeholder: '+label);}
+      }else{try{bytes=await cp166Rasterize(asset.bytes,asset.mime);ext='png';warnings.push('Converted unsupported image format to PNG: '+label);}catch(_){missing=true;warnings.push('Unreadable image replaced by an explicit placeholder: '+label);}}
     }else missing=true;
-    if(missing){bytes=await cp166Placeholder(src,index);ext='png';if(!warnings.some(x=>x.endsWith(': '+src)))warnings.push('Missing image replaced by an explicit placeholder: '+src);}
+    if(missing){bytes=await cp166Placeholder(label,index);ext='png';if(!warnings.some(x=>x.endsWith(': '+label)))warnings.push('Missing image replaced by an explicit placeholder: '+label);}
     let base='figure-'+String(index).padStart(2,'0')+'-'+cp166SourceBase(src,index),name=base+'.'+(ext==='jpeg'?'jpg':ext),n=2;
-    while(usedNames.has(name)){name=base+'-'+n+'.'+ext;n++;}usedNames.add(name);
-    const projectPath='figures/'+name;mapping.set(src,projectPath);files.push({name:projectPath,data:bytes,source:src,missing});
+    while(usedNames.has(name)){name=base+'-'+n+'.'+(ext==='jpeg'?'jpg':ext);n++;}usedNames.add(name);
+    const projectPath='figures/'+name;map[src]=projectPath;files.push({name:projectPath,data:bytes,source:src,missing});
   }
-  text=text.replace(rx,(all,alt,url,title)=>{const src=String(url||'').trim().replace(/^<|>$/g,''),dest=mapping.get(src);return dest?'!['+alt+']('+dest+(title?' "'+title+'"':'')+')':all;});
-  return {markdown:text,files,warnings,mapping};
+  return {map,files,warnings};
 }
-async function cp166ExternalBibliography(mainTex){
-  const m=String(mainTex||'').match(/\\bibliography\{([^}]+)\}/);if(!m)return {mainTex,files:[],warnings:[],external:false};
-  const refs=m[1].split(',').map(x=>x.trim()).filter(Boolean),files=[],warnings=[],mapped=[];let i=0;
-  for(const ref of refs){
-    i++;let f=null;for(const c of [ref,ref+'.bib',ref.replace(/\.bib$/i,''),ref.replace(/\.bib$/i,'')+'.bib']){try{f=await findFolderFile(c);if(f)break;}catch(_){ }}
-    if(!f){warnings.push('External bibliography file could not be packaged: '+ref+'.bib');mapped.push(ref.replace(/\.bib$/i,''));continue;}
-    const stem=cp166SafeStem(f.name||ref)||('references-'+i),path='bibliography/'+stem+'.bib';files.push({name:path,data:new Uint8Array(await f.arrayBuffer())});mapped.push(path.replace(/\.bib$/i,''));
+/* .bib：放在專案根目錄、名稱就是 main.tex 裡 \bibliography{} 寫的名字，main.tex 不必改
+   （舊版搬到 bibliography/ 再改寫 main.tex；預覽用的 main.tex 沒跟著改，BibTeX 找不到檔，C 報告 X-C）。 */
+async function cp166PackageBib(names){
+  const files=[],warnings=[];
+  for(const raw of names||[]){
+    const name=String(raw||'').replace(/\.bib$/i,'').trim();if(!name)continue;
+    let f=null;for(const c of [name+'.bib',name,name.split('/').pop()+'.bib']){try{f=await findFolderFile(c);if(f)break;}catch(_){}}
+    if(!f){warnings.push('External bibliography file could not be packaged: '+name+'.bib');continue;}
+    files.push({name:name+'.bib',data:new Uint8Array(await f.arrayBuffer())});
   }
-  return {mainTex:String(mainTex).replace(m[0],'\\bibliography{'+mapped.join(',')+'}'),files,warnings,external:true};
-}
-function cp166SplitInlineBibliography(mainTex){
-  const rx=/\\begin\{thebibliography\}\{[^}]*\}[\s\S]*?\\end\{thebibliography\}/,m=String(mainTex||'').match(rx);
-  if(!m)return {mainTex,files:[],inline:false};
-  return {mainTex:String(mainTex).replace(rx,'\\input{bibliography.tex}'),files:[{name:'bibliography.tex',data:cp166TextBytes('% Bibliography generated from the Markdown revtex-bibliography block.\n'+m[0]+'\n')}],inline:true};
+  return {files,warnings};
 }
 function cp166ClassSummary(){
   return {class:'revtex4-2',options:revtexClassOptions().slice(),society:settings.revtexSociety,journal:settings.revtexJournal,journalLabel:revtexJournalLabel(),mode:settings.revtexMode,effectiveColumns:revtexEffectiveColumns(),columnsOption:settings.revtexColumns,effectiveSides:revtexEffectiveSides(),sidesOption:settings.revtexSides,paper:settings.revtexPaper,landscape:!!settings.revtexLandscape,fontSize:settings.revtexFontSize,citation:settings.revtexCitation,floatPolicy:settings.revtexFloats,lineNumbers:!!settings.revtexLineNumbers};
 }
 function cp166Readme(meta){
   const c=meta.revtex,w=meta.warnings.length?meta.warnings.map(x=>'- '+x).join('\n'):'- No missing project assets were detected.';
-  return `# REVTeX 4.2 submission project\n\nThis project was exported by EKdelta ${APP_VERSION} / ${APP_CHECKPOINT} from the same canonical Markdown and REVTeX settings used by the WYSIWYG editor.\n\n## Official format identity\n\nThe main file begins with:\n\n\`\`\`tex\n\\documentclass[${c.options.join(',')}]{revtex4-2}\n\`\`\`\n\nThis is an official REVTeX 4.2 class invocation. The editor does not replace the class with a private imitation. Society: **${c.society.toUpperCase()}**. Journal profile: **${c.journal} — ${c.journalLabel}**. Mode: **${c.mode}**. Body: **${c.effectiveColumns===2?'two columns':'one column'}**. Page sides: **${c.effectiveSides}**.\n\n## Files\n\n- \`main.tex\`: submission main file.\n- \`bibliography.tex\` or \`bibliography/*.bib\`: references.\n- \`manuscript.md\`: exact Markdown source at export time.\n- \`figures/\`: copied or converted figure assets.\n- \`project-settings.json\`: complete class-option snapshot.\n- \`build.sh\` / \`build.bat\`: repeatable local compilation.\n- \`MANIFEST.txt\`: file sizes and CRC32 values.\n${meta.mode==='portable'?'- Official REVTeX 4.2f runtime files are included unmodified at project root for portable compilation.\n':'- This standard submission package expects REVTeX 4.2 to be installed in TeX Live or MiKTeX.\n'}\n## Compile\n\nLinux/macOS:\n\n\`\`\`sh\nsh build.sh\n\`\`\`\n\nWindows:\n\n\`\`\`bat\nbuild.bat\n\`\`\`\n\nFor manual compilation, run \`pdflatex main.tex\` twice. When \`main.tex\` contains an external \`\\bibliography{...}\`, run \`bibtex main\` between LaTeX passes. A document containing CJK text should normally use XeLaTeX or LuaLaTeX instead.\n\n## WYSIWYG fidelity boundary\n\nIn REVTeX exact mode, the main product canvas and the product PDF download use the same PDF bytes compiled from this main.tex by the locked TeX engine and REVTeX runtime. The former Chromium facsimile is not the WYSIWYG authority.\n\n## Asset report\n\n${w}\n`;
+  return `# REVTeX 4.2 submission project\n\nThis project was exported by EKdelta ${APP_VERSION} / ${APP_CHECKPOINT} from the same canonical Markdown and REVTeX settings used by the WYSIWYG editor.\n\n## Official format identity\n\nThe main file begins with:\n\n\`\`\`tex\n\\documentclass[${c.options.join(',')}]{revtex4-2}\n\`\`\`\n\nThis is an official REVTeX 4.2 class invocation. The editor does not replace the class with a private imitation. Society: **${c.society.toUpperCase()}**. Journal profile: **${c.journal} — ${c.journalLabel}**. Mode: **${c.mode}**. Body: **${c.effectiveColumns===2?'two columns':'one column'}**. Page sides: **${c.effectiveSides}**.\n\n## Files\n\n- \`main.tex\`: submission main file.\n- References: inside \`main.tex\` (thebibliography) or \`*.bib\` next to it (BibTeX).\n- \`manuscript.md\`: exact Markdown source at export time.\n- \`figures/\`: copied or converted figure assets.\n- \`project-settings.json\`: complete class-option snapshot.\n- \`build.sh\` / \`build.bat\`: repeatable local compilation.\n- \`MANIFEST.txt\`: file sizes and CRC32 values.\n${meta.mode==='portable'?'- Official REVTeX 4.2f runtime files are included unmodified at project root for portable compilation.\n':'- This standard submission package expects REVTeX 4.2 to be installed in TeX Live or MiKTeX.\n'}\n## Compile\n\nLinux/macOS:\n\n\`\`\`sh\nsh build.sh\n\`\`\`\n\nWindows:\n\n\`\`\`bat\nbuild.bat\n\`\`\`\n\nFor manual compilation, run \`pdflatex main.tex\` twice. When \`main.tex\` contains an external \`\\bibliography{...}\`, run \`bibtex main\` between LaTeX passes. A document containing CJK text should normally use XeLaTeX or LuaLaTeX instead.\n\n## WYSIWYG fidelity boundary\n\nIn REVTeX exact mode, the main product canvas and the product PDF download use the same PDF bytes compiled from this main.tex by the locked TeX engine and REVTeX runtime. The former Chromium facsimile is not the WYSIWYG authority.\n\n## Asset report\n\n${w}\n`;
 }
 function cp166BuildSh(hasExternal,cjk){
   const engine=cjk?'xelatex':'pdflatex';
@@ -7843,20 +7712,23 @@ function cp166Manifest(entries){
 }
 async function cp166BuildProject(md,options){
   normalizeRevtexSettings();const opts=options||{},mode=opts.mode==='portable'?'portable':'standard',sourceName=opts.sourceName||'manuscript.md',root=cp166SafeStem(sourceName)+'-revtex';
-  const assets=await cp166PackageMarkdownAssets(String(md||''));let mainTex=revtexTexDocument(assets.markdown),entries=[];
-  try{const __h=window.__CP171__&&window.__CP171__.callHook&&window.__CP171__.callHook('revtexMainTex',assets.markdown);if(__h&&__h.handled&&__h.value)mainTex=String(__h.value);}catch(__e){console.error('[CP171 1.1.6.1] REVTeX project main.tex takeover',__e);}
-  const split=cp166SplitInlineBibliography(mainTex);mainTex=split.mainTex;entries.push(...split.files);
-  const ext=await cp166ExternalBibliography(mainTex);mainTex=ext.mainTex;entries.push(...ext.files);
-  const warnings=[...assets.warnings,...ext.warnings],revtex=cp166ClassSummary(),cjk=/Contains CJK|\\usepackage\{xeCJK\}/.test(mainTex);
-  const __cls=String(mainTex||'').match(/\\documentclass\[([^\]]*)\]\{revtex4-2\}/);if(__cls)revtex.options=__cls[1].split(',').map(x=>x.trim()).filter(Boolean);
-  entries.unshift({name:'main.tex',data:cp166TextBytes(mainTex+'\n')});entries.push(...assets.files.map(x=>({name:x.name,data:x.data})));
-  entries.push({name:'manuscript.md',data:cp166TextBytes(String(md||''))});
-  const settingsDoc={schema:'ekdeta-html-revtex-project/1',generator:{name:'Markdown',version:APP_VERSION,checkpoint:APP_CHECKPOINT,build:APP_BUILD},exportedAt:new Date().toISOString(),sourceDocument:sourceName,packageMode:mode,revtex,assets:assets.files.map(x=>({source:x.source,path:x.name,missing:!!x.missing})),warnings,officialRuntime:{included:mode==='portable',sourceArchive:'revtex-tds-2023-05-30.zip',version:'4.2f',sha256:mode==='portable'?CP166_RUNTIME_SHA256:{}}};
+  /* purpose：交付用的 .zip 預設是投稿版（APS 乾淨寫法）；TeX 校樣面板編譯傳 'preview'。 */
+  const purpose=opts.purpose==='preview'?'preview':'submission',source=String(md||'');
+  const first=cp171MainTexOut(source,{purpose});
+  const assets=await cp166PackageAssets(first.imageSources||(first.assets||[]).map(a=>a.src));
+  const out=cp171MainTexOut(source,{purpose,assetMap:assets.map});
+  const mainTex=out.tex,entries=[];
+  const bib=await cp166PackageBib(out.bibFiles);entries.push(...bib.files);
+  const warnings=[...assets.warnings,...bib.warnings,...(out.warnings||[])],revtex=cp166ClassSummary(),cjk=out.engine==='xelatex';
+  revtex.options=(out.classOptions||revtex.options).slice();
+  entries.unshift({name:'main.tex',data:cp166TextBytes(mainTex)});entries.push(...assets.files.map(x=>({name:x.name,data:x.data})));
+  entries.push({name:'manuscript.md',data:cp166TextBytes(source)});
+  const settingsDoc={schema:'ekdeta-html-revtex-project/1',generator:{name:'Markdown',version:APP_VERSION,checkpoint:APP_CHECKPOINT,build:APP_BUILD},exportedAt:new Date().toISOString(),sourceDocument:sourceName,packageMode:mode,purpose,revtex,assets:assets.files.map(x=>({source:x.source,path:x.name,missing:!!x.missing})),warnings,officialRuntime:{included:mode==='portable',sourceArchive:'revtex-tds-2023-05-30.zip',version:'4.2f',sha256:mode==='portable'?CP166_RUNTIME_SHA256:{}}};
   const meta={mode,revtex,warnings};entries.push({name:'project-settings.json',data:cp166TextBytes(JSON.stringify(settingsDoc,null,2)+'\n')});
-  entries.push({name:'README.md',data:cp166TextBytes(cp166Readme(meta))});entries.push({name:'build.sh',data:cp166TextBytes(cp166BuildSh(ext.external,cjk))});entries.push({name:'build.bat',data:cp166TextBytes(cp166BuildBat(ext.external,cjk))});entries.push({name:'REVTeX_SOURCE_NOTICE.md',data:cp166TextBytes(cp166SourceNotice(mode))});
+  entries.push({name:'README.md',data:cp166TextBytes(cp166Readme(meta))});entries.push({name:'build.sh',data:cp166TextBytes(cp166BuildSh(bib.files.length>0,cjk))});entries.push({name:'build.bat',data:cp166TextBytes(cp166BuildBat(bib.files.length>0,cjk))});entries.push({name:'REVTeX_SOURCE_NOTICE.md',data:cp166TextBytes(cp166SourceNotice(mode))});
   if(mode==='portable')Object.entries(CP166_RUNTIME_B64).forEach(([name,b64])=>entries.push({name,data:cp166Base64Bytes(b64)}));
   entries.push({name:'MANIFEST.txt',data:cp166TextBytes(cp166Manifest(entries))});
-  const blob=cp166ZipStore(entries,root),downloadName=root+(mode==='portable'?'-portable':'-submission')+'.zip';return {blob,downloadName,root,entries,warnings,settings:settingsDoc};
+  const blob=cp166ZipStore(entries,root),downloadName=root+(mode==='portable'?'-portable':'-submission')+'.zip';return {blob,downloadName,root,entries,warnings,settings:settingsDoc,mainTex,engine:out.engine};
 }
 function cp166InjectStyle(){
   if(document.getElementById('cp166-revtex-project-style'))return;const st=document.createElement('style');st.id='cp166-revtex-project-style';st.textContent=`
@@ -7870,28 +7742,30 @@ function cp166InjectStyle(){
 function cp166OpenDialog(){
   cp166InjectStyle();
   if(!isRevtexTheme()&&!(window.__CP171__&&typeof window.__CP171__.isIntlMode==='function'&&window.__CP171__.isIntlMode())){
-    showModal(`<h2>${TT('REVTeX 專案匯出','REVTeX project export')}</h2><p class="m-note">${TT('這個功能只會在 REVTeX 4.2 International Paper 主題中建立官方 revtex4-2 專案。請先切換主題，並確認正文畫面已是你要交付的單欄或雙欄設定。','This function builds an official revtex4-2 project only in the REVTeX 4.2 International Paper theme. Switch themes first and confirm the visible one/two-column layout before exporting.')}</p>`);return;
+    showModal(`<h2>${TT('REVTeX 專案匯出','REVTeX project export')}</h2><p class="m-note">${TT('REVTeX 專案要在國際期刊模式匯出。請先在「模式」選單選「國際期刊 REVTeX 4.2」，確認右邊編譯出的版面，再回到這裡。','REVTeX projects are exported from international journal mode. Choose Mode → International journal (REVTeX 4.2), check the compiled layout on the right, then come back here.')}</p>`);return;
   }
   commitCurrent();normalizeRevtexSettings();const options=revtexClassOptions().join(',');
-  showModal(`<h2>${TT('匯出標準 REVTeX LaTeX 專案','Export standard REVTeX LaTeX project')}</h2>
-    <p class="cp166-export-intro">${TT('ZIP 會由目前畫面使用的同一份 Markdown 與國際論文設定建立。主檔使用官方 <code>\\documentclass[…]{revtex4-2}</code>，不是自行仿製的 article 樣式。','The ZIP is built from the same Markdown and international-paper settings used by the visible document. Its main file uses the official <code>\\documentclass[…]{revtex4-2}</code>, not a private article imitation.')}</p>
-    <div class="cp166-export-proof"><div class="cp166-proof-cell"><b>${TT('目前版型','Current layout')}</b><span>${escapeHtml(revtexModeLabel())} · ${escapeHtml(revtexColumnsLabel())} · ${escapeHtml(revtexSidesLabel())}</span></div><div class="cp166-proof-cell"><b>${TT('官方 profile','Official profile')}</b><span>${escapeHtml(settings.revtexSociety.toUpperCase())} · ${escapeHtml(settings.revtexJournal.toUpperCase())}<br>${escapeHtml(revtexJournalLabel())}</span></div><div class="cp166-proof-cell"><b>documentclass options</b><span>${escapeHtml(options)}</span></div></div>
+  /* 1.2.7（M32）：改成一句話說明會得到什麼、一行目前版面、兩個選項。以前有四張資訊卡、「推薦」徽章、
+     整串 class option 與兩段自我辯護的長句。網站導覽框選的 .cp166-package-options、
+     .cp166-package-card、#cp166-export-build 與 .cp166-export-actions 名稱保留。 */
+  const paperLabel=settings.revtexPaper==='a4paper'?'A4':'Letter';
+  showModal(`<h2>${TT('匯出 REVTeX 專案','Export REVTeX project')}</h2>
+    <p class="cp166-export-intro">${TT('把這份稿子打包成投稿用的 LaTeX 專案（.zip），裡面有 main.tex、參考文獻、圖片與編譯腳本。','Packs this manuscript into a LaTeX project for submission (.zip): main.tex, references, figures and build scripts.')}</p>
+    <p class="cp166-export-meta">${TT('目前版面：','Current layout: ')}${escapeHtml(settings.revtexSociety.toUpperCase())} · ${escapeHtml(revtexJournalLabel())} · ${escapeHtml(String(revtexColumnsLabel()).trim())} · ${paperLabel}</p>
     <div class="cp166-package-options">
-      <label class="cp166-package-card"><input type="radio" name="cp166-mode" value="standard" checked><strong>${TT('標準投稿包','Standard submission package')}<span class="cp166-recommended">${TT('推薦','Recommended')}</span></strong><p>${TT('包含 main.tex、bibliography、Markdown、figures、編譯腳本、設定與 manifest。使用審查端或投稿系統已安裝的官方 REVTeX。','Includes main.tex, bibliography, Markdown, figures, build scripts, settings, and a manifest. Uses the official REVTeX installation on the reviewer or submission system.')}</p></label>
-      <label class="cp166-package-card"><input type="radio" name="cp166-mode" value="portable"><strong>${TT('可攜編譯包','Portable compile package')}</strong><p>${TT('除標準內容外，另附原始官網壓縮包中的 REVTeX 4.2f class／style／RTX／BST，檔案逐位元組不修改。適合不確定對方環境時。','Adds byte-for-byte unmodified REVTeX 4.2f class/style/RTX/BST files from the supplied official archive. Use it when the recipient’s TeX environment is uncertain.')}</p></label>
+      <label class="cp166-package-card"><input type="radio" name="cp166-mode" value="standard" checked><span class="cp166-card-body"><strong>${TT('一般投稿用','For submission')}</strong><span class="cp166-card-note">${TT('投稿系統或對方的電腦已經裝好 REVTeX 時選這個。','Choose this when the journal system or the recipient already has REVTeX.')}</span></span></label>
+      <label class="cp166-package-card"><input type="radio" name="cp166-mode" value="portable"><span class="cp166-card-body"><strong>${TT('附上 REVTeX 檔案','Include REVTeX files')}</strong><span class="cp166-card-note">${TT('不確定對方有沒有 REVTeX 時選這個；另附官方 REVTeX 4.2f 原檔。','Choose this when unsure; the official REVTeX 4.2f files are added unchanged.')}</span></span></label>
     </div>
-    <div class="cp166-export-map"><b>${TT('專案內容','Project contents')}</b><br><code>main.tex</code> · <code>bibliography.tex / bibliography/*.bib</code> · <code>manuscript.md</code> · <code>figures/</code> · <code>build.sh</code> · <code>build.bat</code> · <code>project-settings.json</code> · <code>MANIFEST.txt</code></div>
-    <div class="cp166-export-actions"><span class="cp166-export-status" id="cp166-export-status"></span><button class="cp166-export-build" id="cp166-export-build" type="button">${TT('建立並下載 ZIP','Build and download ZIP')}</button></div>
-    <p class="cp166-export-warning">${TT('瀏覽器和 TeX 使用不同排版引擎；內容、class options、欄數、紙張、引用與圖表會一致，但精確斷行、浮動體位置及欄平衡以編譯後的官方 REVTeX PDF 為準。若圖片無法讀取，專案會放入明確的缺圖佔位並在 README 列出，不會靜默遺失。','Chromium and TeX use different layout engines. Content, class options, columns, paper, citations, and figures match, while exact line breaks, float placement, and column balancing are authoritative in the compiled official REVTeX PDF. Unreadable figures become explicit placeholders and are listed in README rather than disappearing silently.')}</p>`);
-  const modal=document.getElementById('modal'),overlay=document.getElementById('modal-overlay'),close=document.getElementById('modal-close');modal.classList.add('cp166-export-modal');close.textContent=TT('取消','Cancel');
+    <div class="cp166-export-actions"><span class="cp166-export-status" id="cp166-export-status"></span><button class="cp166-export-build" id="cp166-export-build" type="button">${TT('下載 .zip','Download .zip')}</button></div>`);
+  const modal=document.getElementById('modal'),overlay=document.getElementById('modal-overlay'),close=document.getElementById('modal-close');modal.classList.add('cp166-export-modal');close.textContent=TT('取消','Cancel');{const acts=modal.querySelector('.cp166-export-actions'),build=document.getElementById('cp166-export-build');if(acts&&build)acts.insertBefore(close,build);}
   const observer=new MutationObserver(()=>{if(!overlay.classList.contains('show')){modal.classList.remove('cp166-export-modal');observer.disconnect();}});observer.observe(overlay,{attributes:true,attributeFilter:['class']});
   document.getElementById('cp166-export-build').onclick=async()=>{
-    const btn=document.getElementById('cp166-export-build'),status=document.getElementById('cp166-export-status'),mode=document.querySelector('input[name="cp166-mode"]:checked')?.value||'standard';btn.disabled=true;status.textContent=TT('正在收集正文、文獻與圖片並建立專案…','Collecting manuscript, bibliography, and figures…');
-    try{commitCurrent();const f=activeFile(),result=await cp166BuildProject(losslessActiveNormalized(),{mode,sourceName:f?.name||'manuscript.md'});status.textContent=TT('ZIP 已建立，開始下載…','ZIP built; starting download…');cp166DownloadBlob(result.downloadName,result.blob);setTimeout(()=>{hideModal();toast(result.warnings.length?TT('已匯出 REVTeX 專案；請查看 README 的資產警告','Exported REVTeX project; see README for asset warnings'):TT('已匯出標準 REVTeX LaTeX 專案','Exported standard REVTeX LaTeX project'));},250);}
+    const btn=document.getElementById('cp166-export-build'),status=document.getElementById('cp166-export-status'),mode=document.querySelector('input[name="cp166-mode"]:checked')?.value||'standard';btn.disabled=true;status.textContent=TT('正在打包…','Packing…');
+    try{commitCurrent();const f=activeFile(),result=await cp166BuildProject(losslessActiveNormalized(),{mode,sourceName:f?.name||'manuscript.md'});status.textContent=TT('開始下載…','Starting download…');cp166DownloadBlob(result.downloadName,result.blob);setTimeout(()=>{hideModal();toast(result.warnings.length?TT('已匯出 REVTeX 專案；有些圖片或檔案需要留意，詳見專案裡的 README','REVTeX project exported; some figures or files need attention, see README'):TT('已匯出 REVTeX 專案','REVTeX project exported'));},250);}
     catch(err){console.error('CP166 REVTeX project export',err);status.textContent=TT('匯出失敗：','Export failed: ')+(err&&err.message?err.message:String(err));btn.disabled=false;}
   };
 }
-window.__CP166_REVTEX_PROJECT__=Object.freeze({checkpoint:APP_CHECKPOINT,version:APP_VERSION,build:APP_BUILD,policy:'same-canonical-markdown-and-class-options-official-revtex-project',openDialog:cp166OpenDialog,buildProject:cp166BuildProject,zipStore:cp166ZipStore,officialRuntimeSHA256:CP166_RUNTIME_SHA256,officialRuntimeFiles:Object.freeze(Object.keys(CP166_RUNTIME_B64)),standardFiles:Object.freeze(['main.tex','bibliography.tex or bibliography/*.bib','manuscript.md','figures/','README.md','build.sh','build.bat','project-settings.json','MANIFEST.txt'])});
+window.__CP166_REVTEX_PROJECT__=Object.freeze({checkpoint:APP_CHECKPOINT,version:APP_VERSION,build:APP_BUILD,policy:'same-canonical-markdown-and-class-options-official-revtex-project',openDialog:cp166OpenDialog,buildProject:cp166BuildProject,zipStore:cp166ZipStore,officialRuntimeSHA256:CP166_RUNTIME_SHA256,officialRuntimeFiles:Object.freeze(Object.keys(CP166_RUNTIME_B64)),standardFiles:Object.freeze(['main.tex','*.bib (BibTeX only)','manuscript.md','figures/','README.md','build.sh','build.bat','project-settings.json','MANIFEST.txt'])});
 })();
 
 
@@ -7901,7 +7775,6 @@ window.__CP166_REVTEX_PROJECT__=Object.freeze({checkpoint:APP_CHECKPOINT,version
     imgDirHandle = await idbGet('imgdir');  // 載回獨立圖片資料夾(CP6)
   }
   buildMenubar();
-  tickClock();
   const saved = await restore();
   let storageMigrated = false;
   if (saved && Array.isArray(saved.files)){
@@ -7922,7 +7795,6 @@ window.__CP166_REVTEX_PROJECT__=Object.freeze({checkpoint:APP_CHECKPOINT,version
   document.body.classList.toggle('lang-en', isEN());
   applyStaticI18n();
   buildMenubar();
-  tickClock();
   const twthesisThemeMigrated = applyThemeFromSettings(); // 保留 dark，並把舊 twthesis2 設定併入 twthesis
   applyTwThesisLogoScale(false);
   document.body.classList.toggle('no-sidebar', !settings.sidebar);

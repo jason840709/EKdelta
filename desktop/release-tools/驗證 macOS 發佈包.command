@@ -1,5 +1,5 @@
 #!/bin/bash
-# Electron 1.2.5 Full-only rebase — macOS release QA.
+# Electron 1.2.7 Full-only rebase — macOS release QA.
 # source / dist / shell / fake Engine / direct stream / real Full Engine 一次驗完，最後封小型 QA ZIP。
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,12 +14,12 @@ pass=0; fail=0
 ok(){ echo "PASS  $*"; pass=$((pass+1)); }
 bad(){ echo "FAIL  $*"; fail=$((fail+1)); }
 info(){ echo "INFO  $*"; }
-printf 'Ekdeta Electron 1.2.5 Full-only macOS release verification\nDate: %s\nRoot: %s\n\n' "$(date)" "$ROOT"
+printf 'EKdelta Electron 1.2.7 Full-only macOS release verification\nDate: %s\nRoot: %s\n\n' "$(date)" "$ROOT"
 
 if [ "$(uname -s)" = "Darwin" ]; then ok "macOS host"; else bad "這支驗證器必須在 macOS 執行"; fi
 
 echo '=== Portable source gate ==='
-if python3 verify/verify_release.py; then ok "v1.2.5 portable static gate"; else bad "v1.2.5 portable static gate"; fi
+if python3 verify/verify_release.py; then ok "v1.2.7 portable static gate"; else bad "v1.2.7 portable static gate"; fi
 cp verify/results/static.json "$QA_DIR/static.json" 2>/dev/null || true
 if [ -f package-lock.json ]; then
   ok "package-lock.json 已存在（後續 build 可 npm ci）"
@@ -33,18 +33,18 @@ echo; echo '=== dist artifacts ==='
 if [ -d dist ]; then
   find dist -maxdepth 3 \( -name '*.app' -o -name '*.dmg' -o -name '*.pkg' -o -name '*.zip' \) -print | while IFS= read -r f; do du -sh "$f" 2>/dev/null || true; done
 else bad "dist/ 不存在；請先雙擊『製作 macOS 安裝包.command』"; fi
-APP_PATH="$(find dist -maxdepth 3 -type d -name 'Ekdeta.app' -print -quit 2>/dev/null || true)"
+APP_PATH="$(find dist -maxdepth 3 -type d -name 'EKdelta Desktop.app' -print -quit 2>/dev/null || true)"
 if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
-  ok "找到 Ekdeta.app"; echo "App: $APP_PATH"; du -sh "$APP_PATH" || true
+  ok "找到 EKdelta Desktop.app"; echo "App: $APP_PATH"; du -sh "$APP_PATH" || true
   if /usr/bin/codesign --verify --deep --strict "$APP_PATH" >/dev/null 2>&1; then ok "codesign verify"; else info "codesign 尚未通過（內部 unsigned build 可接受；公開散布前要簽章/公證）"; fi
-else bad "找不到 Ekdeta.app"; fi
+else bad "找不到 EKdelta Desktop.app"; fi
 for ext in pkg dmg zip; do n=$(find dist -maxdepth 2 -type f -name "*.$ext" 2>/dev/null | wc -l | tr -d ' '); [ "$n" -gt 0 ] && ok "找到 .$ext 產物 ($n)" || bad "缺 .$ext 產物"; done
 {
  echo '# dist SHA-256'
  find dist -maxdepth 2 -type f \( -name '*.dmg' -o -name '*.pkg' -o -name '*.zip' \) -print0 2>/dev/null | sort -z | while IFS= read -r -d '' f; do /usr/bin/shasum -a 256 "$f"; done
 } > "$QA_DIR/dist_SHA256.txt" 2>/dev/null || true
 
-USERDATA="$HOME/Library/Application Support/Ekdeta"
+USERDATA="$HOME/Library/Application Support/EKdelta"
 ENGINE="$USERDATA/engine"
 echo; echo '=== installed Full Engine ==='
 if [ -d "$ENGINE" ]; then
@@ -120,7 +120,7 @@ fi
 
 echo; echo "RESULT: PASS=$pass FAIL=$fail"; echo "Report: $REPORT"
 cp "$REPORT" "$QA_DIR/" 2>/dev/null || true
-QA_ZIP="verify/results/Ekdeta_1.2.5_FULLONLY_Mac_QA_${STAMP}.zip"
+QA_ZIP="verify/results/EKdelta_1.2.7_FULLONLY_Mac_QA_${STAMP}.zip"
 /usr/bin/zip -q -r "$QA_ZIP" "$QA_DIR" "$REPORT" 2>/dev/null || true
 [ -f "$QA_ZIP" ] && echo "QA package: $QA_ZIP"
 /usr/bin/open "$(dirname "$REPORT")" 2>/dev/null || true

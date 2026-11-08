@@ -6,7 +6,7 @@ function Pause-End([string]$Message) { Write-Host "`n$Message"; Write-Host '按 
 try {
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw '這支建置器只能在 Windows 執行。' }
   if (-not (Get-Command node -ErrorAction SilentlyContinue) -or -not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw '找不到 Node.js / npm。只有製作正式安裝包的人需要 Node.js LTS。' }
-  Write-Host 'Ekdeta 1.2.5 — Windows x64 build'
+  Write-Host 'EKdelta Desktop 1.2.8 — Windows x64 build'
   Write-Host "Root: $Root"
   Write-Host "Node: $(node --version)"
   Write-Host "npm : $(npm.cmd --version)"
@@ -24,7 +24,7 @@ try {
   $Zip = Get-ChildItem dist -File -Filter '*.zip' | Select-Object -First 1
   if (-not $Exe) { throw '找不到 NSIS .exe 安裝器。' }
   if (-not $Zip) { throw '找不到 Windows .zip 產物。' }
-  $HashFile = Join-Path dist 'Ekdeta_1.2.5_Windows_x64_SHA256.txt'
+  $HashFile = Join-Path dist 'EKdelta_1.2.8_Windows_x64_SHA256.txt'
   @($Exe,$Zip) | ForEach-Object { $h=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(); "$h  $($_.Name)" } | Set-Content -Path $HashFile -Encoding UTF8
   Write-Host "`n✅ Windows x64 build 完成"
   Write-Host "Installer: $($Exe.FullName)"

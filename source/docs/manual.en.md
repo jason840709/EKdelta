@@ -1,6 +1,6 @@
 # User Manual
 
-> This manual matches **EKdelta 1.2.5 (2026.11)**.
+> This manual matches **EKdelta 1.2.8 (2026.11)**.
 
 ## How to read this manual
 
@@ -42,7 +42,7 @@ Reset to Factory clears ordinary documents and settings in the browser and reloa
 
 - The menu bar holds EKdelta, File, Edit, Paragraph, Format, View, Theme, Mode, and Help. The desktop shell adds Desktop Shell and Window menus.
 - The title bar shows the current document; display controls sit at the top right. Theme controls appearance, and Mode selects document layout. These are separate settings.
-- The **formatting toolbar** sits at the top of the document area, right of the sidebar. It is on by default, keeps Undo/Redo fixed at the left, follows your customized order, and moves tools into "⋯" only when they genuinely overflow.
+- The **formatting toolbar** sits at the top of the document area, right of the sidebar. It is on by default, keeps Undo/Redo fixed at the left, follows your customized order, and wraps to two rows when the window is narrow. Tools that still do not fit go into "⋯" at the end of the second row, which shows them as icons when you point at it.
 - Three sidebar tabs:
   - **Files** — the six built-in documents (Welcome, User Manual, Dev Notes, Taiwan Thesis Template (Chinese), Taiwan Thesis Template (English), International Journal Paper Template) above a separator; your own documents below it. Create, switch, rename, close, or drop in a `.md`. **⌘P Quick Open** ranks names by fuzzy match.
   - **Outline** — filter headings, fold or expand sections, and see the current position. Duplicate headings are located by actual order; Taiwan Thesis variants mirror chapter, section, subsection, and appendix numbers.
@@ -146,13 +146,13 @@ HTML and Markdown exports are not full backups; use Full Backup to move all docu
 
 ## 11. Ordinary Markdown
 
-The default mode for notes, articles, and drafts. Themes: GitHub, Night, Sepia, Blackout, Blackout Game. There is no paper or pagination; font size changes 1 px per step and content width follows the window, re-centering after zoom or sidebar changes.
+The default mode for notes, articles, and drafts. Themes: GitHub, Night, Moss, Blackout, Blackout Game. There is no paper or pagination; font size changes 1 px per step and content width follows the window, re-centering after zoom or sidebar changes.
 
 ## 12. A4 pagination and PDF export
 
 Taiwan Thesis Chinese and English modes display A4 sheets, page breaks, and folios in the editor. Paragraphs, images, code, and tables move or split according to the available page height; oversized images scale down. Font size changes in 0.5 pt steps. Paper size and margins stay fixed, while content repaginates.
 
-Preferences → Thesis Output → Fill each page is on by default. Text, quotes, and code may continue on the next page; an inline formula moves with its whole line of text. With it off, paragraphs that fit on a complete page move as a whole.
+Preferences → Papers → Let paragraphs continue across pages is on by default. Text, quotes, and code may continue on the next page; an inline formula moves with its whole line of text. With it off, paragraphs that fit on a complete page move as a whole.
 
 ### 12.1 Choose an output
 
@@ -205,7 +205,7 @@ Template syntax: `twthesis-titlepage` builds the cover (department, thesis type,
 
 All of this fence syntax can be produced from a form via the **Thesis** button on the formatting toolbar instead of typing it by hand. The cover form selects the matching fields for the current Taiwan Thesis Chinese or English mode.
 
-Indentation lives in Preferences → Thesis Output → Indentation: Chinese uses a two-em first line (default) or no indentation; English offers no indentation (default), 0.5 in for every paragraph, or first-paragraph-after-heading flush with 0.5 in elsewhere. Captions, references, keywords, and explicit `<!-- noindent -->` always stay flush.
+Indentation lives in Preferences → Papers → Taiwan thesis paragraph indent: Chinese uses a two-em first line (default) or no indentation; English offers no indentation (default), 0.5 in for every paragraph, or first-paragraph-after-heading flush with 0.5 in elsewhere. Captions, references, keywords, and explicit `<!-- noindent -->` always stay flush.
 
 ## 14. REVTeX 4.2 international journal manuscripts
 
@@ -229,12 +229,23 @@ Fences mark REVTeX semantic regions inside your Markdown:
 - `revtex-subequations` — a group of `$$...$$` expressions numbered (1a)(1b)(1c).
 - `revtex-turnpage` — rotates a single table or figure 90° across a full page (official limit: exactly one item per block).
 - `revtex-longtable` — a table that spans pages, with the header repeated on each page.
-- `revtex-appendix` — chapters after it become appendices A, B, C.
+- `revtex-appendix` — chapters after it become appendices. Journals that number sections (PRB, PRA, …) letter them A, B, C; PRL does not number sections, so appendices carry only their titles.
 - `revtex-bibliography` — reference list; three formats are supported — numbered `[1] Author…` lines, `1. Author…`, or a plain list with numbering added automatically. A `.bib` file with the full BibTeX flow also works, and the legacy named-key style (`key: Author…`) remains fully compatible and may be mixed with the new styles.
 
 **In-text citations**: write `[[1]]`, `[[1, 3]]`, or `[[2-14]]` (ranges expand automatically and print as `[2–14]`) — the same convention used in the thesis template, instead of the older `[@key]` syntax (which still works). Citing a number with no matching bibliography entry is reported by name in the compile messages.
 
-Ordinary Markdown continues to work: sections, lists, tables, images, inline and display math, cross-references (`\ref` / `\eqref` with `{#id}`), footnotes `[^id]`, wide figures `![caption](path){#id wide}`, merged table cells (a cell containing only `>` merges into the cell to its left). Equation and table widths are measured at compile time, so wide content switches to a spanning or scaled layout automatically.
+Ordinary Markdown continues to work: sections, lists, tables, images, inline and display math, cross-references (`\ref` / `\eqref` with `{#id}`), footnotes `[^id]`, wide figures `![caption](path){#id wide}`, merged table cells (a cell containing only `>` merges into the cell to its left). Equation and table widths are measured at compile time, so wide content is broken inside the column, spans both columns, or is scaled automatically.
+
+**These are also converted correctly (1.2.6):**
+
+- Math, bold/italic, inline code and citations work in the title, abstract, keywords, acknowledgments, captions, table cells, footnotes and bibliography entries instead of being printed literally.
+- Without fences, a `# Abstract` heading at the start of the document holds the abstract, and a `# Acknowledgments` heading holds the acknowledgments. A `# References` or `# Acknowledgments` heading right before the bibliography or acknowledgments fence is dropped (REVTeX prints its own heading).
+- **Unnumbered display equations**: write `{-}` after the closing `$$`, for example `$$ E=mc^2 $$ {-}`. Label an equation with `{#eq:name}` before or after the closing `$$`; `align`, `multline` and similar environments get the label too.
+- **Citations**: `[@key, p. 3]` prints as “[1, p. 3]”; `[@a; @b]` and `[@a, @b]` are two references. With named keys (`key: entry text`) the bibliography is numbered in order of **first citation** (the APS convention); a list you numbered yourself (`[1] …`) keeps your numbers, and you are told if the citation order differs.
+- **Section references**: `[@sec:name]` prints the section number in journals that number sections; in journals that do not (PRL and similar) or for a `{-}` section it prints the section title, linked to the section, instead of a blank.
+- An underscore inside a word is not emphasis (`snake_case`, `file_name` print as written); `*` follows CommonMark (in `2*3*4` the middle becomes italic — write `$2\times3\times4$` for multiplication). Straight quotes `"…"` become correctly oriented quotes; `<`, `>` and `|` print as themselves.
+- Greek letters, `≤ ≥ ± ×`, superscript/subscript digits and accented letters typed directly are converted to LaTeX commands; emoji and other characters pdfLaTeX cannot typeset are removed with a notice.
+- A table inside a `revtex-wide` fence becomes a numbered, referable full-width table (`table*`, placed at the top of a page by the journal style); other content still spans both columns in place.
 
 **Image scaling is carried into REVTeX.** Click an image on the left and choose 25/33/50/66/100 percent or a custom value. The Markdown source stores it as `<img style="zoom:N%;">`; REVTeX output treats 100 percent as `\columnwidth` for ordinary figures and as `\textwidth` for `title="*"` spanning figures, then sets the corresponding `\includegraphics` width. `style="width:N%;"` and `width="N%"` are also accepted. This percentage affects output; reading zoom and A4/Taiwan Thesis table single-page fitting do not affect REVTeX.
 
@@ -247,8 +258,9 @@ You do not have to memorize the fence syntax. The formatting toolbar above the M
 - **Top-right corner of the PDF** — “−” and “+” zoom out and in (or hold ⌘/Ctrl and scroll); click the percentage to fit the width again; the page box shows the current page — type a number and press Enter to jump there; the arrow on the right downloads this PDF. After a recompile the view stays on the page you were reading.
 - **Auto-compile on pause** — when ticked, the right side follows about a second after you stop typing; the paragraph you are typing in counts without pressing Enter. While the text is obviously unfinished (an unpaired `$$`, an unclosed code fence) nothing is compiled and the status reads “Typing”. When a compile fails, the last successful PDF stays on the right with a thin orange line on top, the status gives the reason and the approximate line in one sentence, and “Log” opens the full message; fix it, or undo with ⌘Z back to the earlier text, and it recovers by itself without pressing Compile. Repeated failures only lengthen the wait; auto-compile is never switched off by them.
 - **Download PDF on the right** — downloads the latest successfully compiled PDF; inspect this version page by page before submission.
-- **Download .tex on the right** — downloads `main.tex` with the current society, journal, and class options.
-- **File → Export REVTeX Project (.zip)…** — recommended for submission. It contains `main.tex`, the bibliography, the source Markdown, images, a build script, a settings snapshot, and a manifest; the portable variant also bundles the unmodified official REVTeX runtime.
+- **Download .tex on the right** — downloads `main.tex` for the **current content** (submission version). It, File → Export LaTeX (.tex), the exported .zip project and the TeX proof panel all come from the same conversion function.
+- **Submission version vs preview** — to decide automatically whether an equation or table is too wide, the right-hand preview uses measuring constructs that the APS author guide does not allow (APS converts manuscripts to XML). The downloaded and exported submission version instead writes the line break, column span or official `\squeezetable` decided by the last compile on the right, so it typesets the same. Let the right side compile once before exporting; equations not compiled yet are written in the ordinary form and the notice says so.
+- **File → Export REVTeX Project (.zip)…** — recommended for submission. It contains `main.tex` (a hand-written bibliography is inside it; with a `.bib` file, the `.bib` sits next to it), the source Markdown, images (`figures/`), a build script, a settings snapshot, and a manifest; the portable variant also bundles the unmodified official REVTeX runtime.
 
 For a REVTeX document, use the TeX PDF on the right instead of regular vector PDF, batch PDF, or compatibility raster PDF.
 
@@ -261,7 +273,9 @@ For a REVTeX document, use the TeX PDF on the right instead of regular vector PD
 - Footnotes are not allowed inside section titles (REVTeX disables them in moving arguments); the program removes them and suggests the author-note fields instead.
 - Overfull warnings from rotated tables are false positives (rotated content is measured in unrotated coordinates).
 - Paper sizes such as `a5paper` only set the sheet width officially, without adjusting the text block, so the settings panel exposes letter and a4 only.
-- Letters journals (PRL, CP, and similar) do not number sections at all.
+- Letters journals (PRL, CP, and similar) do not number sections at all and do not letter appendices; section references print the section title in these journals.
+- Footnotes go to the foot of the page by default (`nofootinbib`). “Body footnotes in the bibliography (footinbib)” only works with a `.bib` file and BibTeX; with a hand-written bibliography the program keeps footnotes at the foot of the page and tells you, because otherwise they would print as [?].
+- The amsmath / amssymb switches in the settings panel only decide whether to load them when unused; they are always loaded when the document needs them.
 - **The two short rules above and below a spanning block are official.** In two-column layouts, `widetext` (the `revtex-wide` fence) draws a column-wide rule at the upper left and another at the lower right, each with a small right-angle tick at one end. They are **continuation marks**: the top rule shows where the left column stops, the bottom rule where the right column resumes, telling the reader that the two-column flow is interrupted by spanning material. `revtex4-2.cls` defines this explicitly and a pure official document produces the same marks, so they are not drawn by this program and should not be removed.
 
 ---
@@ -270,28 +284,33 @@ For a REVTeX document, use the TeX PDF on the right instead of regular vector PD
 
 ## 15. Preferences, option by option
 
-EKdelta → Preferences… (⌘,) has three main tabs: **Global**, **Thesis Output**, and **International Paper**. Every change applies immediately, persists automatically, and is included in full backups and folder sync.
+EKdelta → Preferences… (⌘,) has four categories: **General**, **Images**, **Fonts** and **Papers**, holding only settings you choose once and rarely change. Every change applies immediately, persists automatically, and is included in full backups and folder sync. Focus mode, Typewriter mode, page zoom and showing the format toolbar are view toggles in the View menu.
 
-### 15.1 Global
+### 15.1 General
 
-- **Interface and display:** interface language (Traditional Chinese / English), document zoom 50–200 percent (screen only — never A4 geometry, page count, or PDF), the formatting toolbar (customizable items and order; Undo/Redo fixed at the left), Focus mode, and Typewriter mode.
-- **Paste and drop images:** the panel first shows the Project storage folder (the relative-path root you explicitly granted). Three options: (1) a subfolder inside the project root, default `image`, with nested paths such as `assets/images`; (2) a separate image folder with its physical target and Markdown prefix configured independently; (3) always embed as base64. When a location is unavailable the program falls back in order. Browser security prevents a web app from revealing full absolute OS paths.
-- **Fonts and script assignment:** nine slots. Ordinary Markdown, the Chinese Taiwan Thesis body, the English Taiwan Thesis body, and legacy Paper documents each have separate Chinese and Latin slots; code and Source Mode have a monospace slot. Source input, syntax coloring, and line numbers use the same monospace font so character positions stay aligned. Latin slots handle letters, numerals, and Western punctuation; Chinese slots handle Han characters and full-width punctuation. A CJK font containing Latin glyphs does not override a separately selected Latin font. A blank slot uses the system CJK fallback. Custom fonts carry into PDF output.
+- **Language:** Traditional Chinese or English.
+- **Format toolbar:** Customize… chooses which buttons the toolbar shows; the ones that do not fit go into “⋯” at the end of the second row.
+- **Advanced: Markdown syntax** (collapsed): the parser (Default / Loose / Strict) and `==highlight==`, `~subscript~`, `^superscript^`, automatic links, smart quotes and similar options. The defaults suit ordinary writing; they affect ordinary Markdown only, never paper mode or Taiwan Thesis.
 
-### 15.2 Thesis Output
+### 15.2 Images
 
-- **Taiwan Thesis cover mark:** two built-in seals or a custom image at 60–140 percent, shared by the Chinese and English templates. JPG, PNG, WebP, GIF, and SVG are accepted; large bitmaps are downscaled with transparency preserved.
-- **Pagination and numbering:** Auto-number sections and figures (on by default) generates chapter, figure, and table numbers in the view, outline, and PDF without rewriting Markdown — turn it off when your source already has numbers. Fill each page (on by default) is described in section 12.
-- **Indentation:** independent Chinese and English settings, described in section 13.
-- Taiwan Thesis digital/print variants are selected **only from the Mode menu**; they are not duplicated in Preferences.
+Where pasted or dropped images are stored, one of three: (1) a subfolder of the project folder (default `image`, nested paths such as `assets/images` allowed): images are saved as files and linked with relative paths, after you link the project folder; (2) a folder you choose, which may be outside the project, with an optional link prefix; (3) inside the document: no image files, but the document grows. Until a folder is chosen, images are stored inside the document. Browsers only reveal a folder’s name, never its full path.
 
-### 15.3 International Paper
+### 15.3 Fonts
 
-This page provides common REVTeX choices, including society, journal, manuscript mode, paper, type size, columns, address style, and citation style. Use Layout settings on the left of the REVTeX editor for the complete document-level choices; see section 14. Settings are saved with the current REVTeX document and do not affect Taiwan Thesis or ordinary Markdown.
+Leave a field blank to use the built-in font. Chinese characters and Latin letters and digits are set separately, so a Chinese font that also contains Latin glyphs does not override a separately chosen Latin font. Documents have Chinese, Latin-and-digits and Code fields; paper mode (A4), Taiwan Thesis (Chinese) and Taiwan Thesis (English) each have their own pair under “Fonts for paper mode and Taiwan thesis”. Source Mode input, syntax coloring and line numbers share the Code font so characters stay aligned. Custom fonts carry into PDF output.
+
+### 15.4 Papers
+
+- **Number sections, figures and tables** (on by default): numbers appear on screen, in the outline and in the PDF only, never in the source. Turn it off if your text already has numbers.
+- **Let paragraphs continue across pages** (on by default): see section 12.
+- **Taiwan thesis cover logo:** the black-and-white seal, the blue-green emblem, or your own image (JPG, PNG, WebP, GIF, SVG; large images are downscaled with transparency preserved), at 60–140 percent, shared by the Chinese and English versions.
+- **Taiwan thesis paragraph indent:** separate Chinese and English settings; see section 13.
+- Taiwan Thesis digital/print variants are chosen **only from the Mode menu**. Journal, columns, paper size and other settings for international journal papers are in Layout settings at the top right of the left half in Mode → International journal (REVTeX 4.2); see section 14.
 
 ## 16. Themes, modes, fonts, sizes, and language
 
-- General themes: GitHub, Night, Sepia, Blackout, Blackout Game. The last two are pure-dark themes with no light counterpart; the light/dark button keeps them as they are.
+- General themes: GitHub, Night, Moss, Blackout, Blackout Game. The last two are pure-dark themes with no light counterpart; the light/dark button keeps them as they are.
 - Writing modes: Markdown Mode, the Taiwan Thesis Chinese and English variants, and International Journal REVTeX 4.2. Select them from Mode. Changing Theme affects appearance only, not pagination or output.
 - In Blackout, adjacent quote lines — including an empty line that still has `>` — share one orange rounded frame. In Blackout Game, red applies only to explicit bold text in the document; headings and interface stay white.
 - The light/dark button affects the screen only; thesis PDFs remain black on white.
@@ -362,7 +381,7 @@ Items ending in "…" open a dialog.
 
 **View:** Source Code Mode (⌘/) / Sidebar (⇧⌘L) / Outline Panel / Focus Mode (F8) / Typewriter Mode (F9) / Zoom Page In / Zoom Page Out / Reset Page Zoom (100%) / Format Toolbar / md-meta Syntax Reveal (Experimental)
 
-**Theme:** GitHub / Night / Sepia / Blackout / Blackout Game
+**Theme:** GitHub / Night / Moss / Blackout / Blackout Game
 
 **Mode:** Markdown Mode / Taiwan Thesis Chinese (Digital 1 [compact] · Digital 2 [book] · Print [two-sided]) / Taiwan Thesis English (Digital [symmetric] · Print [two-sided book]) / International Journal REVTeX 4.2
 

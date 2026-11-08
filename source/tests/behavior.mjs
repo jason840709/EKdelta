@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
-const product = process.argv[2] || new URL('../EKdelta_v1.2.5.html', import.meta.url).pathname;
+const product = process.argv[2] || new URL('../EKdelta_v1.2.8.html', import.meta.url).pathname;
 const html = fs.readFileSync(product, 'utf8');
 // Work on actual script-element payloads. Searching the raw HTML would include
 // a closing </script> tag in an extracted function body and produce a false
@@ -126,6 +126,21 @@ assert.equal(renderCtx.renderBlockHTML('```twthesis-approval\nApproval\n```'), '
 renderCtx.settings.theme = 'github';
 assert.match(renderCtx.renderBlockHTML('```twthesis-titlepage\nTitle\n```'), /<pre/);
 
+// 1.2.6: a display-math closing line may carry {#eq:name} or {-} (REVTeX numbering).
+// The editor must still treat it as the end of the equation; otherwise the rest of
+// the document is swallowed into one math block (found in the built-in template).
+const mathCtx = {};
+vm.createContext(mathCtx);
+vm.runInContext(functionSource('isMathClose') + '\n' + functionSource('mathSourceParts') + '\nthis.isMathClose=isMathClose;this.mathSourceParts=mathSourceParts;', mathCtx);
+assert.equal(mathCtx.isMathClose('$$'), true);
+assert.equal(mathCtx.isMathClose('$$ {#eq:channel}'), true);
+assert.equal(mathCtx.isMathClose('$$ {-}'), true);
+assert.equal(mathCtx.isMathClose('x = 1 and $$ more text'), false);
+const parts = mathCtx.mathSourceParts('$$\nG = 1/R\n$$ {#eq:channel}', 'block');
+assert.equal(parts.tex, 'G = 1/R');
+assert.equal(parts.attr, '{#eq:channel}');
+assert.equal(mathCtx.mathSourceParts('$$ a=b $$', 'block').tex, 'a=b');
+
 // Evaluate the actual inlined KaTeX vendor and render a normal expression.
 const firstScript = scriptSources[0] || '';
 assert(firstScript.includes('KaTeX v0.16.11'), 'KaTeX vendor script missing');
@@ -137,4 +152,4 @@ assert(katex && typeof katex.renderToString === 'function', 'KaTeX did not initi
 assert.match(katex.renderToString('x^2 + y^2'), /katex/);
 assert(!firstScript.includes('twthesisus'), 'branding replacement corrupted KaTeX identifiers');
 
-console.log('behavior tests passed: theme migration, built-in registry/persistence, thesis fence dispatch, KaTeX render'); } catch (e) { if(e && e.name === 'SyntaxError') { console.error(rendererSource.slice(-500)); } throw e; }
+console.log('behavior tests passed: theme migration, built-in registry/persistence, thesis fence dispatch, equation label closing, KaTeX render'); } catch (e) { if(e && e.name === 'SyntaxError') { console.error(rendererSource.slice(-500)); } throw e; }

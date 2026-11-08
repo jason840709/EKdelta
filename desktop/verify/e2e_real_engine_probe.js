@@ -8,7 +8,7 @@ const fs=require('fs'), path=require('path'), os=require('os'), cp=require('chil
 app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('disable-gpu');
 
-const realUserData=process.env.EKDETA_REAL_USER_DATA || path.join(os.homedir(),'Library','Application Support','Ekdeta');
+const realUserData=process.env.EKDETA_REAL_USER_DATA || ['EKdelta','Ekdeta','Typora HTML'].map(n=>path.join(os.homedir(),'Library','Application Support',n)).find(d=>fs.existsSync(d))||path.join(os.homedir(),'Library','Application Support','EKdelta');
 const realEngine=process.env.EKDETA_ENGINE_DIR || path.join(realUserData,'engine');
 const names=['busytex.js','busytex.wasm','busytex_pipeline.js','texlive-recommended.js','texlive-recommended.data'];
 const out={steps:[],realEngine};

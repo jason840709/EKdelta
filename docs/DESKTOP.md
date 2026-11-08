@@ -2,9 +2,9 @@
   <strong>English</strong> · <a href="DESKTOP.zh-TW.md">繁體中文</a>
 </p>
 
-# Ekdeta Desktop / Electron
+# EKdelta Desktop / Electron
 
-The web Core is named EKdelta from 1.2.4; the desktop app keeps the name Ekdeta for now, because its name decides where settings and the engine are stored.
+From 1.2.8 the desktop app is named EKdelta Desktop (EKdelta in 1.2.7, Ekdeta until 1.2.6). On first start it looks for an existing data folder named EKdelta, then Ekdeta, then Typora HTML, and keeps using the first one it finds, so documents, the HTML library and the engine setting carry over.
 
 `desktop/` wraps the same `EKdelta.html` Core in Electron. It is not a separate editor. The build scripts synchronize the Core before packaging and verify its SHA-256 so a desktop package cannot silently ship a different HTML.
 
@@ -35,10 +35,10 @@ desktop/release-tools/製作 Windows x64 免安裝版_免Node.cmd
 The script downloads the pinned Electron 33.4.11 Windows x64 runtime and Electron's official `SHASUMS256.txt`, verifies the archive, adds the EKdelta Core and shell, and produces:
 
 ```text
-Ekdeta-1.2.5-win-x64-portable.zip
+EKdelta-Desktop-1.2.8-win-x64-portable.zip
 ```
 
-Extract it and run `EKdelta.exe`. The portable package also includes a helper that can install it under `%LOCALAPPDATA%\Programs\EKdelta`.
+Extract it and run `EKdelta Desktop.exe`. The portable package also includes a helper that can install it under `%LOCALAPPDATA%\Programs\EKdelta Desktop`.
 
 ### NSIS installer
 

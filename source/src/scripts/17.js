@@ -12,8 +12,10 @@
  *     · 不匯出到 window，只透過 __CP171__.register 登記
  *
  * 隔離代價的對沖（ADR-0005 要求的強制驗收）：
- *   parityDigest() 產出結構摘要（標題序列、清單深度、表格維度、數學區塊數），
- *   可與既有解析器的同名摘要比對。兩套理解一旦分歧，這裡會抓到。
+ *   parityDigest() 產出結構摘要（標題序列、清單深度、表格維度、數學區塊數）。
+ *   1.2.6 起另有 tests/revtex_emit_checks.cjs：把左邊編輯器的 inlineMD 與
+ *   splitTableRow 原樣執行，逐案比對兩邊認定的數學、程式碼、強調與表格切欄。
+ *   行內規則（CommonMark 定界符、Pandoc 的 $ 規則、表格切欄）與左邊同一組。
  *
  * 支援語法（以國際論文實際需要為界，不追求 CommonMark 全集）：
  *   YAML frontmatter、ATX/Setext 標題、段落、圍欄與縮排程式碼、區塊引用、
@@ -29,7 +31,6 @@ if (!K) { console.error('[CP171] parser: 核心未就緒'); return; }
 /* ---------- 工具 ---------- */
 const TAB = '    ';
 const expandTabs = s => s.replace(/\t/g, TAB);
-const rtrim = s => s.replace(/\s+$/, '');
 
 let uid = 0;
 const nid = p => p + (++uid);
@@ -95,42 +96,119 @@ function parseHtmlImageTag(raw){
 
 
 
-/* 1.1.7.3 Markdown→REVTeX parity audit：左側格式工具列會產生 <u> 與 ==，
-   智慧貼上亦可能保留 b/em/del/mark/sub/sup/a/code/kbd/br。這些都必須由
-   CP171 語意解析器直接接住，不能讓 HTML 字面被 textOut() 轉義後印進 PDF。 */
+/* ---------- 行內解析（1.2.6 重寫）--------------------------------------------
+   為什麼重寫：舊版由左到右逐字掃描，遇到 * 或 _ 就往後找「下一個相同符號」，
+   沒有 CommonMark 的「左右側定界符」判斷，結果
+     · snake_case、file_name、x_1 的底線被當斜體（左邊畫面不會）；
+     · 強調的結尾跑進後面的行內程式碼或數學裡，把 $a_b$ 腰斬；
+     · \( … \) 被跳脫規則先吃掉，永遠不是數學；句中的 $$ … $$ 印成怪字串。
+   新做法分兩階段（與 CommonMark 參考實作同一套方法）：
+     第一階段：由左到右切出「原子片段」——跳脫字、行內程式碼、數學、自動連結、
+               HTML、實體、圖片、連結、引用、腳註——以及 * _ ~~ == 的定界符串。
+               原子片段內部的字元絕不參與強調判定。
+     第二階段：用 CommonMark 的定界符演算法（含「三的倍數」規則）配對強調。
+   單字中間的 _ 永遠不是強調；* 依 CommonMark 規則，單字中間也可以強調
+   （CommonMark 的 2*3*4 就是「2、斜體 3、4」——要印乘號請寫 $2\times3\times4$
+   或 2\*3\*4）。左邊畫面（01.js inlineMD）用同一組規則。
+   數學一律原樣保留（不做任何改寫）；轉成 TeX 時的 Unicode 對照在發射器做。 */
+
+/* 原子片段辨識需要的小工具。 */
+const ASCII_PUNCT_CHARS = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~';
+const isAsciiPunct = c => !!c && c.length === 1 && ASCII_PUNCT_CHARS.includes(c);
+/* 取 i 位置（UTF-16 索引）之前／之後的一個完整字元（處理 emoji 等代理對）。 */
+function charBefore(s, i){
+  if (i <= 0) return '';
+  const lo = s.charCodeAt(i - 1);
+  if (lo >= 0xDC00 && lo <= 0xDFFF && i >= 2) return s.slice(i - 2, i);
+  return s[i - 1];
+}
+function charAt(s, i){
+  if (i >= s.length) return '';
+  const cp = s.codePointAt(i);
+  return String.fromCodePoint(cp);
+}
+/* CommonMark：行首行尾視同空白；標點包含 Unicode 的 P 與 S 類。 */
+const isWSChar = c => !c || /\s/u.test(c);
+const isPunctChar = c => !!c && /[\p{P}\p{S}]/u.test(c);
+const isWordChar = c => !!c && /[\p{L}\p{N}]/u.test(c);
+
+/* 具名 HTML 實體（左邊瀏覽器會顯示成字元的常見那一批）。數字實體另外處理。 */
+const NAMED_ENTITIES = {
+  nbsp:' ', amp:'&', lt:'<', gt:'>', quot:'"', apos:"'",
+  copy:'©', reg:'®', trade:'™', deg:'°', plusmn:'±', times:'×',
+  divide:'÷', micro:'µ', middot:'·', para:'¶', sect:'§', laquo:'«',
+  raquo:'»', ldquo:'“', rdquo:'”', lsquo:'‘', rsquo:'’', sbquo:'‚',
+  bdquo:'„', ndash:'–', mdash:'—', hellip:'…', bull:'•', dagger:'†',
+  Dagger:'‡', permil:'‰', prime:'′', Prime:'″', euro:'€', pound:'£',
+  yen:'¥', cent:'¢', sup1:'¹', sup2:'²', sup3:'³', frac12:'½',
+  frac14:'¼', frac34:'¾', ordf:'ª', ordm:'º', not:'¬', shy:'',
+  thinsp:' ', ensp:' ', emsp:' ', larr:'←', rarr:'→', uarr:'↑',
+  darr:'↓', harr:'↔', lArr:'⇐', rArr:'⇒', hArr:'⇔', le:'≤',
+  ge:'≥', ne:'≠', asymp:'≈', equiv:'≡', infin:'∞', sum:'∑',
+  prod:'∏', radic:'√', int:'∫', part:'∂', nabla:'∇', isin:'∈',
+  notin:'∉', cap:'∩', cup:'∪', sub:'⊂', sup:'⊃', forall:'∀',
+  exist:'∃', empty:'∅', minus:'−', lowast:'∗', prop:'∝', ang:'∠',
+  and:'∧', or:'∨', there4:'∴', sim:'∼', cong:'≅', perp:'⊥',
+  sdot:'⋅', lang:'⟨', rang:'⟩', loz:'◊', hbar:'ℏ', ell:'ℓ',
+  Agrave:'À', Aacute:'Á', Acirc:'Â', Atilde:'Ã', Auml:'Ä', Aring:'Å',
+  AElig:'Æ', Ccedil:'Ç', Egrave:'È', Eacute:'É', Ecirc:'Ê', Euml:'Ë',
+  Igrave:'Ì', Iacute:'Í', Icirc:'Î', Iuml:'Ï', Ntilde:'Ñ', Ograve:'Ò',
+  Oacute:'Ó', Ocirc:'Ô', Otilde:'Õ', Ouml:'Ö', Oslash:'Ø', Ugrave:'Ù',
+  Uacute:'Ú', Ucirc:'Û', Uuml:'Ü', Yacute:'Ý', szlig:'ß', agrave:'à',
+  aacute:'á', acirc:'â', atilde:'ã', auml:'ä', aring:'å', aelig:'æ',
+  ccedil:'ç', egrave:'è', eacute:'é', ecirc:'ê', euml:'ë', igrave:'ì',
+  iacute:'í', icirc:'î', iuml:'ï', ntilde:'ñ', ograve:'ò', oacute:'ó',
+  ocirc:'ô', otilde:'õ', ouml:'ö', oslash:'ø', ugrave:'ù', uacute:'ú',
+  ucirc:'û', uuml:'ü', yacute:'ý', yuml:'ÿ',
+  Alpha:'Α', Beta:'Β', Gamma:'Γ', Delta:'Δ', Epsilon:'Ε', Zeta:'Ζ',
+  Eta:'Η', Theta:'Θ', Iota:'Ι', Kappa:'Κ', Lambda:'Λ', Mu:'Μ',
+  Nu:'Ν', Xi:'Ξ', Omicron:'Ο', Pi:'Π', Rho:'Ρ', Sigma:'Σ', Tau:'Τ',
+  Upsilon:'Υ', Phi:'Φ', Chi:'Χ', Psi:'Ψ', Omega:'Ω',
+  alpha:'α', beta:'β', gamma:'γ', delta:'δ', epsilon:'ε', zeta:'ζ',
+  eta:'η', theta:'θ', iota:'ι', kappa:'κ', lambda:'λ', mu:'μ',
+  nu:'ν', xi:'ξ', omicron:'ο', pi:'π', rho:'ρ', sigmaf:'ς',
+  sigma:'σ', tau:'τ', upsilon:'υ', phi:'φ', chi:'χ', psi:'ψ',
+  omega:'ω', thetasym:'ϑ', piv:'ϖ'
+};
+/* &nbsp; 直接映成 TeX 的不換行空白；其餘實體還原成字元，交給發射器統一轉成 TeX。 */
 function readHtmlEntityAt(s, at){
-  const m = String(s).slice(at).match(/^&(nbsp|amp|lt|gt|quot|apos|#39|#\d{1,7}|#x[\da-f]{1,6});/i);
+  const m = String(s).slice(at).match(/^&(#\d{1,7}|#[xX][\da-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/);
   if (!m) return null;
-  const raw = m[0], key = m[1].toLowerCase();
+  const raw = m[0], key = m[1];
   if (key === 'nbsp') return { value:'~', rawTex:true, end:at + raw.length };
-  let value = raw;
-  if (key === 'amp') value='&'; else if (key === 'lt') value='<'; else if (key === 'gt') value='>';
-  else if (key === 'quot') value='"'; else if (key === 'apos' || key === '#39') value="'";
-  else if (key.startsWith('#x')) { const n=parseInt(key.slice(2),16); if (n<=0x10FFFF) value=String.fromCodePoint(n); }
-  else if (key[0] === '#') { const n=parseInt(key.slice(1),10); if (n<=0x10FFFF) value=String.fromCodePoint(n); }
+  let value = null;
+  if (key[0] === '#') {
+    const n = (key[1] === 'x' || key[1] === 'X') ? parseInt(key.slice(2), 16) : parseInt(key.slice(1), 10);
+    if (n > 0 && n <= 0x10FFFF) value = String.fromCodePoint(n);
+  } else if (Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, key)) value = NAMED_ENTITIES[key];
+  if (value === null) return null;               // 不認得的實體：保留字面（與瀏覽器一致）
   return { value, rawTex:false, end:at + raw.length };
 }
+
+/* 左邊編輯器 HTML 白名單（01.js 的 HTML_TAGS）裡的行內標籤，右邊一律接住：
+   能對應 LaTeX 語意的就對應，其餘只留內文，不讓「<small>」這類字面印進 PDF。 */
+const INLINE_HTML_TAGS = 'strong|b|em|i|u|ins|del|s|mark|sub|sup|code|kbd|samp|var|a|span|font|small|big|abbr|center|cite|dfn|q|time|details|summary|ruby|rt|rp';
 function matchInlineHtml(s, at){
   const rest = String(s).slice(at);
   const cm = rest.match(/^<!--[\s\S]*?-->/);
   if (cm) return { node:null, end:at + cm[0].length };
   const br = rest.match(/^<br\b[^>]*\/?>/i);
   if (br) return { node:{type:'hard_break'}, end:at + br[0].length };
+  const wbr = rest.match(/^<wbr\b[^>]*\/?>/i);
+  if (wbr) return { node:null, end:at + wbr[0].length };
   const im = rest.match(/^<img\b[^>]*\/?>/i);
   if (im) {
     const spec = parseHtmlImageTag(im[0]);
     if (spec) return { node:{ type:'image', alt:spec.alt, src:spec.src, title:spec.title,
       scale:spec.scale, scaleExplicit:spec.scaleExplicit, wide:spec.wide }, end:at + im[0].length };
   }
-  /* CP173 color toolbar emits a deliberately narrow HTML span.  Recognize
-     only spans/fonts carrying a CSS color declaration so REVTeX export keeps
-     the text content instead of printing literal HTML tags; other unknown
-     spans retain the historical literal-HTML behavior. */
-  const op = rest.match(/^<(strong|b|em|i|u|ins|del|s|mark|sub|sup|code|kbd|a|span|font)\b([^>]*)>/i);
+  /* <video>/<audio> 沒有 PDF 對應物：整段移除並由發射器警告（node 帶 dropped 標記）。 */
+  const media = rest.match(/^<(video|audio)\b[^>]*?(?:\/>|>[\s\S]*?<\/\1\s*>)/i);
+  if (media) return { node:{ type:'dropped', what:media[1].toLowerCase() }, end:at + media[0].length };
+  const op = rest.match(new RegExp('^<(' + INLINE_HTML_TAGS + ')\\b([^>]*)>', 'i'));
   if (!op) return null;
   const tag = op[1].toLowerCase();
-  /* Match the corresponding closing tag, including nested spans produced by
-     applying the color command more than once. */
+  /* 找對應的結束標籤（含同名巢狀，例如色彩命令套用兩次的 span）。 */
   const tail = rest.slice(op[0].length);
   const tagRe = new RegExp('<\\/?' + tag + '\\b[^>]*>', 'ig');
   let depth = 1, cm2 = null, hit;
@@ -140,21 +218,31 @@ function matchInlineHtml(s, at){
   }
   if (!cm2) return null;
   const inner = tail.slice(0, cm2.index), attrs = op[2] || '';
+  const kids = () => parseInline(inner);
   let node;
-  if ((tag === 'span' || tag === 'font') && !/\b(?:style\s*=\s*["'][^"']*color\s*:|color\s*=\s*["'])/i.test(attrs)) return null;
-  if (tag === 'span' || tag === 'font') node={type:'html_color',children:parseInline(inner)};
-  else if (tag === 'strong' || tag === 'b') node={type:'strong',children:parseInline(inner)};
-  else if (tag === 'em' || tag === 'i') node={type:'emph',children:parseInline(inner)};
-  else if (tag === 'u' || tag === 'ins') node={type:'underline',children:parseInline(inner)};
-  else if (tag === 'del' || tag === 's') node={type:'strike',children:parseInline(inner)};
-  else if (tag === 'mark') node={type:'highlight',children:parseInline(inner)};
-  else if (tag === 'sub') node={type:'subscript',children:parseInline(inner)};
-  else if (tag === 'sup') node={type:'superscript',children:parseInline(inner)};
-  else if (tag === 'code' || tag === 'kbd') node={type:'code_inline',value:decodeHtmlAttrValue(inner.replace(/<[^>]*>/g,''))};
+  if (tag === 'span' || tag === 'font') {
+    /* CP173 色彩工具列：只有帶 color 的 span/font 標成 html_color（期刊多為黑白，
+       發射器只留文字並提醒）；其他 span 只留內文。 */
+    const colored = /\b(?:style\s*=\s*["'][^"']*color\s*:|color\s*=\s*["'])/i.test(attrs);
+    node = { type: colored ? 'html_color' : 'span', children: kids() };
+  }
+  else if (tag === 'strong' || tag === 'b') node = { type:'strong', children:kids() };
+  else if (tag === 'em' || tag === 'i' || tag === 'cite' || tag === 'dfn' || tag === 'var') node = { type:'emph', children:kids() };
+  else if (tag === 'u' || tag === 'ins') node = { type:'underline', children:kids() };
+  else if (tag === 'del' || tag === 's') node = { type:'strike', children:kids() };
+  else if (tag === 'mark') node = { type:'highlight', children:kids() };
+  else if (tag === 'sub') node = { type:'subscript', children:kids() };
+  else if (tag === 'sup') node = { type:'superscript', children:kids() };
+  else if (tag === 'small') node = { type:'small', children:kids() };
+  else if (tag === 'big') node = { type:'big', children:kids() };
+  else if (tag === 'q') node = { type:'span', children:[{ type:'text', value:'“' }, ...kids(), { type:'text', value:'”' }] };
+  else if (tag === 'code' || tag === 'kbd' || tag === 'samp') node = { type:'code_inline', value:decodeHtmlAttrValue(inner.replace(/<[^>]*>/g,'')) };
+  else if (tag === 'rt' || tag === 'rp') node = null;      // 注音／拼音標註：PDF 不排，只留本字
   else if (tag === 'a') {
     const am = htmlTagAttrs('<img ' + attrs + '>');
-    node={type:'link',dest:am.href || '',title:am.title || '',children:parseInline(inner)};
+    node = { type:'link', dest:am.href || '', title:am.title || '', children:kids() };
   }
+  else node = { type:'span', children:kids() };          // abbr/center/time/details/summary/ruby
   return { node, end:at + op[0].length + cm2.index + cm2.length };
 }
 function splitLinkDestination(inner){
@@ -173,81 +261,203 @@ function splitLinkDestination(inner){
   return { dest:x, title:'' };
 }
 
-/* ---------- 行內解析 ------------------------------------------------------
-   產出 inline 節點陣列。數學一律「原樣透傳」——不做任何 Unicode 化，這是
-   90/01 症狀三與風險 R-07 的鐵律在解析層的落實。                          */
+/* pandoc-crossref 的交叉引用前綴：這些是「圖表式章節編號」而不是文獻。 */
+const XREF_PREFIX = /^(fig|figure|tbl|tab|table|eq|eqn|equation|sec|section|lst|listing|thm|theorem|alg|algorithm|app|appendix):/i;
+/* 文獻鍵（Pandoc 規則）：字母數字或底線開頭，中間可含 : . # $ % & - + ? < > ~ /。 */
+const CITE_KEY_RE = /^(-?)@([\p{L}\p{N}_](?:[\p{L}\p{N}_:.#$%&+?<>~\/-]*[\p{L}\p{N}_])?)/u;
+
+/* [prefix @key, locator; @key2] → [{key, pre, post, suppress}]。
+   Pandoc 用分號分隔多筆；但實務上很多人寫 [@a, @b]，所以「逗號後面緊接另一個
+   @key」也當成另一筆，其餘逗號後的文字才是頁碼等備註（[@key, p. 3]）。 */
+function parseCitationBracket(inner){
+  const items = [];
+  for (const chunk of String(inner).split(';')) {
+    let rest = chunk.trim();
+    if (!rest) continue;
+    const at = rest.search(/-?@[\p{L}\p{N}_]/u);
+    if (at < 0) return null;                    // 有一段沒有 @key：這不是引用
+    const pre = rest.slice(0, at).trim();
+    rest = rest.slice(at);
+    for (;;) {
+      const km = rest.match(CITE_KEY_RE);
+      if (!km) return null;
+      rest = rest.slice(km[0].length);
+      const item = { key: km[2], pre: '', post: '', suppress: km[1] === '-' };
+      if (!items.length || items[items.length - 1].__closed) item.pre = pre; else item.pre = '';
+      items.push(item);
+      const more = rest.match(/^\s*,\s*(?=-?@[\p{L}\p{N}_])/u);
+      if (more) { rest = rest.slice(more[0].length); item.__closed = false; continue; }
+      item.post = rest.replace(/^\s*,?\s*/, '').trim();
+      item.__closed = true;
+      break;
+    }
+  }
+  if (!items.length) return null;
+  return items.map(({ key, pre, post, suppress }) => ({ key, pre, post, suppress }));
+}
+
+/* 由開頭 $ 找 Pandoc 規則的收尾 $：開頭 $ 後面不能是空白；收尾 $ 前面不能是空白、
+   後面不能緊接數字；中間不能換行（左邊畫面逐行渲染，跨行的 $ 在左邊不是數學）；
+   遇到的第一個 $ 若不合格，整段就不是數學（Pandoc 不會繼續往後找）。回傳收尾 $ 的
+   索引或 -1。表格切欄也用同一條規則，所以「| $5 | $6 |」不會被併成一格。 */
+function inlineMathClose(s, i){
+  if (s[i] !== '$' || s[i + 1] === '$') return -1;
+  const first = s[i + 1];
+  if (!first || /\s/.test(first)) return -1;
+  for (let e = i + 1; e < s.length; e++) {
+    const c = s[e];
+    if (c === '\\') { e++; continue; }
+    if (c === '\n') return -1;
+    if (c === '$') {
+      if (/\s/.test(s[e - 1])) return -1;
+      if (/[0-9]/.test(s[e + 1] || '')) return -1;
+      return e;
+    }
+  }
+  return -1;
+}
+/* $$ … $$ 夾在句中：找同一行內收尾的 $$。 */
+function displayMathClose(s, i){
+  if (s[i] !== '$' || s[i + 1] !== '$') return -1;
+  for (let e = i + 2; e < s.length - 1; e++) {
+    if (s[e] === '\\') { e++; continue; }
+    if (s[e] === '\n') return -1;             // 左邊逐行渲染：句中 $$ 不跨行
+    if (s[e] === '$' && s[e + 1] === '$') return e > i + 2 ? e : -1;
+  }
+  return -1;
+}
+/* 行內程式碼：CommonMark 的反引號串規則——收尾串的長度必須與開頭完全相同。 */
+function codeSpanClose(s, i, n){
+  let j = i + n;
+  while (j < s.length) {
+    if (s[j] !== '`') { j++; continue; }
+    let k = j; while (s[k] === '`') k++;
+    if (k - j === n) return j;
+    j = k;
+  }
+  return -1;
+}
+/* GFM 擴充自動連結：http(s):// 或 www. 開頭，尾端的句讀與不成對的右括號不算網址。 */
+function bareUrlAt(s, i){
+  const m = s.slice(i).match(/^(?:https?:\/\/|www\.)[^\s<>]*/i);
+  if (!m) return null;
+  let u = m[0];
+  for (;;) {
+    const last = u[u.length - 1];
+    if (/[?!.,:*_~'";]/.test(last)) { u = u.slice(0, -1); continue; }
+    if (last === ')') {
+      const open = (u.match(/\(/g) || []).length, close = (u.match(/\)/g) || []).length;
+      if (close > open) { u = u.slice(0, -1); continue; }
+    }
+    break;
+  }
+  if (!/^(?:https?:\/\/|www\.)[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*/iu.test(u)) return null;
+  return u;
+}
+
 function parseInline(text){
-  const out = [];
+  text = String(text == null ? '' : text);
+  const items = [];             // {k:'t',v} 文字 | {k:'n',node} 原子節點 | {k:'d',…} 定界符串
   let buf = '';
-  const flush = () => { if (buf) { out.push({ type: 'text', value: buf }); buf = ''; } };
-  let i = 0;
+  const flush = () => { if (buf) { items.push({ k:'t', v:buf }); buf = ''; } };
+  const put = node => { flush(); if (node) items.push({ k:'n', node }); };
   const n = text.length;
+  let i = 0;
 
   while (i < n) {
     const c = text[i];
 
-    // 常見行內 HTML（含縮放圖片）與純 HTML 註解
-    if (c === '<') {
-      const hm = matchInlineHtml(text, i);
-      if (hm) { flush(); if (hm.node) out.push(hm.node); i = hm.end; continue; }
+    if (c === '\\') {
+      const nx = text[i + 1];
+      if (nx === '\n') { put({ type:'hard_break' }); i += 2; continue; }
+      /* 反斜線＋空白：TeX 的控制空格（"Ref.\ 12" 防止句點後加寬間距），原樣傳過去。 */
+      if (nx === ' ' || nx === '\t') { put({ type:'raw_inline', tex:'\\ ' }); i += 2; continue; }
+      /* \( … \) 行內數學：同一行內有收尾 \) 才算，否則就是跳脫的左括號。
+         句中的 \[ 維持 CommonMark 跳脫（印出 [）：左邊畫面也是這樣顯示；
+         獨立成行的 \[ … \] 由區塊解析當作展示公式。 */
+      if (nx === '(') {
+        const e = text.indexOf('\\)', i + 2);
+        const body = e > 0 ? text.slice(i + 2, e) : '';
+        if (e > 0 && body.trim() && !body.includes('\n')) {
+          put({ type:'math_inline', tex:body });
+          i = e + 2; continue;
+        }
+      }
+      /* 直通的 LaTeX 引用類指令（使用者手寫），與 \today。 */
+      const cm = text.slice(i).match(/^\\(cite|citep|citet|onlinecite|textcite|ref|eqref|label)\{([^{}]*)\}/);
+      if (cm) {
+        const kind = cm[1], arg = cm[2];
+        if (kind === 'label') put({ type:'label', id:arg.trim() });
+        else if (kind === 'ref' || kind === 'eqref') put({ type:'ref', ids:[arg.trim()], style:kind, explicit:true });
+        else put({ type:'cite', items:arg.split(',').map(s => s.trim()).filter(Boolean).map(key => ({ key, pre:'', post:'' })), macro:kind });
+        i += cm[0].length; continue;
+      }
+      if (/^\\today(?![A-Za-z])/.test(text.slice(i))) { put({ type:'raw_inline', tex:'\\today{}' }); i += 6; continue; }
+      /* CommonMark：反斜線後接任何 ASCII 標點都是跳脫，印出該標點本身。
+         跳脫後的引號不做方向轉換，用 nosmart 標記讓發射器照原樣處理。 */
+      if (isAsciiPunct(nx)) {
+        if (nx === '"' || nx === "'") put({ type:'text', value:nx, nosmart:true });
+        else buf += nx;
+        i += 2; continue;
+      }
+      buf += c; i++; continue;
     }
 
-    // HTML entity：在送往 TeX escape 前先還原語意；&nbsp; 直接映成不換行空白。
+    if (c === '`') {
+      let run = 0; while (text[i + run] === '`') run++;
+      const e = codeSpanClose(text, i, run);
+      if (e < 0) { buf += '`'.repeat(run); i += run; continue; }
+      let v = text.slice(i + run, e).replace(/\n/g, ' ');
+      if (v.length > 1 && v[0] === ' ' && v[v.length - 1] === ' ' && v.trim()) v = v.slice(1, -1);
+      put({ type:'code_inline', value:v });
+      i = e + run; continue;
+    }
+
+    if (c === '$') {
+      if (text[i + 1] === '$') {
+        const e = displayMathClose(text, i);
+        if (e > 0) { put({ type:'math_display', tex:text.slice(i + 2, e).trim() }); i = e + 2; continue; }
+        buf += '$$'; i += 2; continue;
+      }
+      const e = inlineMathClose(text, i);
+      if (e > 0) { put({ type:'math_inline', tex:text.slice(i + 1, e) }); i = e + 1; continue; }
+      buf += '$'; i++; continue;
+    }
+
+    if (c === '<') {
+      const al = text.slice(i).match(/^<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*)>/);
+      if (al) { put({ type:'link', dest:al[1], title:'', children:[{ type:'text', value:al[1].replace(/^mailto:/i, '') }], autolink:true }); i += al[0].length; continue; }
+      const em = text.slice(i).match(/^<([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/);
+      if (em) { put({ type:'link', dest:'mailto:' + em[1], title:'', children:[{ type:'text', value:em[1] }], autolink:true }); i += em[0].length; continue; }
+      const hm = matchInlineHtml(text, i);
+      if (hm) { put(hm.node); i = hm.end; continue; }
+      buf += c; i++; continue;
+    }
+
     if (c === '&') {
       const en = readHtmlEntityAt(text, i);
-      if (en) { flush(); out.push(en.rawTex ? {type:'raw_inline',tex:en.value} : {type:'text',value:en.value}); i=en.end; continue; }
+      if (en) { put(en.rawTex ? { type:'raw_inline', tex:en.value } : { type:'text', value:en.value, nosmart:true }); i = en.end; continue; }
+      buf += c; i++; continue;
     }
 
-    // Markdown hard break：行尾兩個空白或反斜線後換行。
-    if (c === ' ' && text[i + 1] === ' ' && text[i + 2] === '\n') {
-      flush(); out.push({type:'hard_break'}); i += 3; continue;
-    }
-    if (c === '\\' && text[i + 1] === '\n') {
-      flush(); out.push({type:'hard_break'}); i += 2; continue;
-    }
-
-
-    // 反斜線＋空白：TeX 的控制空格。學術寫作裡 "Ref.\ 12" 是常見寫法，
-    // 用來避免 TeX 把句點當句末而放寬間距。原樣傳過去。
-    if (c === '\\' && (text[i + 1] === ' ' || text[i + 1] === '\t')) {
-      flush(); out.push({ type: 'raw_inline', tex: '\\ ' }); i += 2; continue;
-    }
-    // 轉義
-    /* ★ 清單必須涵蓋所有 CommonMark 認定的可跳脫標點。先前漏了 %、&、
-       ^、"、'、,、/、:、;、=、? 等，其中 % 和 & 影響最大：使用者寫
-       "50\%" 想表達字面的百分號，解析器沒認出這是跳脫、把反斜線當成
-       普通字元留下來，發射器再把它轉義成 \textbackslash{}\%，PDF 上
-       印出 "50\%"（多一個反斜線）。實測確認過這個輸出錯誤。 */
-    if (c === '\\' && i + 1 < n && '\\`*_{}[]()#+-.!$<>|~%&^"\'’,/:;=?@'.includes(text[i + 1])) {
-      buf += text[i + 1]; i += 2; continue;
-    }
-
-    // 行內數學 \( ... \)
-    if (c === '\\' && text[i + 1] === '(') {
-      const e = text.indexOf('\\)', i + 2);
-      if (e > 0) { flush(); out.push({ type: 'math_inline', tex: text.slice(i + 2, e) }); i = e + 2; continue; }
-    }
-
-    // 行內數學 $...$（避免 $$ 與貨幣誤判）
-    if (c === '$' && text[i + 1] !== '$') {
-      let e = i + 1;
-      while (e < n) {
-        if (text[e] === '\\') { e += 2; continue; }
-        if (text[e] === '$') break;
-        if (text[e] === '\n') { e = -1; break; }
-        e++;
+    /* 硬換行：行尾兩個以上空白；單純換行是軟換行（TeX 的空白）。 */
+    if (c === ' ') {
+      let j = i; while (text[j] === ' ') j++;
+      if (text[j] === '\n') {
+        if (j - i >= 2) put({ type:'hard_break' }); else buf += '\n';
+        i = j + 1; continue;
       }
-      if (e > 0 && e < n && text[e] === '$') {
-        const body = text.slice(i + 1, e);
-        // 貨幣防誤判：內容為空、頭尾帶空白、或看起來是「數字＋單位」皆不視為數學
-        const looksMath = body.length > 0
-          && !/^\s/.test(body) && !/\s$/.test(body)
-          && !/^\d[\d,.\s]*$/.test(body);
-        if (looksMath) { flush(); out.push({ type: 'math_inline', tex: body }); i = e + 1; continue; }
+      buf += text.slice(i, j); i = j; continue;
+    }
+
+    if (c === '!' && text[i + 1] === '[') {
+      const m = matchLink(text, i + 1);
+      if (m) {
+        put({ type:'image', alt:m.label, src:m.dest, title:m.title, scale:1, scaleExplicit:false, wide:/\*\s*$/.test(m.title || '') });
+        i = m.end; continue;
       }
     }
 
-    // 行內腳註 ^[ ... ]
     if (c === '^' && text[i + 1] === '[') {
       let depth = 1, e = i + 2;
       while (e < n && depth > 0) {
@@ -257,117 +467,147 @@ function parseInline(text){
         if (depth === 0) break;
         e++;
       }
-      if (depth === 0) {
-        flush();
-        out.push({ type: 'footnote_inline', children: parseInline(text.slice(i + 2, e)) });
-        i = e + 1; continue;
-      }
+      if (depth === 0) { put({ type:'footnote_inline', children:parseInline(text.slice(i + 2, e)) }); i = e + 1; continue; }
     }
 
-    // 行內程式碼
-    if (c === '`') {
-      let ticks = 0; while (text[i + ticks] === '`') ticks++;
-      const fence = '`'.repeat(ticks);
-      const e = text.indexOf(fence, i + ticks);
-      if (e > 0) { flush(); out.push({ type: 'code_inline', value: text.slice(i + ticks, e) }); i = e + ticks; continue; }
-    }
-
-    // 圖片
-    if (c === '!' && text[i + 1] === '[') {
-      const m = matchLink(text, i + 1);
-      if (m) { flush(); out.push({ type: 'image', alt: m.label, src: m.dest, title: m.title, scale: 1, scaleExplicit: false, wide: /\*\s*$/.test(m.title || '') }); i = m.end; continue; }
-    }
-
-    // 連結 / 引用 [@key] / 腳註引用 [^id]
     if (c === '[') {
       if (text[i + 1] === '^') {
-        const e = text.indexOf(']', i + 2);
-        if (e > 0) { flush(); out.push({ type: 'footnote_ref', id: text.slice(i + 2, e) }); i = e + 1; continue; }
+        const fm = text.slice(i).match(/^\[\^([^\]\s]+)\]/);
+        if (fm && text[i + fm[0].length] !== ':') { put({ type:'footnote_ref', id:fm[1] }); i += fm[0].length; continue; }
       }
-      /* 1.1.5.6.1：數字引用 [[1]] / [[1, 2]] / [[1-3]]（沿用 臺灣論文既有慣例）。
-         使用者裁示：Markdown 這一層要清爽，複雜的 \cite{長長的鍵} 是背景
-         轉 LaTeX 時的事，不該讓寫稿的人去記。舊的 [@key] 完全不受影響，
-         同一份稿子裡兩種可以混用。範圍在這裡展開成逐一的鍵，顯示層由
-         natbib 自己壓縮回 [1-3]。 */
-      const nrm = text.slice(i).match(/^\[\[\s*(\d+(?:\s*[-\u2013\u2014,;]\s*\d+)*)\s*\]\]/);
+      /* 1.1.5.6.1：數字引用 [[1]] / [[1, 2]] / [[1-3]]（沿用臺灣論文既有慣例）。 */
+      const nrm = text.slice(i).match(/^\[\[\s*(\d+(?:\s*[-–—,;]\s*\d+)*)\s*\]\]/);
       if (nrm) {
-        flush();
-        out.push({ type: 'cite', keys: expandNumericCiteRefs(nrm[1]), numeric: true });
+        put({ type:'cite', items:expandNumericCiteRefs(nrm[1]).map(key => ({ key, pre:'', post:'' })), numeric:true });
         i += nrm[0].length; continue;
       }
-      const cm = text.slice(i).match(/^\[(@[^\]]+)\]/);
-      if (cm) {
-        const keys = cm[1].split(/[;,]/).map(s => s.trim().replace(/^@/, '')).filter(Boolean);
-        flush();
-        // pandoc-crossref 慣例：fig: tbl: eq: sec: 等前綴是「交叉引用」而非文獻引用。
-        // 全當 \cite 送出去的話，編譯會報 Citation undefined，而且訊息指向一個
-        // 根本不存在的文獻鍵，很難查。
-        const XREF = /^(fig|figure|tbl|tab|table|eq|eqn|equation|sec|section|lst|listing|thm|theorem|alg|algorithm):/i;
-        if (keys.length && keys.every(k => XREF.test(k))) {
-          for (const k of keys) out.push({ type: 'ref', id: k, style: /^(eq|eqn|equation):/i.test(k) ? 'eqref' : 'ref' });
-        } else {
-          out.push({ type: 'cite', keys });
-        }
-        i += cm[0].length; continue;
-      }
       const m = matchLink(text, i);
-      if (m) {
-        flush();
-        out.push({ type: 'link', dest: m.dest, title: m.title, children: parseInline(m.label) });
-        i = m.end; continue;
+      if (m) { put({ type:'link', dest:m.dest, title:m.title, children:parseInline(m.label) }); i = m.end; continue; }
+      /* Pandoc 引用 [@key]、[@a; @b]、[@key, p. 3]、[see @key]、[-@key]。 */
+      const cb = matchBracket(text, i);
+      if (cb > 0 && /-?@[\p{L}\p{N}_]/u.test(text.slice(i + 1, cb))) {
+        const cit = parseCitationBracket(text.slice(i + 1, cb));
+        if (cit) {
+          const xr = cit.filter(x => XREF_PREFIX.test(x.key));
+          if (xr.length === cit.length) {
+            put({ type:'ref', ids:cit.map(x => x.key), style:cit.every(x => /^(eq|eqn|equation):/i.test(x.key)) ? 'eqref' : 'ref' });
+          } else if (!xr.length) {
+            put({ type:'cite', items:cit });
+          } else {
+            /* 文獻與交叉引用混寫：依原順序拆成幾段，各自輸出。 */
+            cit.forEach((x, k) => {
+              const isX = XREF_PREFIX.test(x.key);
+              if (k) put({ type:'text', value:'; ' });
+              if (isX) put({ type:'ref', ids:[x.key], style:/^(eq|eqn|equation):/i.test(x.key) ? 'eqref' : 'ref' });
+              else put({ type:'cite', items:[x] });
+            });
+          }
+          i = cb + 1; continue;
+        }
       }
     }
 
-    // \cite{a,b} / \ref{x} / \eqref{x} 直通
-    if (c === '\\') {
-      const m = text.slice(i).match(/^\\(cite|citep|citet|onlinecite|textcite|ref|eqref|label)\{([^}]*)\}/);
-      if (m) {
-        flush();
-        const kind = m[1], arg = m[2];
-        if (kind === 'label') out.push({ type: 'label', id: arg });
-        else if (kind === 'ref' || kind === 'eqref') out.push({ type: 'ref', id: arg, style: kind });
-        else out.push({ type: 'cite', keys: arg.split(',').map(s => s.trim()).filter(Boolean), macro: kind });
-        i += m[0].length; continue;
+    /* 裸網址（GFM 擴充自動連結）：前面必須是行首、空白或左括號類字元。 */
+    if ((c === 'h' || c === 'H' || c === 'w' || c === 'W') && /^(?:https?:\/\/|www\.)/i.test(text.substr(i, 8))
+        && /^[\s(\[*_~"'“‘]?$/.test(charBefore(text, i) || '')) {
+      const u = bareUrlAt(text, i);
+      if (u) {
+        put({ type:'link', dest:/^www\./i.test(u) ? 'http://' + u : u, title:'', children:[{ type:'text', value:u }], autolink:true });
+        i += u.length; continue;
       }
     }
 
-
-
-    // 螢光標記 ==...==（左側工具列的 canonical 寫法）
-    if (c === '=' && text[i + 1] === '=') {
-      const e = findClose(text, i + 2, '==');
-      if (e > 0) { flush(); out.push({ type:'highlight', children:parseInline(text.slice(i + 2, e)) }); i=e + 2; continue; }
+    /* 直引號 → 方向引號（Pandoc smart 規則）：前面是行首、空白或開括號類就是開引號；
+       單引號前面是字母數字時是撇號（it's）。發射器再把彎引號換成 TeX 的 `` '' ` '。 */
+    if (c === '"' || c === "'") {
+      const pv = charBefore(text, i), nx = charAt(text, i + 1);
+      const openCtx = !pv || /[\s(\[{<—–\-\/“‘]/u.test(pv);
+      if (c === "'" && isWordChar(pv)) buf += '’';
+      else if (openCtx && nx && !isWSChar(nx)) buf += c === '"' ? '“' : '‘';
+      else buf += c === '"' ? '”' : '’';
+      i++; continue;
     }
 
-    // 強調：** / __ 粗體，* / _ 斜體，~~ 刪除線
-    if (c === '*' || c === '_' || c === '~') {
-      const two = text.slice(i, i + 2);
-      if ((two === '**' || two === '__') ) {
-        const e = findClose(text, i + 2, two);
-        if (e > 0) { flush(); out.push({ type: 'strong', children: parseInline(text.slice(i + 2, e)) }); i = e + 2; continue; }
-      }
-      if (two === '~~') {
-        const e = findClose(text, i + 2, '~~');
-        if (e > 0) { flush(); out.push({ type: 'strike', children: parseInline(text.slice(i + 2, e)) }); i = e + 2; continue; }
-      }
-      if (c === '*' || c === '_') {
-        const e = findClose(text, i + 1, c);
-        if (e > 0) { flush(); out.push({ type: 'emph', children: parseInline(text.slice(i + 1, e)) }); i = e + 1; continue; }
-      }
+    /* 強調定界符串：* 與 _ 任何長度；~~ 與 == 只認剛好兩個。 */
+    if (c === '*' || c === '_' || c === '~' || c === '=') {
+      let j = i; while (text[j] === c) j++;
+      const len = j - i;
+      if ((c === '~' || c === '=') && len !== 2) { buf += text.slice(i, j); i = j; continue; }
+      const pv = charBefore(text, i), nx = charAt(text, j);
+      const left = !isWSChar(nx) && (!isPunctChar(nx) || isWSChar(pv) || isPunctChar(pv));
+      const right = !isWSChar(pv) && (!isPunctChar(pv) || isWSChar(nx) || isPunctChar(nx));
+      let open, close;
+      if (c === '_') { open = left && (!right || isPunctChar(pv)); close = right && (!left || isPunctChar(nx)); }
+      else { open = left; close = right; }
+      flush();
+      items.push({ k:'d', ch:c, n:len, orig:len, open, close });
+      i = j; continue;
     }
 
     buf += c; i++;
   }
   flush();
+  return resolveEmphasis(items);
+}
+
+/* CommonMark 的強調配對（process emphasis）。items 會被就地改寫。 */
+function resolveEmphasis(items){
+  const asText = d => ({ k:'t', v:d.ch.repeat(d.n) });
+  let ci = 0;
+  while (ci < items.length) {
+    const cl = items[ci];
+    if (cl.k !== 'd' || !cl.close || cl.n <= 0) { ci++; continue; }
+    let found = -1;
+    for (let oi = ci - 1; oi >= 0; oi--) {
+      const op = items[oi];
+      if (op.k !== 'd' || op.ch !== cl.ch || !op.open || op.n <= 0) continue;
+      if ((cl.ch === '*' || cl.ch === '_') && (op.close || cl.open)
+          && (op.orig + cl.orig) % 3 === 0 && !(op.orig % 3 === 0 && cl.orig % 3 === 0)) continue;
+      found = oi; break;
+    }
+    if (found < 0) {
+      if (!cl.open) items[ci] = asText(cl);
+      ci++; continue;
+    }
+    const op = items[found];
+    const use = (cl.ch === '*' || cl.ch === '_') ? (op.n >= 2 && cl.n >= 2 ? 2 : 1) : 2;
+    const type = cl.ch === '~' ? 'strike' : cl.ch === '=' ? 'highlight' : (use === 2 ? 'strong' : 'emph');
+    const inner = items.slice(found + 1, ci).map(x => (x.k === 'd' ? asText(x) : x));
+    const nodeItem = { k:'n', node:{ type, children:itemsToNodes(inner) } };
+    op.n -= use; cl.n -= use;
+    const head = items.slice(0, found);
+    const mid = [];
+    if (op.n > 0) mid.push(op);
+    mid.push(nodeItem);
+    const next = head.length + mid.length;
+    if (cl.n > 0) mid.push(cl);
+    items = head.concat(mid, items.slice(ci + 1));
+    ci = next;
+  }
+  return itemsToNodes(items.map(x => (x.k === 'd' ? asText(x) : x)));
+}
+function itemsToNodes(items){
+  const out = [];
+  for (const it of items) {
+    if (it.k === 't') {
+      const last = out[out.length - 1];
+      if (last && last.type === 'text' && !last.nosmart) last.value += it.v;
+      else out.push({ type:'text', value:it.v });
+    } else if (it.node) out.push(it.node);
+  }
   return out;
 }
 
-function findClose(s, from, token){
-  let i = from;
-  while (i < s.length) {
-    if (s[i] === '\\') { i += 2; continue; }
-    if (s.startsWith(token, i)) return i;
-    i++;
+/** 從 `[` 找對應的 `]`（略過跳脫、行內程式碼與數學），回傳索引或 -1。 */
+function matchBracket(s, at){
+  let depth = 0;
+  for (let i = at; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '`') { let r = 0; while (s[i + r] === '`') r++; const e = codeSpanClose(s, i, r); if (e > 0) { i = e + r - 1; continue; } i += r - 1; continue; }
+    if (c === '$') { const e = inlineMathClose(s, i); if (e > 0) { i = e; continue; } }
+    if (c === '[') depth++;
+    else if (c === ']') { depth--; if (depth === 0) return i; }
   }
   return -1;
 }
@@ -596,13 +836,21 @@ const REVTEX_APPENDIX_LANGS = new Set(['revtex-appendix', 'revtex-appendices']);
    排版留給發射器（比照數學區塊的三段式寬度判斷）。 */
 function parseNativeRevtexSubequations(text){
   const t = String(text == null ? '' : text);
-  const parts = [];
-  const re = /\$\$([\s\S]*?)\$\$/g;
-  let m;
+  const parts = [], labels = [];
+  /* 1.2.6：每條子式後面（或收尾 $$ 前）的 {#eq:x} 也要接住，否則標籤原樣留在
+     fence 裡被丟掉，[@eq:x] 變成 ??。整組的標籤寫在 fence 第一行 {#eq:group}。 */
+  const re = /\$\$([\s\S]*?)\$\$[ \t]*(?:\{#([^}\s]+)\})?/g;
+  let m, group = '';
+  const gm = t.match(/^\s*\{#([^}\s]+)\}\s*$/m);
+  if (gm && t.indexOf(gm[0]) < t.indexOf('$$')) group = gm[1];
   while ((m = re.exec(t))) {
-    const body = m[1].trim();
-    if (body) parts.push(body);
+    let body = m[1].trim(), label = m[2] || '';
+    const inner = body.match(/\s*\{#([^}\s]+)\}\s*$/);
+    if (inner) { label = label || inner[1]; body = body.slice(0, inner.index).trim(); }
+    if (body) { parts.push(body); labels.push(label); }
   }
+  parts.labels = labels;
+  parts.group = group;
   return parts;
 }
 
@@ -847,7 +1095,163 @@ function absorbNativeRevtexBlocks(meta, blocks, parseInner){
     }
     keep.push(b);
   }
-  return { blocks: keep, absorbed };
+  return { blocks: absorbSectionHeadings(meta, keep), absorbed };
+}
+
+/* 1.2.6：用一般 Markdown 標題寫的摘要、致謝、參考文獻。
+   使用者只會寫 Markdown，很自然會打「# Abstract」「# Acknowledgments」「# References」。
+   REVTeX 這三樣都有官方專用結構（abstract 環境、acknowledgments 環境、書目自帶標題），
+   照字面輸出成 \section 會變成重複或孤立的標題（C 報告 L17、L20）：
+     · 文件的第一個標題是 Abstract／摘要（且還沒有 revtex-abstract 或 YAML abstract:）
+       → 它底下到下一個同級標題之前的內容就是摘要；
+     · Acknowledgments 標題 → 底下內容放進 acknowledgments 環境；若緊接 revtex-acknowledgments
+       圍欄，只把標題拿掉；
+     · References／Bibliography／參考文獻 標題緊接書目圍欄、附錄標記或文件結尾 → 拿掉標題
+       （書目由 REVTeX 印在文末，標題由期刊樣式自己決定）。 */
+const ABSTRACT_HEAD_RE = /^(abstract|摘要)$/i;
+const ACK_HEAD_RE = /^(acknowledge?ments?|致謝|誌謝)$/i;
+const REF_HEAD_RE = /^(references?|bibliography|參考文獻|參考書目)$/i;
+function absorbSectionHeadings(meta, blocks){
+  const headText = b => (b && b.type === 'heading') ? inlineText(b.children).trim().replace(/[:：]$/, '') : null;
+  const sectionEnd = (from, depth) => {
+    let j = from;
+    while (j < blocks.length && !(blocks[j].type === 'heading' && blocks[j].depth <= depth)
+           && blocks[j].type !== 'appendix_marker' && blocks[j].type !== 'bibliography') j++;
+    return j;
+  };
+  const out = [];
+  const firstHead = blocks.findIndex(b => b.type === 'heading');
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i], t = headText(b);
+    if (t === null) { out.push(b); continue; }
+    if (i === firstHead && ABSTRACT_HEAD_RE.test(t) && !meta.abstract && !meta.abstractBlocks) {
+      const e = sectionEnd(i + 1, b.depth);
+      meta.abstractBlocks = blocks.slice(i + 1, e);
+      i = e - 1; continue;
+    }
+    if (ACK_HEAD_RE.test(t)) {
+      const next = blocks[i + 1];
+      if (next && next.type === 'acknowledgments') continue;          // 圍欄自帶，只拿掉標題
+      const e = sectionEnd(i + 1, b.depth);
+      out.push({ id: b.id, type: 'acknowledgments', line: b.line, blocks: blocks.slice(i + 1, e) });
+      i = e - 1; continue;
+    }
+    if (REF_HEAD_RE.test(t)) {
+      const next = blocks[i + 1];
+      if (!next || next.type === 'bibliography' || next.type === 'appendix_marker') continue;
+    }
+    out.push(b);
+  }
+  return out;
+}
+
+/* ---------- 區塊層的小工具（1.2.6）---------- */
+
+/* Pandoc 式屬性區塊 {#id .unnumbered -}：回傳 {label, unnumbered, wide, width} 或 null。 */
+function parseAttrBlock(s){
+  const m = String(s || '').match(/^\{([^{}]*)\}$/);
+  if (!m) return null;
+  const out = { label:'', unnumbered:false, wide:false, width:'' };
+  for (const tok of m[1].trim().split(/\s+/).filter(Boolean)) {
+    if (tok[0] === '#') out.label = tok.slice(1);
+    else if (tok === '-' || tok === '.unnumbered' || tok === '.nonumber') out.unnumbered = true;
+    else if (tok === 'wide' || tok === '.wide') out.wide = true;
+    else if (/^width=/.test(tok)) out.width = tok.slice(6).replace(/^["']|["']$/g, '');
+    else if (/^[.\w-]+=/.test(tok) || tok[0] === '.') { /* 其他屬性：忽略 */ }
+    else return null;
+  }
+  return out;
+}
+/* 公式本體尾端的 {#eq:x}／{-}（寫在收尾 $$ 之前也算，B-09）。 */
+function splitMathAttrs(tex){
+  let body = String(tex || '').trim(), label = '', unnumbered = false;
+  for (;;) {
+    const m = body.match(/\s*(\{[^{}]*\})\s*$/);
+    const a = m ? parseAttrBlock(m[1]) : null;
+    if (!a || (!a.label && !a.unnumbered)) break;
+    if (a.label) label = label || a.label;
+    if (a.unnumbered) unnumbered = true;
+    body = body.slice(0, m.index).trim();
+  }
+  if (!label) { const lab = body.match(/\\label\{([^}]*)\}/); if (lab) label = lab[1]; }
+  return { tex: body, label, unnumbered };
+}
+/* 從第 i 行讀一個展示公式區塊（$$…$$ 或 \[…\]）。
+   同一行就收尾、但收尾後面還有一般文字（不是 {…} 屬性）→ 回 null，交給段落。 */
+function readDisplayMath(lines, i){
+  const t = expandTabs(lines[i]).trim();
+  const open = t.startsWith('\\[') ? '\\[' : '$$';
+  const close = open === '\\[' ? '\\]' : '$$';
+  const first = t.slice(open.length);
+  const p = first.indexOf(close);
+  let tex = '', after = '', j = i;
+  if (p >= 0) {
+    tex = first.slice(0, p);
+    after = first.slice(p + close.length).trim();
+    if (after && !/^(\{[^{}]*\}\s*)+$/.test(after)) return null;
+  } else {
+    const inner = first.trim() ? [first] : [];
+    j = i + 1;
+    while (j < lines.length) {
+      const cur = expandTabs(lines[j]).trim();
+      const q = cur.indexOf(close);
+      if (q >= 0 && (q + close.length === cur.length || /^(\s*\{[^{}]*\})+\s*$/.test(cur.slice(q + close.length)))) {
+        inner.push(cur.slice(0, q)); after = cur.slice(q + close.length).trim(); break;
+      }
+      inner.push(lines[j]); j++;
+    }
+    tex = inner.join('\n');
+  }
+  const dm = splitMathAttrs(tex + (after ? ' ' + after : ''));
+  return { tex: dm.tex, label: dm.label, unnumbered: dm.unnumbered, next: j + 1 };
+}
+/* ATX 標題：與左邊 RE.h 同一條規則——# 後面可以不接空白（#Heading，左邊的 Loose
+   模式），結尾的 # 串前面必須有空白才算收尾（C# 的 # 要留著，B-23）；
+   {#label} 與 {-} 可以寫在收尾 # 串的前面或後面（A-28）。 */
+function matchAtxHeading(t){
+  const m = String(t).match(/^(#{1,6})(?:[ \t]+|(?=[^#\s]))(.*)$/) || String(t).match(/^(#{1,6})[ \t]*$/);
+  if (!m) return null;
+  let text = (m[2] || '').trim(), label = '', unnumbered = false;
+  const strip = () => {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const am = text.match(/\s*(\{[^{}]*\})\s*$/);
+      const a = am ? parseAttrBlock(am[1]) : null;
+      if (a) { if (a.label) label = label || a.label; if (a.unnumbered) unnumbered = true; text = text.slice(0, am.index).trimEnd(); changed = true; }
+    }
+  };
+  strip();
+  if (/^#+$/.test(text)) text = '';
+  else text = text.replace(/[ \t]+#+[ \t]*$/, '');
+  strip();
+  return { depth: m[1].length, text, label, unnumbered };
+}
+/* 這一行能不能打斷段落（與左邊「每行獨立判斷區塊」的結果對齊，B-34）。 */
+function startsBlock(lines, j){
+  const cur = expandTabs(lines[j]), ct = cur.trim();
+  if (!ct) return true;
+  if (matchAtxHeading(ct) || /^(```+|~~~+)/.test(ct) || /^>/.test(ct)) return true;
+  if (/^(\s*)([-+*]|\d+[.)])\s+/.test(cur)) return true;
+  if (ct.startsWith('$$') || ct.startsWith('\\[')) return true;
+  if (/^([*\-_])\s*(\1\s*){2,}$/.test(ct)) return true;
+  if (/^\[\^[^\]]+\]:/.test(ct)) return true;                          // 腳註定義
+  if (isTableStart(lines, j)) return true;                             // 表格
+  if (isStandaloneImageLine(ct)) return true;                          // 獨立一行的圖片
+  return false;
+}
+function isTableStart(lines, j){
+  const t = expandTabs(lines[j] || '').trim();
+  const nx = lines[j + 1];
+  return !!(t.includes('|') && nx !== undefined && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(expandTabs(nx)) && /-/.test(nx));
+}
+function isStandaloneImageLine(t){
+  if (parseHtmlImageTag(t)) return true;
+  if (!t.startsWith('![')) return false;
+  const m = matchLink(t, 1);
+  if (!m) return false;
+  const tail = t.slice(m.end).trim();
+  return !tail || !!parseAttrBlock(tail);
 }
 
 /* ---------- 區塊解析 ---------- */
@@ -883,77 +1287,48 @@ function parseBlocks(lines, lineOffset){
     }
 
     // 圍欄程式碼 / 原生 TeX 逃生門
+    /* 1.2.6：收尾圍欄改用左邊編輯器同一條規則（markdownFenceClose）：同種字元、
+       長度不少於開頭、後面不能再接文字。舊版只看「以開頭字串起頭」，
+       ```python 這種行會被誤認成收尾。 */
     const fence = t.match(/^(```+|~~~+)\s*([^\s`]*)\s*(.*)$/);
     if (fence) {
-      const mark = fence[1][0].repeat(fence[1].length);
+      const fch = fence[1][0], flen = fence[1].length;
+      const closeRe = new RegExp('^\\s{0,3}' + (fch === '`' ? '`' : '~') + '{' + flen + ',}[ \\t]*$');
       const lang = (fence[2] || '').toLowerCase();
       const body = [];
       let j = i + 1;
-      while (j < L && !expandTabs(lines[j]).trim().startsWith(mark)) { body.push(lines[j]); j++; }
-      const node = (lang === 'tex' || lang === 'latex')
-        ? { type: 'raw_tex', value: body.join('\n'), line: srcLine(i) }
-        : { type: 'code_block', lang, value: body.join('\n'), meta: fence[3] || '', line: srcLine(i) };
+      while (j < L && !closeRe.test(expandTabs(lines[j]))) { body.push(lines[j]); j++; }
+      let node;
+      if (lang === 'tex' || lang === 'latex') node = { type: 'raw_tex', value: body.join('\n'), line: srcLine(i) };
+      /* ```math／```katex：左邊畫面當展示公式（01.js），右邊也一樣（B-18）。 */
+      else if (lang === 'math' || lang === 'katex') {
+        const dm = splitMathAttrs(body.join('\n').trim());
+        node = { type: 'math_block', tex: dm.tex, label: dm.label, unnumbered: dm.unnumbered, line: srcLine(i) };
+      }
+      else node = { type: 'code_block', lang, value: body.join('\n'), meta: fence[3] || '', line: srcLine(i) };
       node.id = nid('b');
       blocks.push(node);
       i = j + 1; continue;
     }
 
     // 展示數學 $$ … $$ 或 \[ … \]
-    if (t === '$$' || t.startsWith('$$') || t.startsWith('\\[')) {
-      const open = t.startsWith('\\[') ? '\\[' : '$$';
-      const close = open === '\\[' ? '\\]' : '$$';
-      const inner = [];
-      let label = '';
-      let j = i;
-
-      // 從一行文字上剝掉結尾的 close 與其後的 {#label}，回傳 close 之前的內容；
-      // 若該行不是結尾行則回 null。
-      const takeClose = (s) => {
-        const lm = s.match(/\{#([^}]+)\}\s*$/);
-        const body = lm ? s.slice(0, lm.index).trim() : s;
-        if (!body.endsWith(close)) return null;
-        if (lm) label = lm[1];
-        return body.slice(0, body.length - close.length);
-      };
-
-      const firstRest = t.slice(open.length);          // 開頭 fence 之後的同行內容
-      const oneLine = takeClose(firstRest.trim());
-      if (firstRest.trim() && oneLine !== null) {
-        inner.push(oneLine);                            // $$ ... $$ 寫在同一行
-      } else {
-        if (firstRest.trim()) inner.push(firstRest);
-        j = i + 1;
-        while (j < L) {
-          const cur = expandTabs(lines[j]).trim();
-          const cut = takeClose(cur);
-          if (cut !== null) { if (cut.trim()) inner.push(cut); break; }
-          inner.push(lines[j]); j++;
-        }
+    if (t.startsWith('$$') || t.startsWith('\\[')) {
+      const dm = readDisplayMath(lines, i);
+      if (dm) {
+        blocks.push({ id: nid('b'), type: 'math_block', tex: dm.tex, label: dm.label,
+                      unnumbered: dm.unnumbered, line: srcLine(i) });
+        i = dm.next; continue;
       }
-
-      let tex = inner.join('\n').trim();
-      if (!label) {
-        const lab = tex.match(/\\label\{([^}]*)\}/);
-        if (lab) label = lab[1];
-      }
-      blocks.push({ id: nid('b'), type: 'math_block', tex, label, line: srcLine(i) });
-      i = j + 1; continue;
+      /* $$x=1$$ 後面同一行還有文字：不是獨立公式區塊，交給下面的段落解析
+         （段落內的 $$ … $$ 會變成句中展示公式）。舊版會一路吞到下一個 $$（B-24）。 */
     }
 
     // ATX 標題
-    const atx = t.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+    const atx = matchAtxHeading(t);
     if (atx) {
-      let text = atx[2];
-      /* 不編號章節：沿用 pandoc 慣例，標題結尾寫 {-} 或 {.unnumbered}。
-         REVTeX 沒有對應的 class option，官方作法就是 \\section*，
-         而 Science Bulletin、Nature 系與多數致謝／附註段落都不編號。 */
-      let unnumbered = false;
-      const um = text.match(/\s*\{(?:-|\.unnumbered)\}\s*$/);
-      if (um) { unnumbered = true; text = text.slice(0, um.index).trimEnd(); }
-      const lm = text.match(/\{#([^}]+)\}\s*$/);
-      blocks.push({ id: nid('b'), type: 'heading', depth: atx[1].length,
-                    children: parseInline(lm ? text.slice(0, lm.index).trim() : text),
-                    label: lm ? lm[1] : '', unnumbered: unnumbered, line: srcLine(i) });
+      blocks.push({ id: nid('b'), type: 'heading', depth: atx.depth,
+                    children: parseInline(atx.text),
+                    label: atx.label, unnumbered: atx.unnumbered, line: srcLine(i) });
       i++; continue;
     }
 
@@ -984,13 +1359,21 @@ function parseBlocks(lines, lineOffset){
     if (/^>/.test(t)) {
       const body = [];
       let j = i;
-      while (j < L && /^\s*>/.test(expandTabs(lines[j]))) { body.push(expandTabs(lines[j]).replace(/^\s*>\s?/, '')); j++; }
+      /* 1.2.6：懶惰續行（B-36）。「> quote」下一行沒有 > 但仍是一般文字時，
+         CommonMark 與左邊畫面都把它併進同一個引用段落。 */
+      while (j < L) {
+        const cl = expandTabs(lines[j]);
+        if (/^\s*>/.test(cl)) { body.push(cl.replace(/^\s*>\s?/, '')); j++; continue; }
+        const prev = body[body.length - 1];
+        if (cl.trim() && prev !== undefined && prev.trim() && !startsBlock(lines, j)) { body.push(cl.trim()); j++; continue; }
+        break;
+      }
       blocks.push({ id: nid('b'), type: 'blockquote', children: parseBlocks(body, lineOffset + i), line: srcLine(i) });
       i = j; continue;
     }
 
     // 表格（GFM）
-    if (t.includes('|') && i + 1 < L && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(expandTabs(lines[i + 1])) && /-/.test(lines[i + 1])) {
+    if (isTableStart(lines, i)) {
       const header = splitRow(t);
       const aligns = splitRow(expandTabs(lines[i + 1]).trim()).map(c => {
         const s = c.trim();
@@ -1002,15 +1385,19 @@ function parseBlocks(lines, lineOffset){
       const rows = [];
       let j = i + 2;
       while (j < L && expandTabs(lines[j]).trim().includes('|')) { rows.push(splitRow(expandTabs(lines[j]).trim())); j++; }
-      // caption：緊跟的 : 開頭行
+      /* caption：表格後的「: 說明」或 Pandoc 的「Table: 說明」，緊接或隔一個空行都接受
+         （L15、T09）。{#tbl:x} 寫在說明尾端。 */
       let caption = '', label = '';
-      if (j < L) {
-        const cm = expandTabs(lines[j]).trim().match(/^:\s*(.+)$/);
+      {
+        let k = j;
+        if (k < L && !expandTabs(lines[k]).trim() && k + 1 < L) k++;
+        const cm = k < L ? expandTabs(lines[k]).trim().match(/^(?:Table)?:\s*(.+)$/) : null;
         if (cm) {
           caption = cm[1];
-          const lm = caption.match(/\{#([^}]+)\}\s*$/);
-          if (lm) { label = lm[1]; caption = caption.slice(0, lm.index).trim(); }
-          j++;
+          const am = caption.match(/\s*(\{[^{}]*\})\s*$/);
+          const a = am ? parseAttrBlock(am[1]) : null;
+          if (a) { label = a.label; caption = caption.slice(0, am.index).trim(); }
+          j = k + 1;
         }
       }
       /* 合併儲存格（\multicolumn）：Markdown 表格本身沒有原生語法表示
@@ -1051,20 +1438,22 @@ function parseBlocks(lines, lineOffset){
       i = j; continue;
     }
 
-    // 清單
-    const li = line.match(/^(\s*)([-+*]|\d+[.)])\s+(.*)$/);
-    if (li) {
-      const res = parseList(lines, i, lineOffset);
-      blocks.push(res.node); i = res.next; continue;
-    }
-
-    // 縮排程式碼
-    if (/^ {4,}\S/.test(line) && (blocks.length === 0 || blocks[blocks.length - 1].type !== 'paragraph')) {
+    /* 縮排程式碼先於清單判斷（B-35）：左邊畫面與 CommonMark 都是這個順序——
+       空行之後縮排四格以上的「* x」是程式碼，不是清單。段落的續行在下面的段落
+       迴圈就被吃掉了，走不到這裡，所以不會把段落內縮排的行誤判成程式碼。 */
+    if (/^ {4,}\S/.test(line)) {
       const body = []; let j = i;
       while (j < L && (/^ {4,}/.test(expandTabs(lines[j])) || !expandTabs(lines[j]).trim())) { body.push(expandTabs(lines[j]).slice(4)); j++; }
       while (body.length && !body[body.length - 1].trim()) body.pop();
       blocks.push({ id: nid('b'), type: 'code_block', lang: '', value: body.join('\n'), meta: '', line: srcLine(i) });
       i = j; continue;
+    }
+
+    // 清單
+    const li = line.match(/^(\s*)([-+*]|\d+[.)])\s+(.*)$/);
+    if (li) {
+      const res = parseList(lines, i, lineOffset);
+      blocks.push(res.node); i = res.next; continue;
     }
 
     // 獨立 HTML 圖片 → figure（圖片工具列縮放後的 canonical 寫法）
@@ -1082,30 +1471,30 @@ function parseBlocks(lines, lineOffset){
     const mdImg = t.startsWith('![') ? matchLink(t, 1) : null;
     if (mdImg) {
       const tail = t.slice(mdImg.end).trim();
-      const am = tail.match(/^\{([^}]*)\}$/);
-      if (!tail || am) {
-        const attr = am ? am[1] : '';
-        const wideByAttr = /(^|\s)wide(\s|$)/.test(attr);
-        const labelMatch = attr.match(/#([^\s}]+)/);
+      const a = tail ? parseAttrBlock(tail) : { label:'', wide:false, width:'' };
+      if (a) {
+        /* {width=50%}：Pandoc 寫法，等同圖片工具列的縮放比例（B-30）。 */
+        const wm = String(a.width || '').match(/^([0-9]*\.?[0-9]+)\s*%$/);
+        const scale = wm ? Math.max(0.05, Math.min(4, parseFloat(wm[1]) / 100)) : 1;
         blocks.push({ id:nid('b'), type:'figure', src:mdImg.dest,
                       caption:mdImg.label ? parseInline(mdImg.label) : null,
-                      label:labelMatch ? labelMatch[1] : '',
-                      wide:wideByAttr || /\*\s*$/.test(mdImg.title || ''),
-                      scale:1, scaleExplicit:false, sourceSyntax:'markdown', line:srcLine(i) });
+                      label:a.label || '',
+                      wide:a.wide || /\*\s*$/.test(mdImg.title || ''),
+                      scale, scaleExplicit:!!wm, sourceSyntax:'markdown', line:srcLine(i) });
         i++; continue;
       }
     }
 
     // 段落：保留行尾兩空白，讓 parseInline 能輸出真正的 LaTeX hard break。
+    /* 1.2.6：段落的中斷條件與左邊畫面對齊（B-34）——表格、腳註定義、獨立一行的
+       圖片也會打斷段落（左邊每一行獨立判斷區塊，使用者看到的就是這樣）。 */
     const para = [];
     let j = i;
     while (j < L) {
       const cur = (j === i ? line : expandTabs(lines[j]));
       const ct = cur.trim();
       if (!ct) break;
-      if (j > i && (/^(#{1,6})\s/.test(ct) || /^(```+|~~~+)/.test(ct) || /^>/.test(ct)
-                    || /^(\s*)([-+*]|\d+[.)])\s+/.test(cur) || ct === '$$' || ct.startsWith('\\[')
-                    || /^([*\-_])\s*(\1\s*){2,}$/.test(ct))) break;
+      if (j > i && startsBlock(lines, j)) break;
       para.push(cur.replace(/^\s+/, '')); j++;
     }
     blocks.push({ id:nid('b'), type:'paragraph', children:parseInline(para.join('\n')),
@@ -1115,48 +1504,69 @@ function parseBlocks(lines, lineOffset){
   return blocks;
 }
 
-function splitRow(s){
-  let x = s.trim();
-  if (x.startsWith('|')) x = x.slice(1);
-  if (x.endsWith('|')) x = x.slice(0, -1);
-  const cells = []; let cur = '';
-  /* 行內數學區內的 | 是 LaTeX 的絕對值／範數符號（例如 $u=X/(1+|X|)$），
-     不是表格欄位分隔符。原本沒有這層保護，那一格會被切成三格，公式被腰斬、
-     $ 還會被後續轉義成 \$ 而失去數學模式——使用者回報「第四頁表格沒有正確
-     顯示，被用 Markdown 的方式顯示了」正是這個。
-     $ 前有反斜線（\$，字面錢字號）不切換數學狀態，交由上面的逃逸分支處理。 */
-  let inMath = false;
-  for (let i = 0; i < x.length; i++) {
-    if (x[i] === '\\') { cur += x[i] + (x[i + 1] || ''); i++; continue; }
-    if (x[i] === '$') { inMath = !inMath; cur += x[i]; continue; }
-    if (x[i] === '|' && !inMath) { cells.push(cur); cur = ''; continue; }
-    cur += x[i];
+/* 表格切欄：與左邊編輯器 splitTableRow（02.js）同一個狀態機——行內程式碼與數學
+   裡的 | 不切；\| 是字面的 |；\\ 是一個反斜線。1.2.6 起兩邊都改用「有效的數學
+   才保護」：$ 必須照 Pandoc 規則有合格的收尾（inlineMathClose），所以
+   「| cost $5 | price $6 |」切成兩格（B-25），$$x|y$$ 不會被切開（B-10），
+   `a|b` 不會被切開（B-33）。 */
+function splitRow(line){
+  const raw = String(line), out = [];
+  let cur = '', codeRun = 0;
+  for (let k = 0; k < raw.length; k++) {
+    const ch = raw[k];
+    if (ch === '\\') {
+      if (raw[k + 1] === '\\') { cur += '\\\\'; k++; continue; }
+      if (raw[k + 1] === '|') { cur += '|'; k++; continue; }
+      cur += ch; continue;
+    }
+    if (ch === '`') {
+      let j = k; while (raw[j] === '`') j++;
+      const n = j - k;
+      if (!codeRun) codeRun = n; else if (codeRun === n) codeRun = 0;
+      cur += raw.slice(k, j); k = j - 1; continue;
+    }
+    if (ch === '$' && !codeRun) {
+      const e = raw[k + 1] === '$' ? displayMathClose(raw, k) : inlineMathClose(raw, k);
+      if (e > 0) {
+        const endAt = raw[k + 1] === '$' ? e + 2 : e + 1;
+        cur += raw.slice(k, endAt); k = endAt - 1; continue;
+      }
+      cur += ch; continue;
+    }
+    if (ch === '|' && !codeRun) { out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
   }
-  cells.push(cur);
-  return cells;
+  out.push(cur.trim());
+  if (/^\s*\|\s*$/.test(raw) && out.length === 2) return out;
+  if (/^\s*\|/.test(raw) && out.length && out[0] === '') out.shift();
+  if (/\|\s*$/.test(raw) && out.length && out[out.length - 1] === '') out.pop();
+  return out;
 }
 
 function parseList(lines, start, lineOffset){
   const first = expandTabs(lines[start]).match(/^(\s*)([-+*]|\d+[.)])\s+(.*)$/);
   const baseIndent = first[1].length;
   const ordered = /\d/.test(first[2]);
+  const sameKind = mk => /\d/.test(mk) === ordered;
   const items = [];
   let i = start;
   const L = lines.length;
-  let curBody = null;
+  let curBody = null, lastBlank = false;
 
   while (i < L) {
     const raw = expandTabs(lines[i]);
     const t = raw.trim();
     const m = raw.match(/^(\s*)([-+*]|\d+[.)])\s+(.*)$/);
     if (m && m[1].length === baseIndent) {
+      /* 有序與無序清單接在一起時是兩個清單（A-27），不能併成同一個 itemize。 */
+      if (!sameKind(m[2])) break;
       if (curBody) items.push(curBody);
       let content = m[3];
       let task = null;
       const tm = content.match(/^\[([ xX])\]\s+(.*)$/);
       if (tm) { task = tm[1].toLowerCase() === 'x'; content = tm[2]; }
       curBody = { lines: [content], task };
-      i++; continue;
+      lastBlank = false; i++; continue;
     }
     if (!t) {
       // 空行：看下一非空行是否仍屬本清單
@@ -1165,20 +1575,24 @@ function parseList(lines, start, lineOffset){
       if (k >= L) break;
       const nk = expandTabs(lines[k]);
       const nm = nk.match(/^(\s*)([-+*]|\d+[.)])\s+/);
-      const cont = (nm && nm[1].length >= baseIndent) || /^\s{2,}\S/.test(nk) && nk.match(/^ */)[0].length > baseIndent;
+      const cont = (nm && (nm[1].length > baseIndent || (nm[1].length === baseIndent && sameKind(nm[2]))))
+                || (/^\s{2,}\S/.test(nk) && nk.match(/^ */)[0].length > baseIndent);
       if (!cont) break;
       if (curBody) curBody.lines.push('');
-      i++; continue;
+      lastBlank = true; i++; continue;
     }
-    if (m && m[1].length > baseIndent) { if (curBody) curBody.lines.push(raw.slice(baseIndent + 2)); i++; continue; }
-    if (raw.match(/^ */)[0].length > baseIndent) { if (curBody) curBody.lines.push(raw.slice(Math.min(baseIndent + 2, raw.match(/^ */)[0].length))); i++; continue; }
+    if (m && m[1].length > baseIndent) { if (curBody) curBody.lines.push(raw.slice(baseIndent + 2)); lastBlank = false; i++; continue; }
+    if (raw.match(/^ */)[0].length > baseIndent) { if (curBody) curBody.lines.push(raw.slice(Math.min(baseIndent + 2, raw.match(/^ */)[0].length))); lastBlank = false; i++; continue; }
+    /* 懶惰續行（B-36）：項目文字下一行沒有縮排、也不是新的區塊開頭，
+       CommonMark 與左邊畫面都把它併進同一個項目，清單不會被拆成兩個。 */
+    if (curBody && !lastBlank && !startsBlock(lines, i)) { curBody.lines.push(t); i++; continue; }
     break;
   }
   if (curBody) items.push(curBody);
 
   const node = {
     id: nid('b'), type: 'list', ordered,
-    start: ordered ? parseInt(first[2], 10) || 1 : null,
+    start: ordered ? (Number.isFinite(parseInt(first[2], 10)) ? parseInt(first[2], 10) : 1) : null,
     items: items.map(it => ({
       task: it.task,
       children: parseBlocks(it.lines, lineOffset + start)
@@ -1221,7 +1635,8 @@ function walk(nodes, fn){
   for (const n of nodes || []) {
     fn(n);
     if (n.children) walk(n.children, fn);
-    if (n.items) for (const it of n.items) walk(it.children, fn);
+    if (n.blocks) walk(n.blocks, fn);                         // 用標題寫的致謝（1.2.6）
+    if (n.type === 'list' && n.items) for (const it of n.items) walk(it.children, fn);
     if (n.header) for (const c of n.header) walk(c, fn);
     if (n.rows) for (const r of n.rows) for (const c of r) walk(c, fn);
     if (n.caption) walk(n.caption, fn);
@@ -1307,9 +1722,17 @@ function plainText(blocks){
   return s;
 }
 
+/* 1.2.6：摘要、致謝等「散文欄位」的 Markdown 片段也走同一套區塊＋行內解析
+   （發射器用它處理 revtex-abstract、revtex-acknowledgments、YAML abstract:）。 */
+function parseFragment(md){
+  const lines = String(md == null ? '' : md).replace(/\r\n?/g, '\n').split('\n');
+  return parseBlocks(lines, 0);
+}
+
 K.register('parser', {
-  parse, parseInline, parityDigest, walk, inlineText, plainText,
-  version: '1.2.1'
+  parse, parseInline, parseFragment, parityDigest, walk, inlineText, plainText,
+  splitRow, inlineMathClose,
+  version: '1.2.6'
 });
 K.log.info('parser', 'CP171 獨立解析器就緒（隔離：不讀 DOM、不呼叫既有解析器）');
 })();

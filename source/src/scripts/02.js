@@ -205,6 +205,14 @@ function visibleToRaw(src, v){
   let vis = 0;
   while (i < body.length && vis < v){
     const rest = body.slice(i);
+    /* 1.2.6：單字中間的底線（snake_case）現在照字面顯示（01.js EMPH_RE_*），是看得到的字元，
+       不能當成 Markdown 記號跳過，否則點進來時游標會偏一格。 */
+    if (rest[0] === '_') {
+      let r = 0; while (rest[r] === '_') r++;
+      if (/[\p{L}\p{N}]/u.test(body[i - 1] || '') && /[\p{L}\p{N}]/u.test(rest[r] || '')) {
+        const take = Math.min(r, v - vis); i += take; vis += take; continue;
+      }
+    }
     if (/^(\*\*\*|___)/.test(rest)) { i += 3; continue; }
     if (/^(\*\*|__|~~|==|\$\$)/.test(rest)) { i += 2; continue; }
     if (/^[*_`$]/.test(rest)) { i += 1; continue; }
@@ -1529,10 +1537,28 @@ let tableEdit = null;   // {i, el, model:{align[], rows[][]}, cell:{r,c}}
 
 /* CP49:跳脫感知斷欄(指南 §7.3「轉義儲存格中的 |」)。\|=字面 pipe 不斷欄且反跳脫;
    首尾框線剝除亦避開 \|。純函式,t10 測試行式抽取。 */
+/* 1.2.6：表格切欄時「數學」只算真正成立的數學（Pandoc 規則：開頭 $ 後不是空白、
+   收尾 $ 前不是空白且後面不接數字；$$ 要有同一行的收尾 $$）。舊版任何 $ 都翻轉狀態，
+   「| cost $5 | price $6 |」整列併成一格（B-25）。國際論文解析器 17.js 的 splitRow 與
+   06.js 的 cp162DScanTableLine 用同一個判斷。回傳數學區段結束的位置（不含），不成立回 -1。 */
+function tableMathSpanEnd(raw,k){
+  raw=String(raw);
+  if(raw[k]!=='$')return -1;
+  if(raw[k+1]==='$'){
+    for(let e=k+2;e<raw.length-1;e++){if(raw[e]==='\\'){e++;continue;}if(raw[e]==='$'&&raw[e+1]==='$')return e>k+2?e+2:-1;}
+    return -1;
+  }
+  if(!raw[k+1]||/\s/.test(raw[k+1]))return -1;
+  for(let e=k+1;e<raw.length;e++){
+    if(raw[e]==='\\'){e++;continue;}
+    if(raw[e]==='$'){if(/\s/.test(raw[e-1])||/[0-9]/.test(raw[e+1]||''))return -1;return e+1;}
+  }
+  return -1;
+}
 function splitTableRow(line){
   /* Markdown se() 的順序：code span → inline math → escaped slash/pipe → split。
      這裡用等價 state machine，避免 placeholder 與私用字元碰撞。 */
-  const raw=String(line),out=[];let cur='',codeRun=0,mathRun=0;
+  const raw=String(line),out=[];let cur='',codeRun=0;
   for(let k=0;k<raw.length;k++){
     const ch=raw[k];
     if(ch==='\\'){
@@ -1540,17 +1566,17 @@ function splitTableRow(line){
       if(raw[k+1]==='|'){cur+='|';k++;continue;}
       cur+=ch;continue;
     }
-    if(ch==='`'&&!mathRun){
+    if(ch==='`'){
       let j=k;while(raw[j]==='`')j++;const n=j-k;
       if(!codeRun)codeRun=n;else if(codeRun===n)codeRun=0;
       cur+=raw.slice(k,j);k=j-1;continue;
     }
     if(ch==='$'&&!codeRun){
-      let j=k;while(raw[j]==='$')j++;const n=j-k;
-      if(!mathRun)mathRun=n;else if(mathRun===n)mathRun=0;
-      cur+=raw.slice(k,j);k=j-1;continue;
+      const e=tableMathSpanEnd(raw,k);
+      if(e>0){cur+=raw.slice(k,e);k=e-1;continue;}
+      cur+=ch;continue;
     }
-    if(ch==='|'&&!codeRun&&!mathRun){out.push(cur.trim());cur='';continue;}
+    if(ch==='|'&&!codeRun){out.push(cur.trim());cur='';continue;}
     cur+=ch;
   }
   out.push(cur.trim());
@@ -2366,7 +2392,7 @@ function hideCtxMenu(){
 }
 function ctxPaste(){
   if (!(navigator.clipboard && navigator.clipboard.readText)){
-    toast(TT('瀏覽器不允許讀剪貼簿,請用 ⌘V 貼上','Clipboard blocked — use Ctrl/⌘+V'));
+    toast(TT('瀏覽器不允許讀剪貼簿，請用 ⌘V 貼上','Clipboard blocked — use Ctrl/⌘+V'));
     return;
   }
   navigator.clipboard.readText().then(text => {
@@ -2378,8 +2404,8 @@ function ctxPaste(){
       ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
     } catch(_){}
     if (ev && ev.clipboardData) editor.dispatchEvent(ev);
-    else toast(TT('此瀏覽器不支援程式化貼上,請用 ⌘V','Paste unsupported here — use Ctrl/⌘+V'));
-  }).catch(() => toast(TT('讀取剪貼簿被拒,請用 ⌘V 貼上','Clipboard read denied — use Ctrl/⌘+V')));
+    else toast(TT('此瀏覽器不支援程式化貼上，請用 ⌘V','Paste unsupported here — use Ctrl/⌘+V'));
+  }).catch(() => toast(TT('讀取剪貼簿被拒，請用 ⌘V 貼上','Clipboard read denied — use Ctrl/⌘+V')));
 }
 function showCtxMenu(x, y){
   if (!ctxMenuEl){
@@ -2391,7 +2417,7 @@ function showCtxMenu(x, y){
     ctxMenuEl.innerHTML =
       b('copyMD',   TT('複製為 Markdown','Copy as Markdown'), '⇧⌘C') +
       b('copyTex',  TT('複製為 LaTeX','Copy as LaTeX'), '') +
-      b('copyWord', TT('複製為 HTML(Word 可貼)','Copy as HTML (for Word)'), '') +
+      b('copyWord', TT('複製為 HTML（Word 可貼）','Copy as HTML (for Word)'), '') +
       '<div class="cm-sep"></div>' +
       b('paste',    TT('貼上','Paste'), '⌘V') +
       b('selAll',   TT('全選','Select All'), '⌘A');

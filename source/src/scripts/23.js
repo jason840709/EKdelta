@@ -115,11 +115,13 @@ const OPTION_DOCS = {
                                     'Two columns, close to the published look, abstract directly under the title. Use it to judge whether the paper looks right.']],
            [['preprint','preprint'],['單欄寬行距，給審稿人批註用。官方會在摘要正前方加入可選軟分頁：短稿可能留在首頁，當後續正文變長時，TeX 可能改讓摘要從第二頁開始。',
                                       'One column with wide leading, for reviewers. The class inserts an optional soft break immediately before the abstract: a short paper may keep it on page one, while a longer body can make TeX start it on page two.']],
-           [['manuscript','manuscript'],['雙倍行距投稿版，部分期刊的投稿要求。',
-                                          'Double-spaced submission format, required by some journals.']],
-           [['galley','galley'],['長條校樣，單欄不分頁。','A galley proof: one column, unpaginated.']]],
-    when: ['自己校稿看版面用 reprint；期刊要求雙倍行距時用 manuscript。',
-           'Use reprint to check the layout yourself; use manuscript when the journal asks for double spacing.'],
+           [['twocolumn','twocolumn'],['雙欄的投稿稿件；部分期刊接受用雙欄送審。',
+                                        'A two-column manuscript; some journals accept two-column submissions.']],
+           [['galley','galley'],['長條校樣，單欄不分頁。','A galley proof: one column, unpaginated.']],
+           [['checkin','checkin'],['內部審閱用，頁首印上日期。','For internal review; the header shows the date.']]],
+    /* 1.2.8：manuscript 是官方已廢棄的 preprint 舊名，選單從來沒有它，說明也拿掉。 */
+    when: ['自己校稿、看排出來像不像期刊用 reprint；投稿送審多半用 preprint（單欄寬行距，方便審稿人批註）。',
+           'Use reprint to see the published look; most submissions use preprint (one column, wide spacing for referees).'],
   },
   revtexAddress: {
     what: ['★ 作者與服務單位怎麼對應。多單位論文一定要選對，否則第一頁會完全不像原稿。',
@@ -157,8 +159,8 @@ const OPTION_DOCS = {
   revtexFontSize: {
     what: ['正文字級。這不是單純縮放；REVTeX 的 preprint 與 reprint 各自帶有相容的字級 grid。',
            'Body type size. This is not mere zoom: REVTeX preprint and reprint each carry a compatible type-size grid.'],
-    opts: [[['依排版模式自動','Automatic by mode'],['不輸出額外字級；preprint／manuscript 由官方選 12pt，reprint 由官方選 10pt。切換排版模式時會回到這個安全值。',
-                                                     'Emits no extra size option: official preprint/manuscript selects 12pt and reprint selects 10pt. Changing mode returns to this safe value.']],
+    opts: [[['依模式','By layout'],['不輸出額外字級；preprint 由官方選 12pt，reprint 由官方選 10pt。切換排版模式時會回到這個安全值。',
+                                                     'Emits no extra size option: official preprint selects 12pt and reprint selects 10pt. Changing mode returns to this safe value.']],
            [['10pt','10pt'],['正式雙欄 reprint 的標準 grid。','The standard grid for formal two-column reprint output.']],
            [['11pt／12pt','11pt / 12pt'],['只用於期刊明確允許的特殊情況。AIP reprint + Letter + 雙欄會自動收斂回「依排版模式自動」，避免第一頁文字逼近紙張下緣。',
                                         'Only for explicitly permitted special cases. AIP reprint + Letter + two columns is normalized back to Automatic to keep first-page text away from the sheet edge.']]],
@@ -291,253 +293,135 @@ const OPTION_DOCS = {
 };
 /* i18n:end */
 
+/* 1.2.8（M36，Jason 11-08：版面設定還像早期 ChatGPT 做的版本）：外觀改成和偏好設定同一套（一列一個設定、
+   細線分段、不用卡片），字只有 13／12px。研究投稿實際會改的項目後（設計方案第 2 節），上面只放
+   「投稿目標」與「常用」兩組；其餘收進「更多設定」。標籤改成雙語，不再靠 i18n 字典事後翻譯。
+   info:true 的項目旁有「i」，點開是 OPTION_DOCS 的詳細說明（只給真正容易選錯的項目）。 */
+const L = (zh, en) => [zh, en];
 const GROUPS = [
-  {
-    title: '期刊與版式',
-    hint: '決定整份稿件的基本樣式。改這一組通常會讓頁數整個變動。',
-    items: [
-      { k: 'revtexSociety', label: '學會', type: 'select',
-        opts: [['aps', 'APS（美國物理學會）'], ['aip', 'AIP（美國物理聯合會）'],
-               ['aapm', 'AAPM（美國醫學物理學家學會）'], ['sor', 'SOR（流變學會）']],
-        note: '決定套用哪一份官方 .rtx 樣式覆寫；換學會時期刊清單會跟著換' },
-      { k: 'revtexJournal', label: '期刊', type: 'select',
-        /* 期刊清單依學會連動（見下方 JOURNALS_BY_SOCIETY）。這裡只放預設的
-           APS 清單當初始值，實際內容由 syncJournalOptions() 依學會重建。
-           清單全部取自官方套件的 \DeclareOption{<代碼>}{\change@journal}
-           宣告，不是憑印象列的——先前把 AIP 的 apl/jap/jcp 混進 APS 清單、
-           又列了官方根本不存在的 prresearch，選到就會被 REVTeX 靜默忽略
-           並 fallback 成預設期刊，使用者完全不會收到任何提示。 */
-        opts: [['prl', 'PRL']],
-        note: '各期刊的標題、摘要與書目細節不同；清單已對齊官方 .rtx 宣告' },
-      { k: 'revtexMode', label: '排版模式', type: 'select',
-        opts: [['reprint', 'reprint（雙欄緊排，接近見刊樣貌）'],
-               ['preprint', 'preprint（單欄寬行距，投稿審閱用）'],
-               ['twocolumn', 'twocolumn'],
-               ['galley', 'galley（長條校樣，單欄不分頁）'],
-               ['checkin', 'checkin（內部審稿：頁首顯示日期）']],
-        /* ★ 官方 cls 裡「manuscript」是已廢棄選項，內部直接
-           \ExecuteOptions{preprint} 並發出 obsolete 警告——它不是獨立
-           模式，只是 preprint 的舊名。先前這裡的說明文字誤植了這個字眼，
-           讓人誤以為選單漏了什麼，其實選單從來沒有、也不該有這個選項。 */
-        note: 'preprint 會在摘要正前方加入可選軟分頁；短稿可能留在首頁，正文變長後 TeX 可能改從第二頁開始。這不是固定獨立標題頁。' },
-      { k: 'revtexColumns', label: '欄數', type: 'select',
-        opts: [['auto', '依模式自動'], ['onecolumn', '單欄'], ['twocolumn', '雙欄']] },
-      { k: 'revtexPaper', label: '紙張', type: 'select',
-        /* 官方 cls 第 5938-5962 行證實：a5paper/b5paper/legalpaper/
-           executivepaper 這四個選項只設定 \paperwidth/\paperheight
-           （送印的實體紙張尺寸），完全不連動調整 \linewidth/\textwidth
-           （版心寬度）——版心永遠固定在跟 letterpaper 相同的 510pt，
-           而 a5 紙張本身只有 421pt 寬，版心比紙張還寬 89pt。矩陣測試
-           實測：這四種紙張下，任何跨欄內容都會被印到紙張邊界外，
-           肉眼截圖清楚可見（見 CP171_矩陣測試計畫 v2 的 L2 記錄）。
-           官方作者指南全文沒有提到這四個選項的任何使用說明，判斷這是
-           REVTeX 本身的已知邊緣情況，不是能在轉譯層修正的問題——
-           因此面板只暴露版心行為正常的 letterpaper／a4paper。 */
-        opts: [['letterpaper', 'Letter'], ['a4paper', 'A4']] },
-      { k: 'revtexFontSize', label: '字級', type: 'select',
-        opts: [['auto', '依排版模式自動（preprint 12pt／reprint 10pt）'],
-               ['10pt', '10pt'], ['11pt', '11pt'], ['12pt', '12pt']],
-        note: '切換排版模式時會回到自動。AIP reprint + Letter + 雙欄的 11pt／12pt 會自動校正為官方模式字級，避免第一頁下緣溢位。' },
-      { k: 'revtexEndfloats', label: '浮動體位置', type: 'select',
-        /* 官方 cls：\DeclareOption{endfloats} 關掉 floats@sw；
-           endfloats* 額外開 floatp@sw（每個浮動體各自獨立成頁，
-           而非集中排在一起）。多數期刊投稿要求圖表集中在文末，
-           這是常被忽略但實際投稿常用的選項。 */
-        opts: [['inline', '穿插在正文中（預設）'],
-               ['endfloats', '集中在文件最後'],
-               ['endfloats*', '集中在文件最後，各自獨立成頁']] },
-      { k: 'revtexBottomAlign', label: '版面底部對齊', type: 'select',
-        opts: [['flushbottom', '齊底（預設，拉伸行距對齊）'],
-               ['raggedbottom', '不齊底（允許留白）']] },
-      { k: 'revtexSides', label: '單雙面', type: 'select',
-        opts: [['twoside', '雙面'], ['oneside', '單面']] }
-    ]
-  },
-  {
-    title: '作者與前置',
-    items: [
-      { k: 'revtexAddress', label: '單位排列', type: 'select',
-        opts: [['groupedaddress', '分組（同單位作者併列）'],
-               ['superscriptaddress', '上標編號（多單位常用）'],
-               ['unsortedaddress', '不排序'], ['runinaddress', '接排']] },
-      { k: 'revtexAltaffilStyle', label: '現職單位標記樣式', type: 'select',
-        /* \altaffiliation（作者現在所屬的其他單位）的標記符號用字母
-           還是符號區分。官方 cls 預設值是 symbol（\@booleanfalse
-           altaffilletter@sw 出現在 DeclareOption 區塊外、屬於預設
-           初始化），這裡的 UI 預設值要跟官方一致。 */
-        opts: [['symbol', '符號（*, †, ‡ …，預設）'], ['letter', '字母（a, b, c …）']] },
-      { k: 'revtexTitlePage', label: '首頁前置區分頁', type: 'select',
-        /* 三態不是單純 titlepage bool。官方 preprint 的摘要前軟分頁由
-           preprintsty@sw 控制，notitlepage 只切 titlepage@sw，兩者互相獨立。
-           因此 off 除了輸出 notitlepage，發射器也會局部抑制摘要前軟分頁；
-           auto 則零注入，保留可和官方手寫 LaTeX 做像素 parity 的行為。 */
-        opts: [['auto', '依官方行為（摘要可能換頁）'], ['on', '強制獨立標題頁'], ['off', '強制連續首頁（抑制摘要前軟分頁）']] },
-      { k: 'revtexPreprintNumbers', label: '顯示 preprint 編號', type: 'bool' },
-      { k: 'revtexShowPacs', label: '顯示 PACS', type: 'bool' },
-      { k: 'revtexShowKeys', label: '顯示關鍵字', type: 'bool' }
-    ]
-  },
-  {
-    title: '文獻與註腳',
-    items: [
-      { k: 'revtexCitation', label: '引用樣式', type: 'select',
-        opts: [['numerical', '數字 [1]'], ['author-year', '作者年份 (Smith 2026)']] },
-      { k: 'revtexLongBibliography', label: '完整書目（含標題）', type: 'bool' },
-      { k: 'revtexEprint', label: '顯示 arXiv eprint', type: 'bool' },
-      { k: 'revtexBibnotes', label: '註腳併入書目', type: 'bool',
-        note: 'REVTeX 用書目機制實作腳註，這個開關決定它們排在頁尾還是書目區' },
-      { k: 'revtexFootInBib', label: 'footinbib', type: 'bool' }
-    ]
-  },
-  {
-    title: '版面微調',
-    hint: '這一組是真正的「微調」——改了通常只動局部，不會整份重排。',
-    items: [
-      { k: 'revtexBalanceLastPage', label: '末頁平衡雙欄', type: 'bool' },
-      { k: 'revtexTightenLines', label: '緊排行距', type: 'bool' },
-      { k: 'revtexFloatFix', label: '浮動體修正（floatfix）', type: 'bool',
-        note: '避免圖表卡在頁尾排不下時無限往後推' },
-      { k: 'revtexFleqn', label: '公式靠左（fleqn）', type: 'bool' },
-      { k: 'revtexEqSecNum', label: '式號依章節編號', type: 'bool' },
-      { k: 'revtexSecNumArabic', label: '章節用阿拉伯數字', type: 'bool' },
-      { k: 'revtexLineNumbers', label: '顯示行號', type: 'bool',
-        note: '有些期刊審稿要求' },
-      { k: 'revtexLengthCheck', label: '長度檢查', type: 'bool',
-        note: 'PRL 有頁數上限時很有用' },
-      { k: 'revtexDraft', label: 'draft 模式', type: 'bool',
-        note: '編譯較快，圖片以外框替代' },
-      { k: 'revtexLandscape', label: '橫向', type: 'bool' }
-    ]
-  },
-  {
-    title: '套件與進階',
-    items: [
-      { k: 'revtexAmsmath', label: 'amsmath', type: 'bool' },
-      { k: 'revtexAmssymb', label: 'amssymb', type: 'bool' },
-      { k: 'revtexHyperref', label: 'hyperref（超連結）', type: 'bool' },
-      { k: 'texBooktabs', label: '表格用 booktabs 三線', type: 'bool' },
-      { k: 'texListings', label: '程式碼用 listings', type: 'bool' },
-      { k: 'revtexExtraOptions', label: '額外 class option', type: 'text',
-        note: '逗號分隔。這裡填的東西會原樣加進 \\documentclass[...]' }
-    ]
-  }
+  { id: 'target', title: L('投稿目標', 'Target journal'), open: true, items: [
+    { k: 'revtexSociety', label: L('學會', 'Society'), type: 'select', info: true,
+      opts: [['aps', L('APS（美國物理學會）', 'APS (American Physical Society)')], ['aip', L('AIP（美國物理聯合會）', 'AIP (American Institute of Physics)')],
+             ['aapm', L('AAPM（醫學物理）', 'AAPM (Medical Physics)')], ['sor', L('SOR（流變學會）', 'SOR (Society of Rheology)')]] },
+    /* 期刊清單依學會連動（JOURNALS_BY_SOCIETY），由 syncJournalOptions() 重建。 */
+    { k: 'revtexJournal', label: L('期刊', 'Journal'), type: 'select', info: true, opts: [['prl', L('PRL', 'PRL')]] },
+    /* 官方 cls 裡 manuscript 是 preprint 的舊名（obsolete），不列。 */
+    { k: 'revtexMode', label: L('排版模式', 'Layout'), type: 'select', info: true,
+      opts: [['reprint', L('reprint：接近見刊樣貌', 'reprint: as published')],
+             ['preprint', L('preprint：審稿稿件，單欄寬行距', 'preprint: referee copy, one column')],
+             ['twocolumn', L('twocolumn：雙欄稿件', 'twocolumn: two-column manuscript')],
+             ['galley', L('galley：長條校樣', 'galley: galley proof')],
+             ['checkin', L('checkin：內部審閱，頁首印日期', 'checkin: internal review, dated header')]] },
+    /* a5／b5／legal／executive 四種紙張官方不調整版心（版心比紙寬），只開放 Letter 與 A4。 */
+    { k: 'revtexPaper', label: L('紙張', 'Paper'), type: 'seg', opts: [['letterpaper', L('Letter', 'Letter')], ['a4paper', L('A4', 'A4')]] }
+  ] },
+  { id: 'common', title: L('常用', 'Common'), open: true, items: [
+    { k: 'revtexAddress', label: L('作者單位排法', 'Affiliations'), type: 'select', info: true,
+      opts: [['superscriptaddress', L('上標編號（多個單位時常用）', 'Superscript numbers (for many affiliations)')],
+             ['groupedaddress', L('同單位的作者排在一起', 'Authors grouped by affiliation')],
+             ['unsortedaddress', L('照作者順序，不合併', 'In author order, not merged')],
+             ['runinaddress', L('接在作者名字後面', 'Run in after the names')]] },
+    { k: 'revtexCitation', label: L('引用樣式', 'Citations'), type: 'seg', info: true,
+      opts: [['numerical', L('數字 [1]', 'Numbers [1]')], ['author-year', L('作者年份', 'Author–year')]] },
+    { k: 'revtexLongBibliography', label: L('書目列出文章標題', 'Article titles in references'), type: 'bool', info: true },
+    { k: 'revtexLineNumbers', label: L('審稿行號', 'Line numbers'), type: 'bool', note: L('部分期刊送審時要求。', 'Some journals ask for them in review.') },
+    /* endfloats 關掉 floats@sw；endfloats* 再開 floatp@sw，每個浮動體各自一頁。 */
+    { k: 'revtexEndfloats', label: L('圖表位置', 'Figures and tables'), type: 'select',
+      opts: [['inline', L('穿插在正文裡', 'Within the text')], ['endfloats', L('集中在文末', 'At the end')], ['endfloats*', L('集中在文末，每個一頁', 'At the end, one per page')]] }
+  ] },
+  { id: 'layout', title: L('版式', 'Layout details'), items: [
+    { k: 'revtexColumns', label: L('欄數', 'Columns'), type: 'seg', info: true,
+      opts: [['auto', L('依模式', 'By layout')], ['onecolumn', L('單欄', 'One')], ['twocolumn', L('雙欄', 'Two')]] },
+    { k: 'revtexFontSize', label: L('字級', 'Type size'), type: 'select', info: true,
+      opts: [['auto', L('依模式', 'By layout')], ['10pt', L('10pt', '10pt')], ['11pt', L('11pt', '11pt')], ['12pt', L('12pt', '12pt')]],
+      note: L('依模式：preprint 12pt、reprint 10pt；換排版模式時回到依模式。', 'By layout: preprint 12pt, reprint 10pt; resets when the layout changes.') },
+    { k: 'revtexSides', label: L('單雙面', 'Sides'), type: 'seg', info: true, opts: [['twoside', L('雙面', 'Two-sided')], ['oneside', L('單面', 'One-sided')]] },
+    { k: 'revtexBottomAlign', label: L('頁底', 'Page bottoms'), type: 'seg', opts: [['flushbottom', L('齊底', 'Flush')], ['raggedbottom', L('不齊底', 'Ragged')]] },
+    /* 三態不是單純 titlepage：off 除了 notitlepage，發射器也抑制 preprint 摘要前的軟分頁；auto 零注入。 */
+    { k: 'revtexTitlePage', label: L('標題與摘要', 'Title and abstract'), type: 'select', info: true,
+      opts: [['auto', L('照期刊樣式', 'As the journal does')], ['on', L('獨立標題頁', 'Separate title page')], ['off', L('與正文連續', 'Continuous with the text')]] },
+    { k: 'revtexLandscape', label: L('橫向紙張', 'Landscape'), type: 'bool', info: true },
+    { k: 'revtexDraft', label: L('草稿模式', 'Draft'), type: 'bool', info: true, note: L('編譯較快，圖片以外框代替。', 'Faster; images show as frames.') }
+  ] },
+  { id: 'front', title: L('作者與前置', 'Front matter'), items: [
+    /* 官方預設 symbol（altaffilletter@sw 預設 false）。 */
+    { k: 'revtexAltaffilStyle', label: L('現職單位標記', 'Alternate affiliation marks'), type: 'seg',
+      opts: [['symbol', L('符號 * † ‡', 'Symbols * † ‡')], ['letter', L('字母 a b c', 'Letters a b c')]] },
+    { k: 'revtexPreprintNumbers', label: L('顯示預印本編號', 'Show preprint numbers'), type: 'bool' },
+    { k: 'revtexShowPacs', label: L('顯示 PACS', 'Show PACS'), type: 'bool', info: true },
+    { k: 'revtexShowKeys', label: L('顯示關鍵字', 'Show keywords'), type: 'bool', info: true }
+  ] },
+  { id: 'refs', title: L('文獻與註腳', 'References and notes'), items: [
+    { k: 'revtexEprint', label: L('顯示 arXiv 編號', 'Show arXiv numbers'), type: 'bool', info: true },
+    { k: 'revtexBibnotes', label: L('作者附註放進書目', 'Author notes in references'), type: 'bool' },
+    { k: 'revtexFootInBib', label: L('腳註併入書目', 'Footnotes in references'), type: 'bool', info: true,
+      note: L('要有 .bib 檔；手寫書目時仍排在頁底。', 'Needs a .bib file; with typed references they stay at the page foot.') }
+  ] },
+  { id: 'tune', title: L('微調', 'Fine tuning'), items: [
+    { k: 'revtexBalanceLastPage', label: L('末頁兩欄等高', 'Balance the last page'), type: 'bool' },
+    { k: 'revtexTightenLines', label: L('緊排行距', 'Tighten lines'), type: 'bool' },
+    { k: 'revtexFloatFix', label: L('圖表排不下時不一直往後推', 'Float fix'), type: 'bool', info: true },
+    { k: 'revtexFleqn', label: L('公式靠左', 'Left-aligned equations'), type: 'bool' },
+    { k: 'revtexEqSecNum', label: L('式號依章節', 'Equation numbers by section'), type: 'bool' },
+    { k: 'revtexSecNumArabic', label: L('章節用阿拉伯數字', 'Arabic section numbers'), type: 'bool' },
+    { k: 'revtexLengthCheck', label: L('長度檢查', 'Length check'), type: 'bool', note: L('PRL 有頁數上限時用。', 'Useful for PRL’s length limit.') }
+  ] },
+  { id: 'pkg', title: L('套件', 'Packages'), items: [
+    { k: 'revtexAmsmath', label: L('amsmath', 'amsmath'), type: 'bool', note: L('文件用到時一定會載入；這裡決定沒用到時要不要也載入。', 'Always loaded when used; this decides whether to load it otherwise.') },
+    { k: 'revtexAmssymb', label: L('amssymb', 'amssymb'), type: 'bool' },
+    { k: 'revtexHyperref', label: L('hyperref（超連結）', 'hyperref (links)'), type: 'bool' },
+    { k: 'texBooktabs', label: L('表格用 booktabs 三線', 'booktabs rules in tables'), type: 'bool' },
+    { k: 'texListings', label: L('程式碼用 listings', 'listings for code'), type: 'bool' },
+    { k: 'revtexExtraOptions', label: L('其他 REVTeX 選項', 'Other REVTeX options'), type: 'text', info: true, ph: L('例如 nofootinbib', 'e.g. nofootinbib') }
+  ] }
 ];
 
 const CSS = `
-/* ---------- 動畫規約（依 Emil Kowalski / Apple Design 標準）-------------
- * 面板開啟屬於「occasional」頻率（使用者調版面設定時才開），適用 standard
- * animation。先前是 display:none/block 硬切換，完全沒有過渡——內容瞬間
- * 憑空出現，使用者無從判斷「這是新開的一層」還是「原本的內容被換掉了」。
- *
- * 選用：
- *   目的  = state indication（進入設定模式）+ spatial consistency（從上方落下）
- *   曲線  = ease-out 系（進場動畫不可用 ease-in——它把使用者最在意的那一刻
- *           延後，是硬性違規）
- *   時長  = 180ms（UI 動畫需 < 300ms）
- *   屬性  = 只用 transform / opacity（GPU 合成，不觸發 layout）
- *   起點  = translateY(-6px) + opacity 0，不用 scale(0)（那會像從無到有
- *           長出來，不像一層蓋上來）
- * display 不能參與 transition，所以用 @starting-style 讓瀏覽器知道
- * 「從哪個狀態開始」；不支援的瀏覽器就直接顯示，不會壞掉。
- */
-#${ID}{display:none;position:absolute;inset:0;z-index:30;overflow-y:auto;
-  background:var(--bg-editor,var(--bg,#fff));padding:52px 26px 60px;
-  font:12.5px/1.6 var(--font-ui,ui-sans-serif,system-ui,sans-serif);color:var(--text,inherit)}
+/* 版面設定蓋在左半邊（右半的 PDF 保持顯示）。控制項沿用偏好設定的 .ekp-* 元件，見 32.js「偏好設定（M32）」一段：
+   1.2.8 起那一段的選擇器同時套用到 #cp171-settings-pane。
+   進場：從上方 6px 淡入 160ms（ease-out），減量模式由 show() 以 WAAPI 只做淡入——全域減量政策會蓋掉非 !important 的 CSS 變體。 */
+#${ID}{display:none;position:absolute;inset:0;z-index:30;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;
+  padding:12px var(--space-6) var(--space-8);background:var(--ui-canvas);color:var(--ui-text-strong);
+  font:var(--fs-13)/var(--lh-13) var(--font-ui)}
 body.cp171-settings-open #${ID}{display:block}
 body.cp171-settings-open #editor{visibility:hidden}
-/* ---------- 動畫規約（依 Emil Kowalski / Apple Design 標準）-------------
- * 面板開啟屬「occasional」頻率，適用 standard animation。先前是
- * display:none/block 硬切換，內容瞬間憑空出現，使用者無從判斷這是新開
- * 的一層還是原本內容被換掉。
- *   目的 = state indication（進入設定模式）+ spatial consistency（從上落下）
- *   曲線 = ease-out 系（進場不可用 ease-in，它把使用者最在意的那一刻延後）
- *   時長 = 180ms（UI 動畫需 < 300ms）
- *   屬性 = 只用 transform / opacity（GPU 合成，不觸發 layout）
- *   起點 = translateY(-6px)+opacity 0，不用 scale(0)（那像從無到有長出來）
- * ★ 這段必須放在上面的基礎規則「之後」：同一個選擇器權重相同時後者勝出，
- *   寫在前面會被 body.cp171-settings-open #ID{display:block} 那行洗掉，
- *   減量版就永遠不會生效（實測用 reduced_motion 情境抓到過）。 */
-/* @keyframes 定義在 media query 之外：巢狀在 @media 內雖然合法，但各家
-   瀏覽器對「規則可見性」的處理不一致，實測有拿不到的情況。定義放外面、
-   只用 media query 決定「套哪一支」最穩。 */
-@keyframes cp171SettingsIn{
-  from{opacity:0;transform:translateY(-6px)}
-  to{opacity:1;transform:none}
-}
+@keyframes cp171SettingsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: no-preference){
-  body.cp171-settings-open #${ID}{
-    animation:cp171SettingsIn var(--mac-dur-base,180ms) var(--mac-ease-out,cubic-bezier(.22,1,.36,1)) both;
-  }
+  body.cp171-settings-open #${ID}{animation:cp171SettingsIn var(--dur-short) var(--ease-out) both}
 }
-/* ---------- 減量動畫：由 JS（WAAPI）驅動，CSS 不再嘗試 ----------
-   標準要求「gentler, not zero」——完全不動反而讓人以為畫面卡住，
-   所以減量版仍保留 120ms 淡入，只拿掉位移。
-   ★ 為什麼 CSS 做不到（1.1.3.10.5 更正歸因）：主程式 CP139 起就有
-   全域政策「@media reduce{ *{animation:none!important;
-   transition:none!important} }」，任何非 !important 的 CSS 減量變體
-   （keyframes 內嵌 media／外置／獨立宣告／transition+@starting-style
-   四種寫法）都被它蓋掉，animationstart／transitionstart 事件因此皆為
-   空陣列。10.2–10.3 期間誤判為 Chromium 對 display:none→block 的觸發
-   時機問題——結論（CSS 不可行）碰巧正確，歸因錯誤。
-   WAAPI（element.animate）不走 CSS 層級，不受該政策影響，因此由
-   show() 排程 120ms 淡入。實作見本檔 show()。
-   （另一教訓不變：getComputedStyle 回報 animationName:none 是 both
-   填充模式播完後的正常行為，驗證觸發必須掛事件，不能看 computed。） */
-#${ID} h2{margin:0 0 4px;font-size:15px;font-weight:750}
-#${ID} .cp171-s-lead{margin:0 0 20px;font-size:11.5px;color:var(--text-muted,#888);line-height:1.7}
-#${ID} .cp171-s-grp{margin:0 0 22px;padding:0 0 4px}
-#${ID} .cp171-s-grp>h3{margin:0 0 3px;font-size:12px;font-weight:750;letter-spacing:.02em}
-#${ID} .cp171-s-grp>p.hint{margin:0 0 10px;font-size:11px;color:var(--text-muted,#888)}
-#${ID} .cp171-s-info{margin-left:6px;width:15px;height:15px;padding:0;flex:0 0 auto;
-  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
-  border:1px solid var(--border,rgba(128,128,128,.45));border-radius:50%;
-  background:transparent;color:var(--text-muted,#888);
-  font:600 10px/1 ui-sans-serif,system-ui,sans-serif;cursor:help;opacity:.7;
-  transition:opacity var(--mac-dur-fast,150ms) var(--mac-ease-out,ease)}
-#${ID} .cp171-s-info:hover{opacity:1;color:var(--accent,inherit);border-color:var(--accent,currentColor)}
-#cp171-s-pop{position:fixed;z-index:2147483000;max-height:min(60vh,420px);overflow:auto;
-  padding:12px 14px;border:1px solid var(--border,rgba(128,128,128,.35));
-  border-radius:var(--mac-radius-popover,12px);
-  background:var(--bg-panel,var(--bg-editor,#fff));color:var(--text,#222);
-  box-shadow:var(--mac-shadow-popover,0 8px 28px rgba(0,0,0,.18));
-  font-size:12px;line-height:1.7;-webkit-overflow-scrolling:touch}
+#${ID} .cp171-s-inner{max-width:620px;margin:0 auto}
+/* 標題列黏在上面：捲動時內容從它底下經過，不會跑到右上角的「回到編輯」底下 */
+#${ID} .cp171-s-head{position:sticky;top:-12px;z-index:2;display:flex;flex-direction:column;justify-content:center;min-height:30px;
+  margin:-12px calc(var(--space-6) * -1) var(--space-4);padding:12px calc(var(--space-6) + 110px) var(--space-2) var(--space-6);background:var(--ui-canvas)}
+#${ID} .cp171-s-head .ekp-h{margin:0}
+#${ID} .ekp-group-h:first-of-type{margin-top:0}
+#${ID} .ekp-select{width:280px}
+#${ID} .ekp-input{width:280px;font-family:var(--font-mono)}
+#${ID} .ekp-label>span{display:inline-flex;align-items:center;gap:var(--space-1h)}
+#${ID} .cp171-s-more{margin-top:var(--space-5)}
+#${ID} .cp171-s-foot{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-5);padding-top:var(--space-3);border-top:.5px solid var(--ui-line)}
+#${ID} code.cp171-s-cls{display:block;padding:var(--space-2) var(--space-3);border-radius:var(--r-sm);background:var(--ui-track);
+  color:var(--ui-text);font:var(--fs-12)/var(--lh-12) var(--font-mono);word-break:break-all}
+#${ID} .cp171-s-foot .ekp-link{align-self:flex-start}
+#${ID} .cp171-s-info{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;
+  border:1px solid var(--ui-line-strong);border-radius:50%;background:transparent;color:var(--ui-text-muted);
+  font:var(--fw-medium) 10px/1 var(--font-ui);cursor:help}
+@media (hover:hover) and (pointer:fine){#${ID} .cp171-s-info:hover{color:var(--ui-accent);border-color:var(--ui-accent)}}
+#${ID} .cp171-s-info:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+#cp171-s-pop{position:fixed;z-index:2147483000;max-height:min(60vh,420px);overflow:auto;padding:var(--space-3) var(--space-4);
+  color:var(--ui-text);font:var(--fs-12)/1.65 var(--font-ui)}
 #cp171-s-pop[hidden]{display:none}
-#cp171-s-pop h4{margin:0 0 6px;font-size:12.5px;font-weight:700}
-#cp171-s-pop p{margin:0 0 8px}
-#cp171-s-pop dl{margin:0 0 8px;padding:0}
-#cp171-s-pop dt{margin:6px 0 2px;font-weight:600;color:var(--text-strong,inherit)}
-#cp171-s-pop dd{margin:0 0 4px;padding-left:10px;border-left:2px solid var(--border,rgba(128,128,128,.3));
-  color:var(--text-muted,#888)}
-#cp171-s-pop .when{margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border,rgba(128,128,128,.25))}
-#${ID} .cp171-s-row{display:grid;grid-template-columns:minmax(120px,32%) 1fr;gap:10px;
-  align-items:start;padding:7px 0;border-bottom:1px solid var(--border,rgba(128,128,128,.16))}
-#${ID} .cp171-s-row>label{display:flex;align-items:center;font-size:12px;font-weight:600;padding-top:3px}
-#${ID} .cp171-s-row .val{display:flex;flex-direction:column;gap:3px}
-#${ID} .cp171-s-row small{font-size:10.5px;color:var(--text-muted,#888);line-height:1.55}
-#${ID} select,#${ID} input[type=text]{height:28px;padding:0 8px;border:1px solid var(--border,rgba(128,128,128,.4));
-  border-radius:var(--mac-radius-control,8px);background:var(--bg,transparent);color:inherit;font:12px/1 var(--font-ui,inherit);max-width:340px}
-#${ID} input[type=checkbox]{width:16px;height:16px;margin:4px 0}
-#${ID} .cp171-s-foot{position:sticky;bottom:-60px;margin:24px -26px -60px;padding:12px 26px;
-  background:var(--bg-panel,rgba(250,250,252,.96));border-top:1px solid var(--border,rgba(128,128,128,.3));
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#${ID} .cp171-s-foot button{height:28px;padding:0 12px;border:1px solid var(--border,rgba(128,128,128,.4));
-  border-radius:var(--mac-radius-control,8px);background:var(--bg,transparent);color:inherit;font:650 11.5px/1 var(--font-ui,inherit);cursor:pointer}
-#${ID} .cp171-s-foot button[data-primary]{border-color:var(--accent,#3d6fd4);background:var(--accent,#3d6fd4);color:#fff}
-/* 設定面板的按鈕沿用與右側面板完全相同的互動語彙——同一個產品裡
-   「按鈕被按下」不該有兩種感覺。數值刻意與 cp171-56-split.js 一致：
-   hover 閘門、100ms ease-out 系過渡、按壓 scale(0.97)。 */
-@media (hover: hover) and (pointer: fine){
-  #${ID} .cp171-s-foot button:hover:not(:disabled){border-color:var(--accent,#3d6fd4)}
-  #${ID} .cp171-s-foot button:not([data-primary]):hover:not(:disabled){background:var(--accent-soft,rgba(61,111,212,.12))}
+#cp171-s-pop h4{margin:0 0 var(--space-1h);font-size:var(--fs-13);font-weight:var(--fw-medium);color:var(--ui-text-strong)}
+#cp171-s-pop p{margin:0 0 var(--space-2)}
+#cp171-s-pop dl{margin:0 0 var(--space-2);padding:0}
+#cp171-s-pop dt{margin:var(--space-1h) 0 var(--space-half);font-weight:var(--fw-medium);color:var(--ui-text-strong)}
+#cp171-s-pop dd{margin:0 0 var(--space-1);padding-left:var(--space-2);border-left:2px solid var(--ui-line);color:var(--ui-text-muted)}
+#cp171-s-pop .when{margin:var(--space-2) 0 0;padding-top:var(--space-2);border-top:.5px solid var(--ui-line)}
+@media (max-width:700px){
+  #${ID}{padding:12px var(--space-4) var(--space-8)}
+  #${ID} .cp171-s-head{margin-left:calc(var(--space-4) * -1);margin-right:calc(var(--space-4) * -1);padding-left:var(--space-4)}
+  #${ID} .ekp-select,#${ID} .ekp-input{width:min(280px,52vw)}
 }
-@media (prefers-reduced-motion: no-preference){
-  #${ID} .cp171-s-foot button:not(:disabled){transition:transform var(--mac-dur-instant,100ms) var(--mac-ease-out,cubic-bezier(.22,1,.36,1)),
-    background-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out),border-color var(--mac-dur-instant,100ms) var(--mac-ease-out,ease-out)}
-}
-#${ID} .cp171-s-foot button:active:not(:disabled){transform:scale(0.97)}
-#${ID} .cp171-s-foot .sp{flex:1}
-#${ID} code.cp171-s-cls{display:block;margin-top:8px;padding:8px 10px;border-radius:7px;
-  background:rgba(128,128,128,.12);font:10.5px/1.6 var(--font-mono,ui-monospace,monospace);word-break:break-all}
 `;
 
 let root = null, open = false, pending = null;
@@ -598,69 +482,68 @@ function refreshClassLine(){
   } catch (_) { el.textContent = '（無法產生）'; }
 }
 
+function lang(){
+  try { if (document.body && document.body.classList.contains('lang-en')) return 'en'; } catch (_) {}
+  try { return (typeof settings !== 'undefined' && settings && settings.lang === 'en') ? 'en' : 'zh'; } catch (_) { return 'zh'; }
+}
+const pickL = v => Array.isArray(v) ? (lang() === 'en' && v[1] ? v[1] : v[0]) : String(v == null ? '' : v);
+const escH = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+let builtLang = '';
+
+function rowHTML(it){
+  const id = 'cps-' + it.k, label = escH(pickL(it.label));
+  const info = it.info && OPTION_DOCS[it.k]
+    ? '<button type="button" class="cp171-s-info" data-info="' + it.k + '" aria-label="' + escH(pickL(L('說明：', 'About: '))) + label + '">i</button>' : '';
+  const note = it.note ? '<span class="ekp-note">' + escH(pickL(it.note)) + '</span>' : '';
+  if (it.type === 'bool') {
+    return '<label class="ekp-row ekp-switch" for="' + id + '"><span class="ekp-label"><span><span>' + label + '</span>' + info + '</span>' + note + '</span>'
+      + '<span class="ekp-ctl"><input type="checkbox" role="switch" id="' + id + '" data-key="' + it.k + '"></span></label>';
+  }
+  let ctl = '';
+  if (it.type === 'select') {
+    ctl = '<select class="ekp-select" id="' + id + '" data-key="' + it.k + '">'
+      + it.opts.map(o => '<option value="' + escH(o[0]) + '">' + escH(pickL(o[1])) + '</option>').join('') + '</select>';
+  } else if (it.type === 'seg') {
+    ctl = '<div class="ekp-seg" role="radiogroup" id="' + id + '" data-key="' + it.k + '" aria-label="' + label + '">'
+      + it.opts.map(o => '<button class="ekp-seg-btn" type="button" role="radio" data-value="' + escH(o[0]) + '" aria-checked="false">' + escH(pickL(o[1])) + '</button>').join('') + '</div>';
+  } else {
+    ctl = '<input class="ekp-input" type="text" id="' + id + '" data-key="' + it.k + '" spellcheck="false" placeholder="' + escH(pickL(it.ph || '')) + '">';
+  }
+  const lab = it.type === 'seg' ? '<span>' + label + '</span>' : '<label for="' + id + '">' + label + '</label>';
+  return '<div class="ekp-row"><div class="ekp-label"><span>' + lab + info + '</span>' + note + '</div><div class="ekp-ctl">' + ctl + '</div></div>';
+}
+
 function build(){
-  if (root && document.getElementById(ID)) return root;
+  if (root && document.getElementById(ID) && builtLang === lang()) return root;
   const scroller = document.getElementById('scroller');
   if (!scroller) return null;
   style();
+  if (root && root.parentNode) root.parentNode.removeChild(root);
+  builtLang = lang();
 
   root = document.createElement('div');
   root.id = ID;
   root.setAttribute('data-cp171', '');
+  root.setAttribute('role', 'region');
+  root.setAttribute('aria-label', pickL(L('版面設定', 'Layout settings')));
 
-  const parts = [];
-  parts.push('<h2>國際論文版面設定</h2>');
-  parts.push('<p class="cp171-s-lead">改任何一項，右邊的 PDF 會在 0.7 秒後重新編譯——'
-    + '你調的是 REVTeX 的 class option，看到的是真正的排版結果，不是模擬。<br>'
-    + '不需要記任何 LaTeX 指令；最下面會即時顯示這組設定實際產生的 <code>\\documentclass</code> 行。</p>');
-
-  /* main.tex 產生方式：使用者原話「我不太懂你在說哪裡，我要怎麼設定這個東西」——
-     指的是右半編譯狀態列偶爾出現的「main.tex 來自既有 CP166 發射器」提示。
-     那則提示是 CP171 自己的完整性檢查（engine.js 的 texMatches），不是校正模式；
-     校正模式已在 v4.0 整組退場。這裡補上一個看得到、按得到的開關，取代原本
-     只能打 console 呼叫 K.setFlag('takeoverTex', true) 才能切換的狀態。 */
-  parts.push('<section class="cp171-s-grp cp171-s-engine"><h3>main.tex 產生方式</h3>');
-  parts.push('<p class="hint">決定右邊的 PDF 實際編譯自哪一份 .tex。'
-    + '「CP171 發射器」跟這個版面設定面板保證一致（同一段程式碼算出來的）；'
-    + '「既有發射器」相容既有用原生語法寫的文件（相容語法範例、臺灣論文模板等），'
-    + '但不受這個面板任何一項設定影響。</p>');
-  parts.push('<div class="cp171-s-row"><label for="cps-engine-toggle">使用 CP171 發射器</label><div class="val">'
-    + '<input type="checkbox" id="cps-engine-toggle"><small id="cps-engine-note"></small></div></div>');
-  parts.push('</section>');
-
+  const parts = ['<div class="cp171-s-inner">'];
+  parts.push('<div class="cp171-s-head"><h2 class="ekp-h">' + escH(pickL(L('版面設定', 'Layout settings'))) + '</h2>'
+    + '<span class="ekp-note">' + escH(pickL(L('改了右邊會自動重新編譯。', 'Changes recompile the PDF on the right.'))) + '</span></div>');
+  let moreOpened = false;
   for (const g of GROUPS) {
-    parts.push('<section class="cp171-s-grp"><h3>' + g.title + '</h3>');
-    if (g.hint) parts.push('<p class="hint">' + g.hint + '</p>');
-    for (const it of g.items) {
-      /* label 後面的「i」：hover 或點擊都會開說明泡泡（見 OPTION_DOCS 與 infoHTML）。
-         泡泡內容可捲動，因為選項之間的差異一兩句話講不完。 */
-      const hasDoc = !!OPTION_DOCS[it.k];
-      parts.push('<div class="cp171-s-row"><label for="cps-' + it.k + '">' + it.label
-        + (hasDoc ? '<button type="button" class="cp171-s-info" data-info="' + it.k
-                  + '" aria-label="說明：' + it.label + '" title="說明">i</button>' : '')
-        + '</label><div class="val">');
-      if (it.type === 'select') {
-        parts.push('<select id="cps-' + it.k + '" data-key="' + it.k + '">'
-          + it.opts.map(o => '<option value="' + o[0] + '">' + o[1] + '</option>').join('') + '</select>');
-      } else if (it.type === 'bool') {
-        parts.push('<input type="checkbox" id="cps-' + it.k + '" data-key="' + it.k + '">');
-      } else {
-        parts.push('<input type="text" id="cps-' + it.k + '" data-key="' + it.k + '" placeholder="例如 nofootinbib,superscriptaddress">');
-      }
-      if (it.note) parts.push('<small>' + it.note + '</small>');
-      parts.push('</div></div>');
+    if (!g.open && !moreOpened) {
+      parts.push('<details class="ekp-adv cp171-s-more"><summary>' + escH(pickL(L('更多設定', 'More settings'))) + '</summary><div class="ekp-adv-body">');
+      moreOpened = true;
     }
-    parts.push('</section>');
+    parts.push('<div class="ekp-group-h">' + escH(pickL(g.title)) + '</div>');
+    for (const it of g.items) parts.push(rowHTML(it));
   }
-
-  parts.push('<div class="cp171-s-foot">');
-  parts.push('  <button id="cps-recompile" data-primary>立即重新編譯</button>');
-  parts.push('  <button id="cps-back">回到編輯</button>');
-  parts.push('  <span class="sp"></span>');
-  parts.push('  <button id="cps-reset">回到期刊預設</button>');
+  /* \documentclass 那一行只對懂 LaTeX 的人有用，放在「更多設定」最後，旁邊是「恢復預設」。 */
+  parts.push('<div class="cp171-s-foot"><code class="cp171-s-cls"></code>'
+    + '<button type="button" class="ekp-link" id="cps-reset">' + escH(pickL(L('這份文件恢復預設版面', 'Reset this document to the default layout'))) + '</button></div>');
+  if (moreOpened) parts.push('</div></details>');
   parts.push('</div>');
-  parts.push('<code class="cp171-s-cls"></code>');
-
   root.innerHTML = parts.join('\n');
   scroller.appendChild(root);
 
@@ -673,6 +556,7 @@ function build(){
     pop = document.createElement('div');
     pop.id = 'cp171-s-pop';
     pop.setAttribute('data-cp171', '');
+    pop.setAttribute('role', 'tooltip');
     pop.hidden = true;
     document.body.appendChild(pop);
   }
@@ -681,15 +565,12 @@ function build(){
   const scheduleClose = () => { clearTimeout(popTimer); popTimer = setTimeout(() => { if (!pinned) pop.hidden = true; }, 250); };
   const keepOpen = () => clearTimeout(popTimer);
 
-  /* 說明文是雙語結構 [中文, English]，依目前語言挑一個；
-     不走 i18n 字典（見 OPTION_DOCS 上方的說明）。 */
+  /* 說明文是雙語結構 [中文, English]，依目前語言挑一個（見 OPTION_DOCS 上方的說明）。 */
   function infoHTML(key, label){
     const d = OPTION_DOCS[key]; if (!d) return '';
-    let en = false;
-    try { const I = K.need('i18n'); en = !!(I && I.isEN && I.isEN()); } catch (_) {}
+    const en = lang() === 'en';
     const pick = v => Array.isArray(v) ? (en && v[1] ? v[1] : v[0]) : v;
-    const esc = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    const out = ['<h4>' + esc(label) + '</h4>'];
+    const out = ['<h4>' + escH(label) + '</h4>'];
     if (d.what) out.push('<p>' + pick(d.what) + '</p>');
     if (d.opts && d.opts.length) {
       out.push('<dl>');
@@ -699,27 +580,25 @@ function build(){
     if (d.when) out.push('<p class="when"><b>' + (en ? 'When to change it: ' : '什麼時候要改：') + '</b>' + pick(d.when) + '</p>');
     return out.join('');
   }
-
   function openPop(btn){
     const key = btn.getAttribute('data-info');
-    const label = (btn.parentNode && btn.parentNode.textContent || '').replace(/i$/, '').trim();
-    const html = infoHTML(key, label);
+    const it = GROUPS.reduce((a, g) => a || g.items.find(x => x.k === key), null);
+    const html = infoHTML(key, it ? pickL(it.label) : key);
     if (!html) return;
     pop.innerHTML = html;
     pop.hidden = false;
-    /* 定位：優先放在按鈕右側，右邊空間不夠就翻到左側；垂直方向夾在視窗內。 */
+    /* 優先放在按鈕右側，右邊空間不夠就翻到左側；垂直方向夾在視窗內。 */
     const r = btn.getBoundingClientRect();
     const w = 340, gap = 10;
     let x = r.right + gap;
     if (x + w > window.innerWidth - 12) x = Math.max(12, r.left - gap - w);
     pop.style.left = x + 'px';
-    pop.style.width = w + 'px';
+    pop.style.width = Math.min(w, window.innerWidth - 24) + 'px';
     const h = pop.offsetHeight || 240;
-    let y = r.top - 8;
+    let y = Math.max(12, r.top - 8);
     if (y + h > window.innerHeight - 12) y = Math.max(12, window.innerHeight - 12 - h);
     pop.style.top = y + 'px';
   }
-
   root.addEventListener('mouseover', e => {
     const b = e.target && e.target.closest && e.target.closest('.cp171-s-info');
     if (b) { keepOpen(); openPop(b); }
@@ -729,54 +608,54 @@ function build(){
   });
   root.addEventListener('click', e => {
     const b = e.target && e.target.closest && e.target.closest('.cp171-s-info');
-    if (!b) return;
-    e.preventDefault(); e.stopPropagation();
-    if (!pop.hidden && pinned && pop.getAttribute('data-for') === b.getAttribute('data-info')) { closePop(); return; }
-    openPop(b); pinned = true; pop.setAttribute('data-for', b.getAttribute('data-info'));
+    if (b) {
+      /* 「i」在開關列的 <label> 裡：取消預設動作，免得點說明時順便切換開關。 */
+      e.preventDefault(); e.stopPropagation();
+      if (!pop.hidden && pinned && pop.getAttribute('data-for') === b.getAttribute('data-info')) { closePop(); return; }
+      openPop(b); pinned = true; pop.setAttribute('data-for', b.getAttribute('data-info'));
+      return;
+    }
+    const seg = e.target && e.target.closest && e.target.closest('.ekp-seg-btn');
+    if (seg) {
+      const group = seg.parentNode, k = group.getAttribute('data-key');
+      group.querySelectorAll('.ekp-seg-btn').forEach(x => x.setAttribute('aria-checked', x === seg ? 'true' : 'false'));
+      set(k, seg.getAttribute('data-value'));
+      if (['revtexColumns'].includes(k)) sync();
+    }
   });
   pop.addEventListener('mouseenter', keepOpen);
   pop.addEventListener('mouseleave', scheduleClose);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
-  scroller.addEventListener('scroll', () => { if (!pinned) pop.hidden = true; }, { passive: true });
-
-
-  /* 同上：設定面板的標籤與說明也交給 i18n 層。 */
-  try { const i18n = K.need('i18n'); if (i18n) i18n.watch(root); } catch (_) {}
+  /* 1.2.8（審查）：釘住的說明泡泡在點別處、關閉版面設定或打開對話框時都要收起，不能留在畫面上。 */
+  document.addEventListener('mousedown', e => {
+    if (pop.hidden) return;
+    if (pop.contains(e.target) || (e.target.closest && e.target.closest('.cp171-s-info'))) return;
+    closePop();
+  }, true);
+  K.on && K.on('settings:close', closePop);
+  root.addEventListener('scroll', () => { if (!pinned) pop.hidden = true; }, { passive: true });
 
   root.addEventListener('change', e => {
     const t = e.target;
-    if (t && t.id === 'cps-engine-toggle') { toggleEngine(t.checked); return; }
     const k = t && t.getAttribute && t.getAttribute('data-key');
     if (!k) return;
     if (t.type === 'checkbox') set(k, t.checked);
     else set(k, t.value);
     // 改學會要立刻重建期刊清單（並在必要時把非法期刊改成合法值）
     if (k === 'revtexSociety') syncJournalOptions();
-    if (['revtexMode','revtexSociety','revtexPaper','revtexColumns','revtexFontSize'].includes(k)) sync();
+    if (['revtexMode','revtexSociety','revtexPaper','revtexColumns','revtexFontSize','revtexJournal'].includes(k)) sync();
   });
   root.addEventListener('input', e => {
     const t = e.target;
     if (t && t.type === 'text' && t.getAttribute('data-key')) set(t.getAttribute('data-key'), t.value);
   });
 
-  root.querySelector('#cps-recompile').onclick = () => { const O = K.need('orch'); if (O) O.compile(); };
-  root.querySelector('#cps-back').onclick = () => close();
   root.querySelector('#cps-reset').onclick = () => {
     try {
       const D = K.registry && K.registry.revtexDocumentSettings;
       if (D && D.resetRuntime) {
         D.resetRuntime();
         if (D.runtimeChanged) D.runtimeChanged('layout-panel-reset');
-      } else {
-        const d = { revtexMode:'reprint', revtexColumns:'twocolumn', revtexPaper:'letterpaper',
-          revtexFontSize:'auto', revtexCitation:'numerical', revtexSides:'twoside',
-          revtexAddress:'superscriptaddress', revtexLongBibliography:true, revtexEprint:true,
-          revtexBalanceLastPage:true, revtexFloatFix:true, revtexTightenLines:false,
-          revtexDraft:false, revtexLineNumbers:false, revtexExtraOptions:'',
-          revtexTitlePage:'auto', revtexEndfloats:'inline',
-          revtexBottomAlign:'flushbottom', revtexAltaffilStyle:'symbol' };
-        for (const [k, v] of Object.entries(d)) settings[k] = v;
-        if (typeof normalizeRevtexSettings === 'function') normalizeRevtexSettings();
       }
       if (typeof revtexApplyThemeProfile === 'function') revtexApplyThemeProfile();
       if (typeof persist === 'function') persist();
@@ -785,6 +664,7 @@ function build(){
   };
 
   sync();
+  try { if (window.__EKD_GLIDE__ && window.__EKD_GLIDE__.attach) window.__EKD_GLIDE__.attach(); } catch (_) {}
   K.log.info('revtexSettings', '設定面板已建立（' + GROUPS.reduce((a, g) => a + g.items.length, 0) + ' 項）');
   return root;
 }
@@ -818,52 +698,23 @@ function sync(){
     if (!el) continue;
     const v = get(it.k);
     if (it.type === 'bool') el.checked = !!v;
+    else if (it.type === 'seg') el.querySelectorAll('.ekp-seg-btn').forEach(b => b.setAttribute('aria-checked', String(v) === b.getAttribute('data-value') ? 'true' : 'false'));
     else if (v !== undefined && v !== null) el.value = String(v);
   }
-  syncEngineRow();
   syncJournalOptions();
   refreshClassLine();
 }
 
 /** main.tex 產生方式那一列的開關與說明文字。 */
-function syncEngineRow(){
-  if (!root) return;
-  const cb = root.querySelector('#cps-engine-toggle');
-  const note = root.querySelector('#cps-engine-note');
-  if (!cb) return;
-  const on = !!K.flags().takeoverTex;
-  cb.checked = on;
-  if (!note) return;
-  const T = K.need('takeover');
-  const last = T ? T.getLast() : null;
-  if (!on) {
-    note.textContent = '目前：既有發射器（相容既有文件；不受本面板設定影響）';
-    note.style.color = '';
-  } else if (last && last.ok) {
-    note.textContent = '目前：CP171 發射器（已生效，' + last.tex.split('\n').length + ' 行）';
-    note.style.color = '';
-  } else if (last && !last.ok) {
-    note.textContent = '已開啟，但這份文件的 frontmatter／摘要用的是舊語法，'
-      + 'CP171 發射器讀不出標題等必要欄位，已自動退回既有發射器（不會產出壞檔）。'
-      + '換成新語法（```yaml + ## Abstract）就能真正切換。';
-    note.style.color = 'var(--status-warn,#c9862a)';
-  } else {
-    note.textContent = '已開啟，尚未編譯過，無法判斷是否生效——按一次「編譯」看結果。';
-    note.style.color = '';
-  }
-}
 
-function toggleEngine(on){
-  const T = K.need('takeover');
-  if (T) T.enable(on); else K.setFlag('takeoverTex', on);
-  syncEngineRow();
-  scheduleRecompile();
-}
 
 function show(){
   if (!build()) return false;
   sync();
   document.body.classList.add('cp171-settings-open');
+  /* 1.2.8：直接呼叫 show()（網站導覽、偏好設定的「開啟版面設定」）時，右上角的切換鈕也要跟著變成「回到編輯」。 */
+  const tb = document.getElementById('cp171-left-toggle');
+  if (tb) { tb.setAttribute('data-on', '1'); tb.textContent = pickL(L('回到編輯', 'Back to editing')); }
   /* 減量模式的淡入由 WAAPI 驅動：主程式的全域減量政策
      （@media reduce{*{animation:none!important;transition:none!important}}）
      會蓋掉任何非 !important 的 CSS 減量變體，這是 10.2–10.3 四種 CSS
@@ -885,7 +736,7 @@ function close(){
   document.body.classList.remove('cp171-settings-open');
   open = false;
   const b = document.getElementById('cp171-left-toggle');
-  if (b) { b.setAttribute('data-on', '0'); b.textContent = '版面設定'; }
+  if (b) { b.setAttribute('data-on', '0'); b.textContent = pickL(L('版面設定', 'Layout settings')); }
   K.emit('settings:close', {});
   return false;
 }
@@ -896,6 +747,7 @@ K.register('revtexSettings', {
   show, close, toggle, sync,
   isOpen: () => open,
   groups: () => GROUPS,
+  journals: () => JOURNALS_BY_SOCIETY,
   keyCount: GROUPS.reduce((a, g) => a + g.items.length, 0)
 });
 K.log.info('revtexSettings', 'CP171 REVTeX 版面設定面板就緒');

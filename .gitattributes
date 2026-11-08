@@ -1,5 +1,6 @@
-# Ekdeta.html is a deterministic generated single-file product. Some embedded
+# EKdelta.html (Ekdeta.html before 1.2.5) is a deterministic generated single-file product. Some embedded
 # upstream vendor CSS/JS preserves upstream trailing spaces byte-for-byte.
 Ekdeta.html -whitespace
+EKdelta.html -whitespace
 source/src/scripts/*.js -whitespace
 third_party/** -whitespace

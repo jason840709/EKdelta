@@ -1,11 +1,11 @@
 #!/bin/bash
-# v1.2.5 真 Engine + direct-package-url + blob_storage 真機 gate。
-# 完全不修改正式 Ekdeta profile：測試用臨時 userData，只 symlink 真 Engine Pack。
+# v1.2.7 真 Engine + direct-package-url + blob_storage 真機 gate。
+# 完全不修改正式 EKdelta profile：測試用臨時 userData，只 symlink 真 Engine Pack。
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 clear
-printf '%s\n' 'Ekdeta 1.2.5 — 真實 LaTeX Engine / blob_storage 驗證'
+printf '%s\n' 'EKdelta 1.2.7 — 真實 LaTeX Engine / blob_storage 驗證'
 printf '專案：%s\n\n' "$ROOT"
 
 if [ "$(uname -s)" != "Darwin" ]; then
@@ -16,7 +16,7 @@ if [ ! -x node_modules/.bin/electron ]; then
   echo '找不到專案本地 Electron。請先雙擊「製作 macOS 安裝包.command」建立建置環境。'
   read -r -p '按 Enter 關閉…'; exit 3
 fi
-ENGINE="$HOME/Library/Application Support/Ekdeta/engine"
+ENGINE="$HOME/Library/Application Support/EKdelta/engine"
 echo "真 Engine：$ENGINE"
 if [ ! -d "$ENGINE" ]; then
   echo 'FAIL：找不到已安裝的 Engine Pack。'

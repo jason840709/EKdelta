@@ -1,11 +1,11 @@
 {
   "version": "1.2.5",
-  "passed": 82,
-  "total": 82,
+  "passed": 83,
+  "total": 83,
   "all_green": true,
   "cases": [
     {
-      "name": "product name = Ekdeta",
+      "name": "product name = EKdelta Desktop",
       "ok": true,
       "detail": ""
     },
@@ -20,9 +20,9 @@
       "detail": ""
     },
     {
-      "name": "shell version = 1.2.5",
+      "name": "shell version = 1.2.8",
       "ok": true,
-      "detail": "1.2.5"
+      "detail": "1.2.8"
     },
     {
       "name": "electron direct version pinned",
@@ -72,7 +72,7 @@
     {
       "name": "factory HTML = package version",
       "ok": true,
-      "detail": "1.2.5"
+      "detail": "1.2.8"
     },
     {
       "name": "factory HTML matches root artifact",
@@ -220,12 +220,12 @@
       "detail": ""
     },
     {
-      "name": "installer/安裝 Ekdeta.command bash -n",
+      "name": "installer/安裝 EKdelta Desktop.command bash -n",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "installer/安裝 Ekdeta.command executable",
+      "name": "installer/安裝 EKdelta Desktop.command executable",
       "ok": true,
       "detail": "0o755"
     },
@@ -280,12 +280,17 @@
       "detail": "0o755"
     },
     {
-      "name": "application uses Ekdeta data directory",
+      "name": "application name EKdelta Desktop, data folder chosen by profile.js before ready",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "scheme = ekdeta",
+      "name": "profile keeps existing folders and their scheme",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "default scheme ekdeta, settable before ready",
       "ok": true,
       "detail": ""
     },

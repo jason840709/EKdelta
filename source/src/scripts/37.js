@@ -48,7 +48,7 @@ const CSS = `
 #cp171-right-pane .ekd-pv-tools{position:absolute;top:10px;right:16px;z-index:3;display:flex;align-items:center;
   gap:1px;padding:3px;border-radius:var(--mac-radius-control,9px);
   background:var(--mac-glass-strong,rgba(250,250,252,.92));
-  -webkit-backdrop-filter:var(--mac-blur,blur(20px));backdrop-filter:var(--mac-blur,blur(20px));
+  -webkit-backdrop-filter:none;backdrop-filter:none;
   box-shadow:var(--mac-shadow-popover,0 6px 20px rgba(0,0,0,.16)),0 0 0 .5px var(--mac-hairline,rgba(0,0,0,.12));
   font:600 11.5px/1 var(--font-ui,ui-sans-serif,system-ui,sans-serif);color:var(--text-strong,#222);
   font-variant-numeric:tabular-nums}
@@ -63,14 +63,14 @@ const CSS = `
 #cp171-right-pane .ekd-pv-tools label{display:inline-flex;align-items:center;gap:4px;padding:0 4px;
   color:var(--text-muted,#666);font-weight:600}
 #cp171-right-pane .ekd-pv-tools input{width:3.2ch;height:22px;padding:0 3px;box-sizing:content-box;
-  border:1px solid var(--mac-hairline,rgba(0,0,0,.18));border-radius:5px;background:var(--bg-editor,#fff);
+  border:1px solid var(--mac-hairline,rgba(0,0,0,.18));border-radius:var(--r-sm);background:var(--bg-editor,#fff);
   color:var(--text-strong,#222);font:inherit;text-align:center}
-#cp171-right-pane .ekd-pv-tools input:focus{outline:none;box-shadow:var(--mac-focus-ring,0 0 0 3px rgba(53,100,216,.3))}
+#cp171-right-pane .ekd-pv-tools input:focus{outline:none;box-shadow:var(--mac-focus-ring,0 0 0 3px color-mix(in srgb,var(--ui-accent) 30%,transparent))}
 @media (hover: hover) and (pointer: fine){
   #cp171-right-pane .ekd-pv-tools button:hover{background:var(--mac-control-hover,rgba(118,118,128,.16));border:0}
 }
 #cp171-right-pane .ekd-pv-tools button:active{background:var(--mac-control-pressed,rgba(118,118,128,.23));transform:none}
-#cp171-right-pane .ekd-pv-tools button:focus-visible{outline:none;box-shadow:var(--mac-focus-ring,0 0 0 3px rgba(53,100,216,.3))}
+#cp171-right-pane .ekd-pv-tools button:focus-visible{outline:none;box-shadow:var(--mac-focus-ring,0 0 0 3px color-mix(in srgb,var(--ui-accent) 30%,transparent))}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   #cp171-right-pane .ekd-pv-tools{background:var(--bg-panel,#f6f6f8)}
 }

@@ -24,7 +24,10 @@ const { Readable } = require('node:stream');
 const { protocol } = require('electron');
 const store = require('./store');
 
-const SCHEME = 'ekdeta';
+/* 1.2.7：協定由 profile.js 依使用者資料夾決定（新安裝 ekdeta，舊 Typora HTML 資料夾沿用 typora），
+   main.js 在 ready 之前呼叫 setScheme。 */
+let SCHEME = 'ekdeta';
+function setScheme(s) { if (/^[a-z][a-z0-9+.-]*$/.test(String(s || ''))) SCHEME = String(s); }
 const HOST = 'app';
 
 const MIME = {
@@ -145,4 +148,4 @@ function install(logger) {
   });
 }
 
-module.exports = { SCHEME, HOST, registerScheme, install, indexUrl: () => `${SCHEME}://${HOST}/app.html` };
+module.exports = { get SCHEME() { return SCHEME; }, setScheme, HOST, registerScheme, install, indexUrl: () => `${SCHEME}://${HOST}/app.html` };

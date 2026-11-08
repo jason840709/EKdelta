@@ -1,5 +1,67 @@
 [
   {
+    "v": "1.2.8 · 調色盤、論文工具、版面設定與偏好設定重做，桌面版改名 EKdelta Desktop",
+    "d": "2026.11",
+    "items": [
+      "字體顏色的調色盤照 Word 的排法重做：一列基本色，下面同色由淡到深相連成色帶；色塊不再印看不到的色碼，滑過才顯示名稱與色碼。新增「移除文字顏色」；「其他顏色」改在同一個浮層裡切換。",
+      "字色按鈕的 A 放大、和下方色條靠近，色條保留圓角。",
+      "格式列右側的 REV、TW 論文工具重做：左邊依寫論文的順序分類，右邊是表單。文件裡已有的標題與作者、摘要、致謝、參考文獻、封面、審定書、關鍵字會先讀進表單，按「更新」直接改原本那一份，不會再多插一份；目錄、附錄已存在時改成「跳到該處」。",
+      "引用可以直接勾選文件裡的參考文獻；交叉引用可以挑文件裡設過標籤的圖、表、公式與章節。參考文獻用名稱（而不是編號）標示時，引用也會用名稱。",
+      "修正：臺灣論文的圖說改成排版認得的「圖 2.1：」寫法，會進圖目錄；插圖的圖說換行不再讓圖消失；在表單裡打字後，內容插回原本的游標位置，不會跑到文件最後。",
+      "國際論文模式只顯示 REV，臺灣論文模式只顯示 TW。",
+      "國際論文左半邊的「版面設定」改成和偏好設定同一套外觀：上面是投稿目標與常用項目，其餘收在「更多設定」；說明泡泡的內容和選項對齊。",
+      "偏好設定分成一般、圖片、字體、臺灣論文、國際論文五類。國際論文頁可以指定新論文的預設期刊、排版模式與紙張，並直接打開這份文件的版面設定；臺灣論文頁可以切換電子版或紙本雙面。匯出 LaTeX 時「表格用三線表」「程式碼標註語言」兩個選項，從「檔案」選單移到偏好設定「一般」。",
+      "其他視窗統一外觀：關閉檔案、圖片讀不到原檔、PDF 診斷、分批匯出 PDF、表格格線、快速開啟與公式輸入的符號鍵；「檔案」選單的匯出項目依格式分組；介面中文的標點改成全形。",
+      "桌面版改名「EKdelta Desktop」，Dock 會顯示新圖示（安裝時把舊名稱的 App 移到垃圾桶；Dock 上的舊釘選要重新釘一次）。"
+    ],
+    "v_en": "1.2.8 · Redesigned colour palette, paper tools, layout settings and Preferences; the desktop app is now EKdelta Desktop",
+    "items_en": [
+      "The text colour palette follows Word's layout: one row of base colours with lighter and darker shades joined below; swatches no longer carry unreadable hex codes (hover to see the name and code). New: Remove text color. More colors… now opens inside the same popover.",
+      "The text colour button shows a larger A right above the rounded colour bar.",
+      "The REV and TW paper tools at the right of the format bar were rebuilt: categories in writing order on the left, the form on the right. Title and authors, abstract, acknowledgments, references, cover, approval page and keywords that already exist are read into the form, and Update edits them in place instead of inserting a second copy; Contents and Appendix markers that already exist offer Go to it.",
+      "Citations can be picked from the document's references; cross-references can be picked from labelled figures, tables, equations and sections. When references are named rather than numbered, citations use the names too.",
+      "Fixes: Taiwan thesis captions now use the form the layout recognises (Figure 2.1:) and appear in the List of Figures; a line break in a figure caption no longer drops the figure; text inserted from the form goes back to the cursor instead of the end of the document.",
+      "International paper mode shows only REV; Taiwan thesis mode shows only TW.",
+      "Layout settings in the international paper mode now look like Preferences: target journal and common options on top, the rest under More settings; the help popups match the options.",
+      "Preferences has five pages: General, Images, Fonts, Taiwan thesis and International papers. The International page sets the default journal, layout and paper for new papers and opens this document's layout settings; the Taiwan thesis page switches between the digital and two-sided print versions. The two LaTeX export options (booktabs tables, listings for code) moved from the File menu to General.",
+      "Other windows share one look: closing a file, images whose files cannot be read, PDF diagnostics, batch PDF export, the table grid, Quick Open and the formula symbols. Export items in the File menu are grouped by format; Chinese UI text uses full-width punctuation.",
+      "The desktop app is renamed EKdelta Desktop and the Dock shows the new icon (the installer moves the old-named app to the Trash; re-pin it in the Dock if you had pinned it)."
+    ]
+  },
+  {
+    "v": "1.2.7 · Checkpoint 187 · 介面統一、偏好設定重新設計、新圖示",
+    "d": "2026.11",
+    "items": [
+      "整個介面改用同一套顏色、字級、圓角與動畫：顏色降低飽和度，選單、提示與對話框用同一種底色和陰影，拿掉毛玻璃；切換分頁、選取檔案時，底色平順滑到新位置。",
+      "「羊皮紙」主題換成「苔灰」，比較不刺眼；原本用羊皮紙的設定會自動換成苔灰。",
+      "側欄、工具列、狀態列與國際論文右半邊之間的分隔線改清楚，一眼看得出分區。",
+      "偏好設定重新設計：分成一般、圖片、字體、論文四類，只留設定一次就不常動的項目，外觀和主畫面一致。焦點模式、打字機模式、頁面縮放與顯示工具列在「顯示」選單。",
+      "國際期刊的期刊、欄數、紙張等，在國際論文左半邊右上角的「版面設定」調整：最上面只放五個常用項目，其餘收在「更多設定」。",
+      "工具列與標題列的圖示重畫成同一套，大小、線寬與位置一致；刪除線、行內程式碼與字級按鈕更好認。",
+      "所有可以捲動的地方都看得到捲軸；國際論文左右分割時，中間不再有一條白線。",
+      "視窗窄於 700 像素（手機或分割畫面）時，左側檔案欄自動收起，按側欄按鈕從左邊滑出。",
+      "國際論文：直接貼上的圖片會印在 PDF 上，也會放進匯出的 .zip；GIF、WebP、SVG 會先轉成 PNG。",
+      "拿掉時鐘與裝飾用的紅黃綠視窗鈕；「寬版頁面」移到「顯示」選單。「自訂工具列」與「匯出 REVTeX 專案」的視窗改得更簡單。",
+      "清掉沒有入口的舊程式與「TeX 精確校樣」舊視窗；編譯前不再多做一次一定失敗的連線，瀏覽器不會因此詢問是否允許存取本機裝置。",
+      "Mac 桌面版改名 EKdelta、換上新圖示，原本的文件與設定照常沿用。"
+    ]
+  },
+  {
+    "v": "1.2.6 · Checkpoint 186 · 論文資料區塊自動換行、純數字行內公式",
+    "d": "2026.11",
+    "items": [
+      "revtex-／twthesis- 開頭的論文資料區塊（作者與單位、摘要、版面設定、封面等）在編輯畫面自動換行，不再一行到底、需要左右拉捲軸；區塊名稱不再蓋住第一行。一般程式碼區塊維持不換行。",
+      "國際論文 PDF 中，$333$ 這類只有數字的行內公式正確排成公式（原本被當成金額照原文印出）；「$5 and $10」這類金額寫法仍照原文。",
+      "格式工具列兩排還放不下時，收起的工具放在第二排末尾的小「⋯」：滑鼠移過去就彈出小框，用原本的圖示排列，滑過圖示一樣顯示名稱；拖動視窗寬度時，格式列不再在兩排與三排之間閃爍。",
+      "國際論文：右側預覽、「下載 .tex」、主選單「匯出 LaTeX」、REVTeX 專案 .zip、TeX 校樣與 PDF 匯出改由同一個轉換產生，不會再拿到彼此不同的 main.tex；「下載 .tex」給的是目前的內容。設定面板的「使用 CP171 發射器」開關因此移除。",
+      "國際論文：標題、摘要、關鍵字、致謝、圖表說明、表格、腳註與書目裡的數學、粗斜體和引用都正確轉換；p < 0.05、a | b、直引號、直接打的希臘字母與 ≤ 等符號正確印出，emoji 等無法排版的字元會拿掉並提醒；行內程式碼放在粗體、標題、表格或腳註裡不再讓整份編譯失敗。",
+      "單字中間的底線（snake_case、file_name）不再變成斜體，左邊畫面與 PDF 一致；「$5,$10」這類金額在左邊畫面也照原文顯示；\\(…\\)、句中的 $$…$$ 與 ```math 區塊都排成公式。",
+      "國際論文的參考文獻依正文第一次引用的順序編號（APS 慣例）；[@key, p. 3] 印出頁碼；有腳註又用手寫書目時，腳註不再印成 [?]；PRL 這類不編章節號的期刊，章節引用改印章節標題。",
+      "國際論文公式：在收尾的 $$ 後面寫 {-} 就是不編號的公式；{#eq:名稱} 寫在收尾 $$ 前後都可以，align、multline 等環境也會加上標籤；split 不再編譯失敗。revtex-wide 區塊裡的表格變成有編號、可引用的跨欄表。",
+      "匯出的 .tex 與 .zip 是 APS 投稿版：不含 APS 作者指南不允許的 \\sbox、\\IfFileExists、\\resizebox 等寫法，寬公式與寬表格依右側最近一次編譯量到的結果直接寫出折行或跨欄。"
+    ]
+  },
+  {
     "v": "1.2.5 · Checkpoint 185 · 國際論文即時編譯穩定性",
     "d": "2026.11",
     "items": [

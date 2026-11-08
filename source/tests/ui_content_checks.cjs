@@ -15,9 +15,9 @@ function fn(source, name) {
 for (const en of [false, true]) {
   let body = '';
   vm.runInNewContext(fn(main,'showAbout')+'\nshowAbout();', {
-    isEN: () => en, APP_VERSION: '1.2.5', showModal: s => { body = s; }
+    isEN: () => en, APP_VERSION: '1.2.8', showModal: s => { body = s; }
   }, {timeout:1000});
-  for (const text of ['Jason Chen', 'EKdelta', 'Markdown', 'REVTeX', 'ekd-', 'delta', 'δ', '1.2.5']) assert(body.includes(text), `About missing ${text}`);
+  for (const text of ['Jason Chen', 'EKdelta', 'Markdown', 'REVTeX', 'ekd-', 'delta', 'δ', '1.2.8']) assert(body.includes(text), `About missing ${text}`);
   assert(!body.includes('Ekdeta Contributors'));
   assert(body.includes(en ? 'publication' : '書寫走向發表'));
 }

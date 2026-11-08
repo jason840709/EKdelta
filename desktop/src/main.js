@@ -1,5 +1,5 @@
 /* ============================================================================
- * main.js — Ekdeta 桌面殼主行程
+ * main.js — EKdelta 桌面殼主行程（1.2.6 以前名為 Ekdeta，更早為 Typora HTML）
  *
  * 這支要做的事只有四件，任何一件失敗都不能讓 app 開不起來：
  *   1. 用 ekdeta:// 供應目前選定的 HTML 與引擎目錄
@@ -27,7 +27,16 @@ const DEV = process.argv.includes('--dev');
    拿到的是 "Electron"，與 `npm start` 不同 —— 那代表同一台機器上
    使用者的 HTML 版本庫與 232MB 引擎會散在兩個目錄裡，看起來像「檔案不見了」。
    在這裡設一次，所有啟動方式共用同一個資料夾。 */
-app.setName('Ekdeta');
+/* 1.2.8（M39）：App 名稱改為「EKdelta Desktop」；使用者資料夾仍由 profile.js 決定，不受 App 名稱影響。 */
+app.setName('EKdelta Desktop');
+
+/* ★ 1.2.7：產品改名 EKdelta，但不搬任何檔案。沿用已存在的舊使用者資料夾
+   （Ekdeta 或更早的 Typora HTML），也沿用那個資料夾原本的網頁協定——使用者的文件
+   與設定存在瀏覽器儲存區，綁在「協定＋主機」上，換協定就讀不到舊文件。見 profile.js。
+   必須在 ready 之前設定好資料夾與協定。 */
+const profile = require('./profile').resolve(app.getPath('appData'));
+app.setPath('userData', profile.dir);
+proto.setScheme(profile.scheme);
 
 let win = null;
 let cfg = null;
@@ -122,7 +131,7 @@ async function onPageReady() {
   try {
     const info = await wc.executeJavaScript('__EKDETA_SHELL__.info()', true);
     lang = (info && info.lang) || 'zh';
-    if (info && info.appVersion) win.setTitle('Ekdeta ' + info.appVersion);
+    if (info && info.appVersion) win.setTitle('EKdelta ' + info.appVersion);
     log('page info', info);
   } catch (e) {}
 
@@ -222,7 +231,7 @@ function ctx() {
 
 async function cmdImportHtml() {
   const r = await dialog.showOpenDialog(win, {
-    title: '選擇新版的 Ekdeta 產物',
+    title: '選擇新版的 EKdelta 產物',
     filters: [{ name: 'HTML', extensions: ['html', 'htm'] }],
     properties: ['openFile']
   });
@@ -365,7 +374,7 @@ async function showOnboarding(force) {
   if (eng.installed) {
     const done = await dialog.showMessageBox(win, {
       type: 'info',
-      message: T('歡迎使用 Ekdeta', 'Welcome to Ekdeta'),
+      message: T('歡迎使用 EKdelta Desktop', 'Welcome to EKdelta Desktop'),
       detail: T(
         '程式已可使用，LaTeX 引擎也已安裝。\n\n目前版本：' + htmlName +
         '\n\n之後要更新程式內容，不必重新安裝 App：從「桌面殼 → HTML 版本 → 匯入新版 HTML…」即可。',
@@ -382,7 +391,7 @@ async function showOnboarding(force) {
 
   const r = await dialog.showMessageBox(win, {
     type: 'info',
-    message: T('歡迎使用 Ekdeta', 'Welcome to Ekdeta'),
+    message: T('歡迎使用 EKdelta Desktop', 'Welcome to EKdelta Desktop'),
     detail: T(
       '一般 Markdown、表格、MathLive 公式可以直接使用，不需要先裝任何東西。\n\n' +
       '只有在要編譯 REVTeX / LaTeX PDF 時才需要 Engine Pack。你現在可以安裝，也可以先開始寫作。\n\n' +
@@ -427,7 +436,7 @@ function cmdAbout() {
   const st = store.engineStatus();
   dialog.showMessageBox(win, {
     type: 'info',
-    message: 'Ekdeta 桌面殼 v' + SHELL_VERSION,
+    message: 'EKdelta Desktop v' + SHELL_VERSION,
     detail: [
       'Electron ' + process.versions.electron + '　Chromium ' + process.versions.chrome,
       '',

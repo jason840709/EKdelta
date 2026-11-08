@@ -15,8 +15,9 @@ say "打包產物 dist/"          "$(sz dist)"
 echo
 echo "===== 使用者資料（app 執行後才會有）====="
 case "$(uname -s)" in
-  Darwin) UD="$HOME/Library/Application Support/Ekdeta" ;;
-  *)      UD="${XDG_CONFIG_HOME:-$HOME/.config}/Ekdeta" ;;
+  Darwin) UD="$HOME/Library/Application Support/EKdelta"
+          for n in EKdelta Ekdeta "Typora HTML"; do [ -d "$HOME/Library/Application Support/$n" ] && { UD="$HOME/Library/Application Support/$n"; break; }; done ;;
+  *)      UD="${XDG_CONFIG_HOME:-$HOME/.config}/EKdelta" ;;
 esac
 say "資料夾"                 "$UD"
 say "HTML 版本庫"            "$(sz "$UD/html")"

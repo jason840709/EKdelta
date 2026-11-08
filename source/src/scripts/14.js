@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 if (window.__CP170B_THEME_MODE__) return;
-const VISUALS = Object.freeze(['github','night','sepia','blackout','blackoutgame']);
+const VISUALS = Object.freeze(['github','night','moss','blackout','blackoutgame']);
 const MODES = Object.freeze(['markdown','paper','twthesis','twthesis-en','revtex']);
 const coreMenuDefs = menuDefs;
 const coreSetTheme = setTheme;
@@ -12,7 +12,8 @@ const DARK_VISUALS = new Set(['night','blackout','blackoutgame']);
 const appliedPaletteProps = new Set();
 let paletteCache = null;
 function legacyVisual(){
-  if (settings.theme==='blackout'||settings.theme==='blackoutgame'||settings.theme==='sepia') return settings.theme;
+  if (settings.theme==='sepia') return 'moss';   // 1.2.7：苔灰取代羊皮紙
+  if (settings.theme==='blackout'||settings.theme==='blackoutgame'||settings.theme==='moss') return settings.theme;
   if (settings.theme==='github') return settings.dark ? 'night' : 'github';
   return settings.dark ? 'night' : 'github';
 }
@@ -24,6 +25,7 @@ function legacyMode(){
   return 'markdown';
 }
 function ensureState(){
+  if (settings.cp170VisualTheme === 'sepia') settings.cp170VisualTheme = 'moss';   // 1.2.7：苔灰取代羊皮紙
   if (!VISUALS.includes(settings.cp170VisualTheme)) settings.cp170VisualTheme = legacyVisual();
   if (!MODES.includes(settings.cp170Mode)) settings.cp170Mode = legacyMode();
   return {visual:settings.cp170VisualTheme,mode:settings.cp170Mode};
@@ -117,12 +119,13 @@ function rebindSunMoon(){
 function themeItems(){ const v=ensureState().visual; return [
   {t:'GitHub',cmd:()=>setVisualTheme('github'),check:v==='github'},
   {t:'Night',cmd:()=>setVisualTheme('night'),check:v==='night'},
-  {t:TT('羊皮紙','Sepia'),cmd:()=>setVisualTheme('sepia'),check:v==='sepia'},
+  {t:TT('苔灰','Moss'),cmd:()=>setVisualTheme('moss'),check:v==='moss'},
   {t:'Blackout',cmd:()=>setVisualTheme('blackout'),check:v==='blackout'},
   {t:'Blackout Game',cmd:()=>setVisualTheme('blackoutgame'),check:v==='blackoutgame'},
 ];}
 function modeItems(){ const m=ensureState().mode; return [
-  {t:TT('Markdown 模式','Markdown Mode'),cmd:()=>setMode('markdown'),check:m==='markdown'},
+  /* 國際論文模式時 mode 仍是 markdown（左半邊照常打 Markdown），但選單只勾目前真正的模式（1.2.7 審查 S11） */
+  {t:TT('Markdown 模式','Markdown Mode'),cmd:()=>setMode('markdown'),check:m==='markdown'&&!(window.__CP171__&&window.__CP171__.isIntlMode())},
   {sep:true},
   {t:TT('臺灣論文（中文）','Taiwan Thesis (Chinese)'),cmd:()=>setMode('twthesis'),check:m==='twthesis'},
   {t:TT('　├ 電子版 1（精簡版面）','　├ Digital 1 (compact)'),cmd:()=>modeChineseVariant('compact'),check:m==='twthesis'&&!settings.twthesisPrint&&settings.twthesisDigitalStyle==='compact'},

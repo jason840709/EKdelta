@@ -20,7 +20,7 @@
     <td align="center">
       <strong>Where the name “EKdelta” comes from</strong><br><br>
       <em>EKdelta</em> combines <strong>ekd-</strong>, a Greek root associated with publishing and bringing written work to the public, with <strong>delta (δ)</strong>, the Greek letter science uses for change. Together, they describe the path from a Markdown manuscript to a polished thesis or journal paper.<br><br>
-      <sub>Versions 1.2.2–1.2.3 were named Ekdeta, and earlier versions Typora HTML; it is the same program. The desktop app is called EKdelta Desktop from 1.2.8.</sub>
+      <sub>Versions 1.2.2–1.2.3 were named Ekdeta; it is the same program. The desktop app is called EKdelta Desktop from 1.2.8.</sub>
     </td>
   </tr>
 </table>
